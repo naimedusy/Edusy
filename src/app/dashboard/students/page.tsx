@@ -341,13 +341,13 @@ export default function StudentManagementPage() {
 
     return (
         <div className="p-4 md:p-8 space-y-8 animate-fade-in-up font-bengali">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tight font-sans">শিক্ষার্থী ব্যবস্থাপনা</h1>
-                    <p className="text-slate-500 font-medium">আপনার প্রতিষ্ঠানের শিক্ষার্থীদের তথ্য পরিচালনা করুন।</p>
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                <div className="space-y-1">
+                    <h1 className="text-2xl md:text-3xl font-black text-slate-800 uppercase tracking-tight font-sans">শিক্ষার্থী ব্যবস্থাপনা</h1>
+                    <p className="text-slate-500 text-sm md:text-base font-medium">আপনার প্রতিষ্ঠানের শিক্ষার্থীদের তথ্য পরিচালনা করুন।</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="relative w-full md:w-64">
+                <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative flex-1 min-w-[200px] md:w-64">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                         <input
                             className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none text-black font-medium shadow-sm"
@@ -365,10 +365,11 @@ export default function StudentManagementPage() {
                     </button>
                     <button
                         onClick={() => setIsAddModalOpen(true)}
-                        className="flex items-center gap-2 px-6 py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95"
+                        className="flex items-center justify-center gap-2 px-4 md:px-6 py-3 md:py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95 flex-1 md:flex-none"
                     >
                         <UserPlus size={20} />
-                        <span>নতুন শিক্ষার্থী</span>
+                        <span className="hidden sm:inline">নতুন শিক্ষার্থী</span>
+                        <span className="sm:hidden">নতুন</span>
                     </button>
                 </div>
             </div>
@@ -393,7 +394,7 @@ export default function StudentManagementPage() {
                                         setSelectedGroupId('all');
                                         setGroups([]);
                                     }}
-                                    className="px-6 py-3 h-full w-full text-left"
+                                    className="px-4 md:px-6 py-2 md:py-3 h-full w-full text-left"
                                 >
                                     সকল ক্লাস
                                 </button>
@@ -429,7 +430,7 @@ export default function StudentManagementPage() {
                                             setSelectedGroupId('all');
                                             fetchGroups(c.id);
                                         }}
-                                        className="px-6 py-3 h-full w-full text-left"
+                                        className="px-4 md:px-6 py-2 md:py-3 h-full w-full text-left"
                                     >
                                         {c.name}
                                     </button>
@@ -509,11 +510,11 @@ export default function StudentManagementPage() {
 
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="w-full text-left border-collapse min-w-[400px]">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
-                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">শিক্ষার্থী</th>
-                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-wider text-right">অ্যাকশন</th>
+                                <th className="px-4 md:px-6 py-3 md:py-4 text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-wider">শিক্ষার্থী</th>
+                                <th className="px-4 md:px-6 py-3 md:py-4 text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-wider text-right">অ্যাকশন</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -533,20 +534,20 @@ export default function StudentManagementPage() {
                                 </tr>
                             ) : students.map((s) => (
                                 <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4 text-black">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-[#045c84] font-black text-lg">
+                                    <td className="px-4 md:px-6 py-3 md:py-4 text-black">
+                                        <div className="flex items-center gap-2 md:gap-3">
+                                            <div className="w-8 h-8 md:w-10 md:h-10 bg-slate-100 rounded-xl flex items-center justify-center text-[#045c84] font-black text-sm md:text-lg">
                                                 {s.name?.[0] || 'S'}
                                             </div>
                                             <div>
-                                                <div className="text-sm font-bold text-slate-800">{s.name || 'নাম নেই'}</div>
-                                                <div className="text-xs text-slate-500">{s.email}</div>
+                                                <div className="text-xs md:text-sm font-bold text-slate-800 line-clamp-1">{s.name || 'নাম নেই'}</div>
+                                                <div className="text-[10px] md:text-xs text-slate-500 line-clamp-1">{s.email}</div>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
-                                            <Edit size={18} />
+                                    <td className="px-4 md:px-6 py-3 md:py-4 text-right">
+                                        <button className="p-1.5 md:p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                                            <Edit size={16} className="md:w-[18px] md:h-[18px]" />
                                         </button>
                                     </td>
                                 </tr>
@@ -563,7 +564,7 @@ export default function StudentManagementPage() {
                 title="নতুন শিক্ষার্থী যুক্ত করুন"
                 maxWidth="max-w-lg"
             >
-                <form onSubmit={handleCreateStudent} className="p-8 space-y-6">
+                <form onSubmit={handleCreateStudent} className="p-5 md:p-8 space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-2">
                             <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পুরো নাম</label>
@@ -736,7 +737,7 @@ export default function StudentManagementPage() {
                 title={editingClass ? "ক্লাস আপডেট করুন" : "নতুন ক্লাস তৈরি করুন"}
                 maxWidth="max-w-md"
             >
-                <form onSubmit={handleQuickClassCreate} className="p-8 space-y-6">
+                <form onSubmit={handleQuickClassCreate} className="p-5 md:p-8 space-y-6">
                     {!editingClass && (
                         <div className="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
                             <span className="text-xs font-black text-slate-500 uppercase tracking-wider ml-2">বাল্ক অ্যাড (Bulk)</span>
@@ -788,7 +789,7 @@ export default function StudentManagementPage() {
                 title="নতুন গ্রুপ যোগ করুন"
                 maxWidth="max-w-md"
             >
-                <form onSubmit={handleQuickGroupCreate} className="p-8 space-y-6">
+                <form onSubmit={handleQuickGroupCreate} className="p-5 md:p-8 space-y-6">
                     <div className="space-y-2">
                         <label className="text-xs font-black text-slate-500 uppercase tracking-wider">গ্রুপের নাম</label>
                         <input
