@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  email       String   @unique
+  password    String
+  name        String?
+  phone       String?  // Added for personal contact info
+  role        Role     @default(STUDENT)
+
+  
+  // Many-to-Many with Institute (Admins can manage multiple)
+  institutes    Institute[] @relation(fields: [instituteIds], references: [id])
+  instituteIds  String[]    @db.ObjectId
+  
+  // Single active/default institute for dashboard
+  defaultInstituteId String? @db.ObjectId
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Institute {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  type        String?  // e.g., "Madrasa", "Kindergarten"
+  address     String?
+  phone       String?
+  email       String?
+  website     String?
+  logo        String?
+  coverImage  String?  // Added for dashboard cover
+  
+  // Many-to-Many with User
+  admins      User[]   @relation(fields: [adminIds], references: [id])
+  adminIds    String[] @db.ObjectId
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  ACCOUNTANT
+  TEACHER
+  GUARDIAN
+  STUDENT
+  DEMO
+}
+

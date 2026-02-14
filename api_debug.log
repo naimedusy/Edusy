@@ -1,0 +1,88 @@
+[2026-02-14T11:36:11.731Z] SIGNUP ATTEMPT: debug@edusy.com (Debug User) [STUDENT]
+[2026-02-14T11:36:11.738Z] ERROR: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].user.create()` invocation in
+F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__89646d5e._.js:118:161
+
+  115         status: 400
+  116     });
+  117 }
+→ 118 const user = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].user.create(
+Prisma needs to perform transactions, which requires your MongoDB server to be run as a replica set. https://pris.ly/d/mongodb-replica-set
+STACK: PrismaClientKnownRequestError: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].user.create()` invocation in
+F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__89646d5e._.js:118:161
+
+  115         status: 400
+  116     });
+  117 }
+→ 118 const user = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].user.create(
+Prisma needs to perform transactions, which requires your MongoDB server to be run as a replica set. https://pris.ly/d/mongodb-replica-set
+    at In.handleRequestError (F:\Edusy User flow\Edusy app\node_modules\@prisma\client\runtime\library.js:123:6854)
+    at In.handleAndLogRequestError (F:\Edusy User flow\Edusy app\node_modules\@prisma\client\runtime\library.js:123:6188)
+    at In.request (F:\Edusy User flow\Edusy app\node_modules\@prisma\client\runtime\library.js:123:5896)
+    at async l (F:\Edusy User flow\Edusy app\node_modules\@prisma\client\runtime\library.js:128:10871)
+    at async POST (F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__89646d5e._.js:118:22)
+    at async AppRouteRouteModule.do (F:\Edusy User flow\Edusy app\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.dev.js:5:37866)
+    at async AppRouteRouteModule.handle (F:\Edusy User flow\Edusy app\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.dev.js:5:45156)
+    at async responseGenerator (F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__a417ae0e._.js:15350:38)
+    at async AppRouteRouteModule.handleResponse (F:\Edusy User flow\Edusy app\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.dev.js:1:191938)
+    at async handleResponse (F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__a417ae0e._.js:15413:32)
+    at async Module.handler (F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__a417ae0e._.js:15466:13)
+    at async DevServer.renderToResponseWithComponentsImpl (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\base-server.js:1442:9)
+    at async DevServer.renderPageComponent (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\base-server.js:1494:24)
+    at async DevServer.renderToResponseImpl (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\base-server.js:1544:32)
+    at async DevServer.pipeImpl (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\base-server.js:1038:25)
+    at async NextNodeServer.handleCatchallRenderRequest (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\next-server.js:395:17)
+    at async DevServer.handleRequestImpl (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\base-server.js:929:17)
+    at async F:\Edusy User flow\Edusy app\node_modules\next\dist\server\dev\next-dev-server.js:387:20
+    at async Span.traceAsyncFn (F:\Edusy User flow\Edusy app\node_modules\next\dist\trace\trace.js:157:20)
+    at async DevServer.handleRequest (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\dev\next-dev-server.js:383:24)
+    at async invokeRender (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\lib\router-server.js:248:21)
+    at async handleRequest (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\lib\router-server.js:447:24)
+    at async requestHandlerImpl (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\lib\router-server.js:496:13)
+    at async Server.requestListener (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\lib\start-server.js:226:13)
+[2026-02-14T11:36:25.080Z] LOGIN ATTEMPT: superadmin@edusy.com
+[2026-02-14T11:36:25.085Z] SUCCESS: Login - superadmin@edusy.com
+[2026-02-14T11:36:42.985Z] SIGNUP ATTEMPT: verify@edusy.com (Verify User) [STUDENT]
+[2026-02-14T11:36:42.989Z] ERROR: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].user.create()` invocation in
+F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__89646d5e._.js:118:161
+
+  115         status: 400
+  116     });
+  117 }
+→ 118 const user = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].user.create(
+Prisma needs to perform transactions, which requires your MongoDB server to be run as a replica set. https://pris.ly/d/mongodb-replica-set
+STACK: PrismaClientKnownRequestError: 
+Invalid `__TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].user.create()` invocation in
+F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__89646d5e._.js:118:161
+
+  115         status: 400
+  116     });
+  117 }
+→ 118 const user = await __TURBOPACK__imported__module__$5b$project$5d2f$src$2f$utils$2f$db$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__["default"].user.create(
+Prisma needs to perform transactions, which requires your MongoDB server to be run as a replica set. https://pris.ly/d/mongodb-replica-set
+    at In.handleRequestError (F:\Edusy User flow\Edusy app\node_modules\@prisma\client\runtime\library.js:123:6854)
+    at In.handleAndLogRequestError (F:\Edusy User flow\Edusy app\node_modules\@prisma\client\runtime\library.js:123:6188)
+    at In.request (F:\Edusy User flow\Edusy app\node_modules\@prisma\client\runtime\library.js:123:5896)
+    at async l (F:\Edusy User flow\Edusy app\node_modules\@prisma\client\runtime\library.js:128:10871)
+    at async POST (F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__89646d5e._.js:118:22)
+    at async AppRouteRouteModule.do (F:\Edusy User flow\Edusy app\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.dev.js:5:37866)
+    at async AppRouteRouteModule.handle (F:\Edusy User flow\Edusy app\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.dev.js:5:45156)
+    at async responseGenerator (F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__a417ae0e._.js:15350:38)
+    at async AppRouteRouteModule.handleResponse (F:\Edusy User flow\Edusy app\node_modules\next\dist\compiled\next-server\app-route-turbo.runtime.dev.js:1:191938)
+    at async handleResponse (F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__a417ae0e._.js:15413:32)
+    at async Module.handler (F:\Edusy User flow\Edusy app\.next\dev\server\chunks\[root-of-the-server]__a417ae0e._.js:15466:13)
+    at async DevServer.renderToResponseWithComponentsImpl (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\base-server.js:1442:9)
+    at async DevServer.renderPageComponent (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\base-server.js:1494:24)
+    at async DevServer.renderToResponseImpl (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\base-server.js:1544:32)
+    at async DevServer.pipeImpl (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\base-server.js:1038:25)
+    at async NextNodeServer.handleCatchallRenderRequest (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\next-server.js:395:17)
+    at async DevServer.handleRequestImpl (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\base-server.js:929:17)
+    at async F:\Edusy User flow\Edusy app\node_modules\next\dist\server\dev\next-dev-server.js:387:20
+    at async Span.traceAsyncFn (F:\Edusy User flow\Edusy app\node_modules\next\dist\trace\trace.js:157:20)
+    at async DevServer.handleRequest (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\dev\next-dev-server.js:383:24)
+    at async invokeRender (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\lib\router-server.js:248:21)
+    at async handleRequest (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\lib\router-server.js:447:24)
+    at async requestHandlerImpl (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\lib\router-server.js:496:13)
+    at async Server.requestListener (F:\Edusy User flow\Edusy app\node_modules\next\dist\server\lib\start-server.js:226:13)
