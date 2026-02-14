@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { CheckCircle, XCircle, X } from 'lucide-react';
 
 interface ToastProps {
@@ -11,30 +12,40 @@ interface ToastProps {
 }
 
 export default function Toast({ message, type, onClose, duration = 3000 }: ToastProps) {
+    const [mounted, setMounted] = useState(false);
+
     useEffect(() => {
+        setMounted(true);
         const timer = setTimeout(onClose, duration);
         return () => clearTimeout(timer);
     }, [duration, onClose]);
 
-    return (
-        <div className="fixed top-6 right-6 z-[9999] animate-slide-in-right">
-            <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-md border-2 min-w-[320px] ${type === 'success'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : 'bg-red-50 border-red-200 text-red-800'
+    if (!mounted) return null;
+
+    return createPortal(
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[999999] animate-fade-in-down w-full max-w-sm px-4">
+            <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border-2 ${type === 'success'
+                ? 'bg-emerald-50/90 border-emerald-200/50 text-emerald-900'
+                : 'bg-red-50/90 border-red-200/50 text-red-900'
                 }`}>
                 {type === 'success' ? (
-                    <CheckCircle size={24} className="text-emerald-600 flex-shrink-0" />
+                    <div className="p-2 bg-emerald-100 rounded-xl">
+                        <CheckCircle size={20} className="text-emerald-600 flex-shrink-0" />
+                    </div>
                 ) : (
-                    <XCircle size={24} className="text-red-600 flex-shrink-0" />
+                    <div className="p-2 bg-red-100 rounded-xl">
+                        <XCircle size={20} className="text-red-600 flex-shrink-0" />
+                    </div>
                 )}
-                <p className="flex-1 font-bold text-sm">{message}</p>
+                <p className="flex-1 font-bold text-sm tracking-tight">{message}</p>
                 <button
                     onClick={onClose}
-                    className="text-current opacity-60 hover:opacity-100 transition-opacity"
+                    className="p-1 hover:bg-black/5 rounded-lg transition-colors opacity-40 hover:opacity-100"
                 >
-                    <X size={18} />
+                    <X size={16} />
                 </button>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

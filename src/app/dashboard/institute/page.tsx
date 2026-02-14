@@ -19,6 +19,7 @@ import {
     Save
 } from 'lucide-react';
 import Toast from '@/components/Toast';
+import Modal from '@/components/Modal';
 
 
 export default function MultiInstitutePage() {
@@ -315,126 +316,118 @@ export default function MultiInstitutePage() {
             </div>
 
             {/* Create/Edit Modal */}
-            {isCreateModalOpen && (
-                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-                    <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl animate-scale-in overflow-hidden max-h-[90vh] flex flex-col">
-                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-                            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">
-                                {editingInst ? 'প্রতিষ্ঠান তথ্য আপডেট' : 'নতুন প্রতিষ্ঠান যুক্ত করুন'}
-                            </h2>
-                            <button onClick={() => setIsCreateModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
-                                <X size={24} />
-                            </button>
-                        </div>
-                        <form onSubmit={handleSave} className="p-8 space-y-6 overflow-y-auto">
+            <Modal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                title={editingInst ? 'প্রতিষ্ঠান তথ্য আপডেট' : 'নতুন প্রতিষ্ঠান যুক্ত করুন'}
+            >
+                <form onSubmit={handleSave} className="p-8 space-y-6">
 
-                            {/* Cover Image Upload */}
-                            <div className="relative w-full h-32 bg-slate-100 rounded-2xl overflow-hidden group border-2 border-dashed border-slate-200 hover:border-[#045c84] transition-all">
-                                {formData.coverImage ? (
-                                    <img src={formData.coverImage} alt="Cover" className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                        <Camera size={24} />
-                                        <span className="text-xs font-bold uppercase mt-1">কভার ফটো দিন</span>
-                                    </div>
-                                )}
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={(e) => handleFileUpload(e, 'coverImage')}
-                                    className="absolute inset-0 opacity-0 cursor-pointer"
-                                />
-                                {createLoading && <div className="absolute inset-0 bg-white/50 flex items-center justify-center"><Loader2 className="animate-spin" /></div>}
+                    {/* Cover Image Upload */}
+                    <div className="relative w-full h-32 bg-slate-100 rounded-2xl overflow-hidden group border-2 border-dashed border-slate-200 hover:border-[#045c84] transition-all">
+                        {formData.coverImage ? (
+                            <img src={formData.coverImage} alt="Cover" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                                <Camera size={24} />
+                                <span className="text-xs font-bold uppercase mt-1">কভার ফটো দিন</span>
                             </div>
-
-                            <div className="flex gap-6">
-                                {/* Logo Upload */}
-                                <div className="shrink-0 relative w-24 h-24 bg-slate-100 rounded-2xl overflow-hidden group border-2 border-dashed border-slate-200 hover:border-[#045c84] transition-all -mt-12 bg-white shadow-lg z-10">
-                                    {formData.logo ? (
-                                        <img src={formData.logo} alt="Logo" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                                            <Camera size={20} />
-                                            <span className="text-[10px] font-bold uppercase mt-1">লোগো</span>
-                                        </div>
-                                    )}
-                                    <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={(e) => handleFileUpload(e, 'logo')}
-                                        className="absolute inset-0 opacity-0 cursor-pointer"
-                                    />
-                                </div>
-
-                                <div className="flex-1 pt-2">
-                                    <p className="text-sm text-slate-500">আপনার প্রতিষ্ঠানের লোগো এবং কভার ফটো যুক্ত করুন। (সর্বোচ্চ ৫ মেগাবাইট)</p>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="md:col-span-2 space-y-2">
-                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">প্রতিষ্ঠানের নাম</label>
-                                    <div className="relative group">
-                                        <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                                        <input
-                                            className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                            value={formData.name}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                            placeholder="যেমন: এডুসি আইডিয়াল স্কুল"
-                                            required
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ধরণ</label>
-                                    <div className="relative">
-                                        <select
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white transition-all outline-none font-medium text-black appearance-none cursor-pointer"
-                                            value={formData.type}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
-                                        >
-                                            <option value="Madrasa">মাদ্রাসা</option>
-                                            <option value="School">স্কুল</option>
-                                            <option value="College">কলেজ</option>
-                                            <option value="Kindergarten">কিন্ডারগার্টেন</option>
-                                        </select>
-                                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={20} />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ফোন নম্বর</label>
-                                    <input
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white transition-all outline-none font-medium text-black"
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                        placeholder="০১৩********"
-                                    />
-                                </div>
-                                <div className="md:col-span-2 space-y-2">
-                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ঠিকানা</label>
-                                    <textarea
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white transition-all outline-none font-medium text-black min-h-[80px]"
-                                        value={formData.address}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                                        placeholder="প্রতিষ্ঠানের সম্পূর্ণ ঠিকানা..."
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="pt-6 border-t border-slate-100 flex justify-end">
-                                <button
-                                    type="submit"
-                                    disabled={createLoading}
-                                    className="px-8 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
-                                >
-                                    {createLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                                    <span>{editingInst ? 'আপডেট করুন' : 'প্রতিষ্ঠান যুক্ত করুন'}</span>
-                                </button>
-                            </div>
-                        </form>
+                        )}
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleFileUpload(e, 'coverImage')}
+                            className="absolute inset-0 opacity-0 cursor-pointer"
+                        />
+                        {createLoading && <div className="absolute inset-0 bg-white/50 flex items-center justify-center"><Loader2 className="animate-spin" /></div>}
                     </div>
-                </div>
-            )}
+
+                    <div className="flex gap-6">
+                        {/* Logo Upload */}
+                        <div className="shrink-0 relative w-24 h-24 bg-slate-100 rounded-2xl overflow-hidden group border-2 border-dashed border-slate-200 hover:border-[#045c84] transition-all -mt-12 bg-white shadow-lg z-10">
+                            {formData.logo ? (
+                                <img src={formData.logo} alt="Logo" className="w-full h-full object-cover" />
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                                    <Camera size={20} />
+                                    <span className="text-[10px] font-bold uppercase mt-1">লোগো</span>
+                                </div>
+                            )}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => handleFileUpload(e, 'logo')}
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                            />
+                        </div>
+
+                        <div className="flex-1 pt-2">
+                            <p className="text-sm text-slate-500">আপনার প্রতিষ্ঠানের লোগো এবং কভার ফটো যুক্ত করুন। (সর্বোচ্চ ৫ মেগাবাইট)</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="md:col-span-2 space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">প্রতিষ্ঠানের নাম</label>
+                            <div className="relative group">
+                                <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                <input
+                                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="যেমন: এডুসি আইডিয়াল স্কুল"
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ধরণ</label>
+                            <div className="relative">
+                                <select
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white transition-all outline-none font-medium text-black appearance-none cursor-pointer"
+                                    value={formData.type}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value }))}
+                                >
+                                    <option value="Madrasa">মাদ্রাসা</option>
+                                    <option value="School">স্কুল</option>
+                                    <option value="College">কলেজ</option>
+                                    <option value="Kindergarten">কিন্ডারগার্টেন</option>
+                                </select>
+                                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={20} />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ফোন নম্বর</label>
+                            <input
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white transition-all outline-none font-medium text-black"
+                                value={formData.phone}
+                                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                placeholder="০১৩********"
+                            />
+                        </div>
+                        <div className="md:col-span-2 space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ঠিকানা</label>
+                            <textarea
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white transition-all outline-none font-medium text-black min-h-[80px]"
+                                value={formData.address}
+                                onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                                placeholder="প্রতিষ্ঠানের সম্পূর্ণ ঠিকানা..."
+                            />
+                        </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-slate-100 flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={createLoading}
+                            className="px-8 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {createLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                            <span>{editingInst ? 'আপডেট করুন' : 'প্রতিষ্ঠান যুক্ত করুন'}</span>
+                        </button>
+                    </div>
+                </form>
+            </Modal>
 
             {/* Toast Notification */}
             {toast && (

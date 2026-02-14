@@ -17,7 +17,8 @@ import {
     GraduationCap,
     Calendar,
     Building2,
-    ShieldCheck
+    ShieldCheck,
+    HeartPulse
 } from 'lucide-react';
 
 import { useSession } from '@/components/SessionProvider';
@@ -46,6 +47,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: 'প্রতিষ্ঠান', icon: Building2, href: '/dashboard/institute', adminOnly: true },
         { name: 'শিক্ষক', icon: GraduationCap, href: '/dashboard/teachers' },
         { name: 'শিক্ষার্থী', icon: Users, href: '/dashboard/students' },
+        { name: 'অভিভাবক', icon: HeartPulse, href: '/dashboard/guardians' },
         { name: 'ক্লাস', icon: BookOpen, href: '/dashboard/classes' },
         { name: 'হিসাব', icon: CreditCard, href: '/dashboard/accounts' },
         { name: 'ক্যালেন্ডার', icon: Calendar, href: '/dashboard/calendar' },

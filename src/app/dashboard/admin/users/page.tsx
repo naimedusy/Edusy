@@ -17,6 +17,7 @@ import {
     CheckCircle2,
     AlertCircle
 } from 'lucide-react';
+import Modal from '@/components/Modal';
 
 export default function GlobalUserManagement() {
     const [users, setUsers] = useState<any[]>([]);
@@ -24,7 +25,27 @@ export default function GlobalUserManagement() {
     const [search, setSearch] = useState('');
     const [editingUser, setEditingUser] = useState<any>(null);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [updateLoading, setUpdateLoading] = useState(false);
+    const [institutes, setInstitutes] = useState<any[]>([]);
+
+    const [newUser, setNewUser] = useState({
+        name: '',
+        email: '',
+        password: '',
+        role: 'ADMIN',
+        instituteIds: [] as string[]
+    });
+
+    const fetchInstitutes = async () => {
+        try {
+            const res = await fetch('/api/admin/institutes');
+            const data = await res.json();
+            setInstitutes(data);
+        } catch (error) {
+            console.error('Fetch institutes error:', error);
+        }
+    };
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -40,11 +61,36 @@ export default function GlobalUserManagement() {
     };
 
     useEffect(() => {
+        fetchInstitutes();
+    }, []);
+
+    useEffect(() => {
         const timer = setTimeout(() => {
             fetchUsers();
         }, 500);
         return () => clearTimeout(timer);
     }, [search]);
+
+    const handleCreateUser = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setUpdateLoading(true);
+        try {
+            const res = await fetch('/api/admin/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newUser),
+            });
+            if (res.ok) {
+                setIsAddModalOpen(false);
+                setNewUser({ name: '', email: '', password: '', role: 'ADMIN', instituteIds: [] });
+                fetchUsers();
+            }
+        } catch (error) {
+            console.error('Create user error:', error);
+        } finally {
+            setUpdateLoading(false);
+        }
+    };
 
     const handleUpdateUser = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -66,6 +112,27 @@ export default function GlobalUserManagement() {
         }
     };
 
+    const handleUpdateUserRole = async (id: string, newRole: string) => {
+        const confirmMsg = newRole === 'SUPER_ADMIN'
+            ? 'আপনি কি নিশ্চিত যে আপনি এই ইউজার কে "সুপার অ্যাডমিন" করতে চান? এটি একটি অতি সংবেদনশীল অ্যাকশন।'
+            : `আপনি কি রোল পরিবর্তন করে "${newRole}" করতে চান?`;
+
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            const res = await fetch('/api/admin/users', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, role: newRole }),
+            });
+            if (res.ok) {
+                fetchUsers();
+            }
+        } catch (error) {
+            console.error('Update role error:', error);
+        }
+    };
+
     const handleDeleteUser = async (id: string) => {
         if (!confirm('আপনি কি নিশ্চিত যে আপনি এই ইউজারটি ডিলিট করতে চান?')) return;
         try {
@@ -83,14 +150,23 @@ export default function GlobalUserManagement() {
                     <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tight">ইউজার ডাটাবেস</h1>
                     <p className="text-slate-500 font-medium">সিস্টেমের সকল ব্যবহারকারী এখান থেকে পরিচালনা করুন।</p>
                 </div>
-                <div className="relative w-full md:w-96">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                    <input
-                        className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none text-black font-medium shadow-sm"
-                        placeholder="নাম বা ইমেইল দিয়ে খুঁজুন..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
+                <div className="flex items-center gap-3">
+                    <div className="relative w-full md:w-96">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                        <input
+                            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none text-black font-medium shadow-sm"
+                            placeholder="নাম বা ইমেইল দিয়ে খুঁজুন..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <button
+                        onClick={() => setIsAddModalOpen(true)}
+                        className="flex items-center gap-2 px-6 py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95 whitespace-nowrap"
+                    >
+                        <UserPlus size={20} />
+                        <span>নতুন ইউজার</span>
+                    </button>
                 </div>
             </div>
 
@@ -153,6 +229,15 @@ export default function GlobalUserManagement() {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
+                                            {u.role === 'ADMIN' && (
+                                                <button
+                                                    onClick={() => handleUpdateUserRole(u.id, 'SUPER_ADMIN')}
+                                                    title="সুপার অ্যাডমিন করুন"
+                                                    className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-all"
+                                                >
+                                                    <ShieldCheck size={18} />
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => { setEditingUser(u); setIsEditModalOpen(true); }}
                                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
@@ -175,78 +260,157 @@ export default function GlobalUserManagement() {
             </div>
 
             {/* Edit User Modal */}
-            {isEditModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-                    <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl animate-scale-in overflow-hidden">
-                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                            <h2 className="text-xl font-black text-slate-800 uppercase tracking-tight">ইউজার আপডেট</h2>
-                            <button onClick={() => setIsEditModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
-                                <X size={24} />
-                            </button>
+            <Modal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                title="ইউজার আপডেট"
+                maxWidth="max-w-lg"
+            >
+                <form onSubmit={handleUpdateUser} className="p-8 space-y-6">
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পুরো নাম</label>
+                            <input
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                                value={editingUser?.name || ''}
+                                onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
+                            />
                         </div>
-                        <form onSubmit={handleUpdateUser} className="p-8 space-y-6">
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পুরো নাম</label>
-                                    <input
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                        value={editingUser?.name || ''}
-                                        onChange={(e) => setEditingUser({ ...editingUser, name: e.target.value })}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ইমেইল</label>
-                                    <input
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                        value={editingUser?.email || ''}
-                                        onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider">রোল</label>
-                                        <select
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none cursor-pointer"
-                                            value={editingUser?.role || ''}
-                                            onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
-                                        >
-                                            <option value="SUPER_ADMIN">SUPER ADMIN</option>
-                                            <option value="ADMIN">ADMIN</option>
-                                            <option value="TEACHER">TEACHER</option>
-                                            <option value="STUDENT">STUDENT</option>
-                                            <option value="GUARDIAN">GUARDIAN</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পাসওয়ার্ড রিসেট</label>
-                                        <input
-                                            type="password"
-                                            placeholder="নতুন পাসওয়ার্ড"
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                            onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="pt-6 border-t border-slate-100 flex justify-end">
-                                <button
-                                    type="submit"
-                                    disabled={updateLoading}
-                                    className="px-8 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ইমেইল</label>
+                            <input
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                                value={editingUser?.email || ''}
+                                onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">রোল</label>
+                                <select
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none cursor-pointer"
+                                    value={editingUser?.role || ''}
+                                    onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
                                 >
-                                    {updateLoading ? (
-                                        <Loader2 className="animate-spin" size={20} />
-                                    ) : (
-                                        <Save size={20} />
-                                    )}
-                                    <span>আপডেট করুন</span>
-                                </button>
+                                    <option value="SUPER_ADMIN">SUPER ADMIN</option>
+                                    <option value="ADMIN">ADMIN</option>
+                                    <option value="TEACHER">TEACHER</option>
+                                    <option value="STUDENT">STUDENT</option>
+                                    <option value="GUARDIAN">GUARDIAN</option>
+                                </select>
                             </div>
-                        </form>
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পাসওয়ার্ড রিসেট</label>
+                                <input
+                                    type="password"
+                                    placeholder="নতুন পাসওয়ার্ড"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                                    onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
+                                />
+                            </div>
+                        </div>
                     </div>
-                </div>
-            )}
+
+                    <div className="pt-6 border-t border-slate-100 flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={updateLoading}
+                            className="px-8 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {updateLoading ? (
+                                <Loader2 className="animate-spin" size={20} />
+                            ) : (
+                                <Save size={20} />
+                            )}
+                            <span>আপডেট করুন</span>
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+            {/* Add User Modal */}
+            <Modal
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                title="নতুন ইউজার যুক্ত করুন"
+                maxWidth="max-w-lg"
+            >
+                <form onSubmit={handleCreateUser} className="p-8 space-y-6">
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পুরো নাম</label>
+                            <input
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                                placeholder="ইউজারের নাম"
+                                value={newUser.name}
+                                onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ইমেইল</label>
+                            <input
+                                type="email"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                                placeholder="email@example.com"
+                                value={newUser.email}
+                                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                                required
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">রোল</label>
+                                <select
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white transition-all outline-none font-medium text-black cursor-pointer"
+                                    value={newUser.role}
+                                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                                >
+                                    <option value="ADMIN">ADMIN</option>
+                                    <option value="TEACHER">TEACHER</option>
+                                    <option value="STUDENT">STUDENT</option>
+                                    <option value="GUARDIAN">GUARDIAN</option>
+                                    <option value="SUPER_ADMIN">SUPER ADMIN</option>
+                                </select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পাসওয়ার্ড</label>
+                                <input
+                                    type="password"
+                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                                    placeholder="পাসওয়ার্ড দিন"
+                                    value={newUser.password}
+                                    onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                                    required
+                                />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">প্রতিষ্ঠান (যদি থাকে)</label>
+                            <select
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white transition-all outline-none font-medium text-black cursor-pointer"
+                                value={newUser.instituteIds[0] || ''}
+                                onChange={(e) => setNewUser({ ...newUser, instituteIds: e.target.value ? [e.target.value] : [] })}
+                            >
+                                <option value="">কোনটিই নয়</option>
+                                {institutes.map((inst: any) => (
+                                    <option key={inst.id} value={inst.id}>{inst.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className="pt-6 border-t border-slate-100 flex justify-end">
+                        <button
+                            type="submit"
+                            disabled={updateLoading}
+                            className="px-8 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {updateLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                            <span>সংরক্ষণ করুন</span>
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 }
