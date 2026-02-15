@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/utils/db';
+import { getNextStudentId, getNextRollNumber } from '@/utils/student-utils';
 
 export async function POST(req: Request) {
     try {
@@ -38,6 +39,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'User with this phone/email already exists.' }, { status: 400 });
         }
 
+        // --- Auto-assign Student ID & Roll Number if missing ---
+        const finalMetadata = { ...(metadata || {}) };
+
+        if (!finalMetadata.studentId) {
+            finalMetadata.studentId = await getNextStudentId(instituteId);
+        }
+
+        if (!finalMetadata.rollNumber && finalMetadata.classId) {
+            finalMetadata.rollNumber = await getNextRollNumber(instituteId, finalMetadata.classId);
+        }
+
         // Create Student
         const instIds = [{ $oid: instituteId }];
 
@@ -51,7 +63,10 @@ export async function POST(req: Request) {
                     password: password,
                     role: 'STUDENT',
                     instituteIds: instIds,
-                    metadata: metadata || null,
+                    metadata: {
+                        ...finalMetadata,
+                        admissionStatus: 'PENDING'
+                    },
                     createdAt: { $date: new Date().toISOString() },
                     updatedAt: { $date: new Date().toISOString() }
                 }

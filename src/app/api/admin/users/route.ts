@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/utils/db';
+import { getNextStudentId, getNextRollNumber } from '@/utils/student-utils';
 
 export async function GET(req: Request) {
     try {
@@ -9,6 +10,7 @@ export async function GET(req: Request) {
         const classId = searchParams.get('classId');
         const groupId = searchParams.get('groupId');
         const instituteId = searchParams.get('instituteId');
+        const admissionStatus = searchParams.get('admissionStatus');
 
         const pipeline: any[] = [];
 
@@ -16,7 +18,7 @@ export async function GET(req: Request) {
         const match: any = {};
         if (role) match.role = role;
 
-        // Filter by Institute
+        // Filter by Institute - check if the institute ObjectId exists in the array
         if (instituteId) {
             match.instituteIds = { $oid: instituteId };
         }
@@ -24,6 +26,13 @@ export async function GET(req: Request) {
         // Filter by metadata.classId or metadata.groupId
         if (classId) match['metadata.classId'] = classId;
         if (groupId) match['metadata.groupId'] = groupId;
+
+        if (admissionStatus) {
+            match['metadata.admissionStatus'] = admissionStatus;
+        } else if (role === 'STUDENT') {
+            // Default: Hide pending applications from main student list
+            match['metadata.admissionStatus'] = { $ne: 'PENDING' };
+        }
 
         // Apply search filter if provided
         if (search) {
@@ -109,6 +118,18 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Missing required fields (Email/Phone, Password, Role)' }, { status: 400 });
         }
 
+        // --- Auto-assign Student ID & Roll Number for students ---
+        const finalMetadata = { ...(metadata || {}) };
+        if (role === 'STUDENT' && instituteIds?.[0]) {
+            const instituteId = instituteIds[0];
+            if (!finalMetadata.studentId) {
+                finalMetadata.studentId = await getNextStudentId(instituteId);
+            }
+            if (!finalMetadata.rollNumber && finalMetadata.classId) {
+                finalMetadata.rollNumber = await getNextRollNumber(instituteId, finalMetadata.classId);
+            }
+        }
+
         // Convert instituteIds to ObjectIds for MongoDB
         const instIds = (instituteIds || []).map((id: string) => ({ $oid: id }));
 
@@ -122,14 +143,16 @@ export async function POST(req: Request) {
                     password, // In a real app, hash this!
                     role,
                     instituteIds: instIds,
-                    metadata: metadata || null,
+                    metadata: finalMetadata,
                     createdAt: { $date: new Date().toISOString() },
                     updatedAt: { $date: new Date().toISOString() }
                 }
             ]
         });
 
-        // --- Guardian Account Automation ---
+        // -----------------------------------
+
+        // --- Guardian Account Automation (for Students) ---
         if (role === 'STUDENT' && metadata?.guardianPhone && metadata?.guardianName) {
             try {
                 const guardianPhone = metadata.guardianPhone.trim();
@@ -146,11 +169,10 @@ export async function POST(req: Request) {
 
                 if (!existingGuardian) {
                     // Create New Guardian User
-                    // Use phone as email placeholder if needed, or generate one
-                    const guardianEmail = `guardian_${guardianPhone}@edusy.local`; // Dummy email
-                    const guardianPassword = guardianPhone; // Default password = mobile
+                    const guardianEmail = `guardian_${guardianPhone}@edusy.local`;
+                    const guardianPassword = guardianPhone;
 
-                    const newGuardianRaw = await (prisma as any).$runCommandRaw({
+                    await (prisma as any).$runCommandRaw({
                         insert: 'User',
                         documents: [
                             {
@@ -160,14 +182,13 @@ export async function POST(req: Request) {
                                 password: guardianPassword,
                                 role: 'GUARDIAN',
                                 instituteIds: instIds,
-                                metadata: { childrenIds: [] }, // Initialize
+                                metadata: { childrenIds: [] },
                                 createdAt: { $date: new Date().toISOString() },
                                 updatedAt: { $date: new Date().toISOString() }
                             }
                         ]
                     });
-                    // MongoDB insert returns acknowledgement, to get ID we might need to query back or use generated _id if we provided it.
-                    // simpler: Query back by phone
+
                     const createdGuardianRaw = await (prisma as any).$runCommandRaw({
                         find: 'User',
                         filter: { phone: guardianPhone },
@@ -178,26 +199,16 @@ export async function POST(req: Request) {
                         guardianId = createdGuardian._id?.$oid || createdGuardian._id?.toString();
                     }
                 } else {
-                    // Update existing Guardian: Add institute if not present
-                    // We need to handle institute linking logic here if necessary for existing users
-                    // For now, assuming they are added to the institute
                     await (prisma as any).$runCommandRaw({
                         update: 'User',
                         updates: [
                             {
                                 q: { _id: { $oid: guardianId } },
-                                u: { $addToSet: { instituteIds: { $each: instIds.map((i: any) => i.$oid) } } } // Ensure correct format: array of strings? no, ObjectId
+                                u: { $addToSet: { instituteIds: { $each: instIds.map((i: any) => i.$oid) } } }
                             }
                         ]
                     });
-                    // Note: $addToSet with $each for ObjectIds might need careful formatting if instituteIds is array of OIDs
-                    // Let's rely on string adds if possible, but schema says ObjectIds.
-                    // Re-reading schema: instituteIds String[] @db.ObjectId. So they are stored as OIDs.
                 }
-
-                // Link Student to Guardian (Update the just created student)
-                // We need the Student ID. The insert above didn't return it directly in result usually (depends on driver/command).
-                // We should query the student by unique email.
 
                 const studentRaw = await (prisma as any).$runCommandRaw({
                     find: 'User',
@@ -209,7 +220,6 @@ export async function POST(req: Request) {
                 if (student && guardianId) {
                     const studentId = student._id?.$oid || student._id?.toString();
 
-                    // 1. Add guardianId to Student
                     await (prisma as any).$runCommandRaw({
                         update: 'User',
                         updates: [
@@ -220,7 +230,6 @@ export async function POST(req: Request) {
                         ]
                     });
 
-                    // 2. Add studentId to Guardian's childrenIds
                     await (prisma as any).$runCommandRaw({
                         update: 'User',
                         updates: [
@@ -231,11 +240,53 @@ export async function POST(req: Request) {
                         ]
                     });
                 }
-
             } catch (guardianError) {
                 console.error('Guardian Automation Error:', guardianError);
-                // Don't fail the whole request if guardian part fails, just log it. 
-                // Student is already created.
+            }
+        }
+
+        // --- Manual Student Linking (for Guardians) ---
+        if (role === 'GUARDIAN' && body.studentId) {
+            try {
+                const studentId = body.studentId;
+                const relationship = body.relationship;
+
+                const createdGuardianRaw = await (prisma as any).$runCommandRaw({
+                    find: 'User',
+                    filter: { email: email.trim() },
+                    limit: 1
+                });
+                const createdGuardian = createdGuardianRaw.cursor?.firstBatch?.[0];
+                const guardianId = createdGuardian?._id?.$oid || createdGuardian?._id?.toString();
+
+                if (guardianId && studentId) {
+                    await (prisma as any).$runCommandRaw({
+                        update: 'User',
+                        updates: [
+                            {
+                                q: { _id: { $oid: guardianId } },
+                                u: { $addToSet: { "metadata.childrenIds": studentId } }
+                            }
+                        ]
+                    });
+
+                    await (prisma as any).$runCommandRaw({
+                        update: 'User',
+                        updates: [
+                            {
+                                q: { _id: { $oid: studentId } },
+                                u: {
+                                    $set: {
+                                        "metadata.guardianId": guardianId,
+                                        "metadata.guardianRelation": relationship
+                                    }
+                                }
+                            }
+                        ]
+                    });
+                }
+            } catch (linkError) {
+                console.error('Manual Student Linking Error:', linkError);
             }
         }
         // -----------------------------------

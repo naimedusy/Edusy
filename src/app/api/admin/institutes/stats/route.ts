@@ -11,22 +11,25 @@ export async function GET(req: Request) {
         }
 
         // --- Students Count ---
-        const studentCount = await prisma.user.count({
-            where: {
-                role: 'STUDENT',
-                instituteIds: {
-                    has: instituteId
-                }
-            }
+        const studentResult = await (prisma as any).$runCommandRaw({
+            aggregate: 'User',
+            pipeline: [
+                {
+                    $match: {
+                        role: 'STUDENT',
+                        instituteIds: instituteId
+                    }
+                },
+                { $count: 'total' }
+            ],
+            cursor: {}
         });
+        const studentCount = studentResult.cursor?.firstBatch?.[0]?.total || 0;
 
         // --- Teachers Count ---
-        const teacherCount = await prisma.user.count({
+        const teacherCount = await (prisma as any).teacherProfile.count({
             where: {
-                role: 'TEACHER',
-                instituteIds: {
-                    has: instituteId
-                }
+                instituteId: instituteId
             }
         });
 

@@ -109,7 +109,43 @@ export async function GET(req: Request) {
         }
 
         console.log(`✅ Returning ${institutes.length} institutes with full data including coverImage`);
-        return NextResponse.json(institutes);
+
+        // Filter institutes to only those where user is:
+        // 1. An Admin (in adminIds), OR
+        // 2. Has an ACTIVE TeacherProfile
+
+        const filteredInstitutes = [];
+        for (const inst of institutes) {
+            // Check if user is admin
+            const isAdmin = inst.adminIds.includes(userId);
+
+            if (isAdmin) {
+                filteredInstitutes.push({
+                    ...inst,
+                    isOwner: true
+                });
+                continue;
+            }
+
+            // Check if user has ACTIVE teacher profile
+            const teacherProfile = await (prisma as any).teacherProfile.findFirst({
+                where: {
+                    userId: userId,
+                    instituteId: inst.id,
+                    status: 'ACTIVE'
+                }
+            });
+
+            if (teacherProfile) {
+                filteredInstitutes.push({
+                    ...inst,
+                    isOwner: false
+                });
+            }
+        }
+
+        console.log(`Filtered from ${institutes.length} to ${filteredInstitutes.length} institutes (excluding PENDING teacher invitations)`);
+        return NextResponse.json(filteredInstitutes);
 
     } catch (error) {
         console.error('Fetch Institutes Error details:', error);

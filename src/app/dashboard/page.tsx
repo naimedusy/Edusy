@@ -18,10 +18,16 @@ import {
     Activity,
     Server,
     Globe,
-    AlertCircle
+    AlertCircle,
+    MapPin,
+    FileText,
+    BookOpen,
+    LogOut,
+    MoreVertical
 } from 'lucide-react';
 import { useSession } from '@/components/SessionProvider';
 import InstituteProfileModal from '@/components/InstituteProfileModal';
+import InstituteSwitcher from '@/components/InstituteSwitcher';
 
 export default function DashboardPage() {
     const { activeRole, activeInstitute, switchInstitute, user, setAllInstitutes } = useSession();
@@ -82,7 +88,203 @@ export default function DashboardPage() {
         return <SuperAdminDashboard statsData={statsData} loading={loading} />;
     }
 
+    if (activeRole === 'STUDENT') {
+        return <StudentDashboard user={user} activeInstitute={activeInstitute} />;
+    }
+
     return <AdminDashboard activeInstitute={activeInstitute} />;
+}
+
+// --- Student Dashboard ---
+function StudentDashboard({ user, activeInstitute }: { user: any, activeInstitute: any }) {
+    // Mock Data for now
+    const notices = [
+        { id: 1, title: 'Upcoming Exam Schedule', date: '2024-03-20', type: 'Exam' },
+        { id: 2, title: 'School Closed for Eid', date: '2024-04-10', type: 'Holiday' },
+        { id: 3, title: 'Annual Sports Day Registration', date: '2024-02-25', type: 'Event' },
+    ];
+
+    const assignments = [
+        { id: 1, subject: 'Math', title: 'Algebra Exercises', due: 'Tomorrow' },
+        { id: 2, subject: 'English', title: 'Essay on Summer Vacation', due: '2024-03-15' },
+    ];
+
+    const attendancePercentage = 85;
+
+    return (
+        <div className="p-4 md:p-8 space-y-8 animate-fade-in-up font-bengali">
+            {/* 1. Madrasa Cover & Profile Header */}
+            <div className="relative rounded-[32px] overflow-hidden shadow-lg bg-slate-800 text-white group">
+                {/* Cover Image */}
+                <div className="h-48 md:h-64 bg-slate-700 relative overflow-hidden">
+                    {activeInstitute?.coverImage || activeInstitute?.metadata?.coverImage ? (
+                        <img
+                            src={activeInstitute.coverImage || activeInstitute.metadata.coverImage}
+                            alt="Cover"
+                            className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
+                        />
+                    ) : (
+                        <div className="w-full h-full bg-gradient-to-r from-[#045c84] to-[#034a6b] opacity-90 relative">
+                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-30"></div>
+                        </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                </div>
+
+                {/* Profile Info Overlay */}
+                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 flex items-end gap-6 translate-y-4 md:translate-y-0">
+                    <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-2xl p-1 shadow-2xl -mb-10 md:-mb-12 shrink-0 border-4 border-white/20 backdrop-blur-sm z-10 transition-transform hover:scale-105">
+                        {activeInstitute?.logoUrl ? (
+                            <img src={activeInstitute.logoUrl} alt="Logo" className="w-full h-full object-contain rounded-xl bg-white" />
+                        ) : (
+                            <div className="w-full h-full bg-slate-50 rounded-xl flex items-center justify-center text-slate-300">
+                                <Building2 size={40} />
+                            </div>
+                        )}
+                    </div>
+                    <div className="mb-4 md:mb-6 z-10">
+                        <h1 className="text-2xl md:text-4xl font-bold mb-2 text-white shadow-sm tracking-tight text-shadow-md">
+                            {activeInstitute?.name || 'আপনার শিক্ষা প্রতিষ্ঠান'}
+                        </h1>
+                        <p className="text-white/90 text-sm md:text-base font-medium flex items-center gap-2 drop-shadow-sm">
+                            <MapPin size={16} className="text-red-400" />
+                            {activeInstitute?.address || 'ঠিকানা দেওয়া নেই'}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* Spacing for overlapping logo */}
+            <div className="h-8 md:h-10" />
+
+            {/* 2. Stats & Attendance */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Attendance Summary */}
+                <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-md transition-all flex items-center gap-6 group">
+                    <div className="relative w-24 h-24 flex items-center justify-center">
+                        {/* SVG Progress Circle */}
+                        <svg className="w-full h-full transform -rotate-90">
+                            <circle cx="48" cy="48" r="40" stroke="#f1f5f9" strokeWidth="8" fill="transparent" />
+                            <circle
+                                cx="48" cy="48" r="40"
+                                stroke="#10b981"
+                                strokeWidth="8"
+                                fill="transparent"
+                                strokeDasharray={251.2}
+                                strokeDashoffset={251.2 * (1 - attendancePercentage / 100)}
+                                className="transition-all duration-1000 ease-out"
+                                strokeLinecap="round"
+                            />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className="text-xl font-bold text-slate-700">{attendancePercentage}%</span>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-800">উপস্থিতি</h3>
+                        <p className="text-slate-500 text-xs font-medium mb-3">এই মাসের সারাংশ</p>
+                        <div className="flex gap-2 text-[10px] font-bold uppercase tracking-wider">
+                            <span className="text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">P: 20</span>
+                            <span className="text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">A: 3</span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Quick Action: My Class */}
+                <a href="/dashboard/classes" className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-lg transition-all group flex items-center gap-5 relative overflow-hidden">
+                    <div className="absolute right-0 bottom-0 opacity-5 group-hover:opacity-10 transition-opacity transform translate-x-4 translate-y-4">
+                        <GraduationCap size={120} />
+                    </div>
+                    <div className="w-16 h-16 bg-blue-50 text-[#045c84] rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                        <GraduationCap size={32} />
+                    </div>
+                    <div className="relative z-10">
+                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#045c84] transition-colors">আমার ক্লাস</h3>
+                        <p className="text-slate-500 text-xs font-medium mt-1">রুটিন ও কাস সম্পর্কে জানুন</p>
+                    </div>
+                </a>
+
+                {/* Quick Action: Teachers */}
+                <a href="/dashboard/teachers" className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-lg transition-all group flex items-center gap-5 relative overflow-hidden">
+                    <div className="absolute right-0 bottom-0 opacity-5 group-hover:opacity-10 transition-opacity transform translate-x-4 translate-y-4">
+                        <Users size={120} />
+                    </div>
+                    <div className="w-16 h-16 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                        <Users size={32} />
+                    </div>
+                    <div className="relative z-10">
+                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-purple-600 transition-colors">শিক্ষক মন্ডলী</h3>
+                        <p className="text-slate-500 text-xs font-medium mt-1">শিক্ষকদের তালিকা দেখুন</p>
+                    </div>
+                </a>
+            </div>
+
+            {/* 3. Content Grid: Notices & Assignments */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Notices */}
+                <div className="space-y-5">
+                    <div className="flex items-center justify-between px-2">
+                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                            <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
+                                <Bell size={20} />
+                            </div>
+                            <span>নোটিশ বোর্ড</span>
+                        </h2>
+                        <button className="text-xs font-bold text-[#045c84] hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">সব দেখুন →</button>
+                    </div>
+                    <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden">
+                        {notices.map((notice, i) => (
+                            <div key={notice.id} className={`p-5 flex items-start gap-4 hover:bg-slate-50 transition-colors cursor-pointer group ${i !== notices.length - 1 ? 'border-b border-slate-100' : ''}`}>
+                                <div className="w-14 h-14 bg-amber-50 border border-amber-100 text-amber-700 rounded-2xl flex flex-col items-center justify-center shrink-0 shadow-sm group-hover:shadow-md transition-all">
+                                    <span className="text-lg font-black leading-none">{notice.date.split('-')[2]}</span>
+                                    <span className="text-[10px] uppercase font-bold tracking-wider">{new Date(notice.date).toLocaleString('default', { month: 'short' })}</span>
+                                </div>
+                                <div className="flex-1 py-1">
+                                    <h4 className="font-bold text-slate-800 text-sm mb-1 group-hover:text-[#045c84] transition-colors line-clamp-2">{notice.title}</h4>
+                                    <span className="inline-flex items-center px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] rounded-md font-bold uppercase tracking-wider">
+                                        {notice.type}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Assignments */}
+                <div className="space-y-5">
+                    <div className="flex items-center justify-between px-2">
+                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                                <BookOpen size={20} />
+                            </div>
+                            <span>অ্যাসাইনমেন্ট</span>
+                        </h2>
+                        <button className="text-xs font-bold text-[#045c84] hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">সব দেখুন →</button>
+                    </div>
+                    <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden">
+                        {assignments.map((assignment, i) => (
+                            <div key={assignment.id} className={`p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors cursor-pointer group ${i !== assignments.length - 1 ? 'border-b border-slate-100' : ''}`}>
+                                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center shrink-0 border border-indigo-100 group-hover:scale-110 transition-transform shadow-sm">
+                                    <FileText size={20} />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-slate-800 text-sm mb-0.5 group-hover:text-indigo-600 transition-colors">{assignment.title}</h4>
+                                    <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                                        <span className="text-slate-700">{assignment.subject}</span>
+                                        <span>•</span>
+                                        <span className="text-red-500 font-bold">Due: {assignment.due}</span>
+                                    </div>
+                                </div>
+                                <div className="w-8 h-8 rounded-full border-2 border-slate-200 flex items-center justify-center group-hover:border-[#045c84] transition-colors" title="Mark as Done">
+                                    <div className="w-4 h-4 rounded-full bg-[#045c84] opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
 
 // --- Super Admin Dashboard (System Oversight) ---
@@ -441,26 +643,31 @@ function SwitchInstituteModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
 
                 <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3">
                     {user?.institutes?.map((inst: any, index: number) => (
-                        <button
+                        <div
                             key={inst?.id || `institute-${index}`}
-                            onClick={() => {
-                                switchInstitute(inst);
-                                onClose();
-                            }}
-                            className={`w-full p-4 rounded-2xl border transition-all flex items-center gap-4 text-left group relative overflow-hidden ${activeInstitute?.id === inst.id
+                            className={`w-full p-4 rounded-2xl border transition-all flex items-center gap-4 text-left group relative overflow-hidden cursor-pointer ${activeInstitute?.id === inst.id
                                 ? 'bg-[#045c84] border-[#045c84] text-white shadow-lg shadow-blue-900/20'
                                 : 'bg-white border-slate-200 hover:border-[#045c84] hover:shadow-md'
                                 }`}
                         >
+                            {/* Clickable overlay for switching */}
+                            <div
+                                onClick={() => {
+                                    switchInstitute(inst);
+                                    onClose();
+                                }}
+                                className="absolute inset-0 z-10 cursor-pointer"
+                            />
+
                             {/* Cover Image Background */}
                             {inst.coverImage && (
-                                <div className="absolute inset-0 z-0">
+                                <div className="absolute inset-0 z-0 pointer-events-none">
                                     <img src={inst.coverImage} className="w-full h-full object-cover opacity-20 group-hover:opacity-30 transition-opacity" />
                                     <div className={`absolute inset-0 ${activeInstitute?.id === inst.id ? 'bg-[#045c84]/80' : 'bg-white/40 group-hover:bg-white/20'}`}></div>
                                 </div>
                             )}
 
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black shrink-0 relative z-10 ${activeInstitute?.id === inst.id
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black shrink-0 relative z-10 pointer-events-none ${activeInstitute?.id === inst.id
                                 ? 'bg-white/20 text-white'
                                 : 'bg-slate-100 text-[#045c84] group-hover:bg-[#045c84] group-hover:text-white transition-colors'
                                 }`}>
@@ -471,7 +678,7 @@ function SwitchInstituteModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
                                 )}
                             </div>
 
-                            <div className="flex-1 min-w-0 relative z-10">
+                            <div className="flex-1 min-w-0 relative z-10 pointer-events-none">
                                 <p className={`font-bold text-sm truncate ${activeInstitute?.id === inst.id ? 'text-white' : 'text-slate-800'}`}>
                                     {inst.name}
                                 </p>
@@ -480,12 +687,69 @@ function SwitchInstituteModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
                                 </p>
                             </div>
 
+                            {/* Three-dot menu for joined institutes */}
+                            {inst.isOwner === false && (
+                                <div className="relative z-20">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const menuId = `menu-${inst.id}`;
+                                            const menu = document.getElementById(menuId);
+                                            if (menu) {
+                                                menu.classList.toggle('hidden');
+                                            }
+                                        }}
+                                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                        title="বিকল্প"
+                                    >
+                                        <MoreVertical size={16} />
+                                    </button>
+
+                                    {/* Dropdown menu */}
+                                    <div
+                                        id={`menu-${inst.id}`}
+                                        className="hidden absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden min-w-[150px]"
+                                    >
+                                        <button
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (!window.confirm(`আপনি কি নিশ্চিত যে ${inst.name} থেকে চলে যেতে চান?`)) return;
+
+                                                try {
+                                                    const res = await fetch('/api/teacher/leave', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            userId: user.id,
+                                                            instituteId: inst.id
+                                                        })
+                                                    });
+
+                                                    if (res.ok) {
+                                                        window.location.reload();
+                                                    } else {
+                                                        const data = await res.json();
+                                                        alert(data.message || 'ত্রুটি ঘটেছে');
+                                                    }
+                                                } catch (err) {
+                                                    alert('সার্ভার এরর');
+                                                }
+                                            }}
+                                            className="w-full px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                        >
+                                            <LogOut size={14} />
+                                            প্রতিষ্ঠান ত্যাগ করুন
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             {activeInstitute?.id === inst.id && (
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-white text-[#045c84] p-1.5 rounded-full shadow-sm z-10">
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-white text-[#045c84] p-1.5 rounded-full shadow-sm z-10 pointer-events-none">
                                     <ShieldCheck size={14} />
                                 </div>
                             )}
-                        </button>
+                        </div>
                     ))}
 
                     {(!user?.institutes || user.institutes.length === 0) && (

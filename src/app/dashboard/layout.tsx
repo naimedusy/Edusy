@@ -24,7 +24,6 @@ import {
 import { useSession } from '@/components/SessionProvider';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import ProfileModal from '@/components/ProfileModal';
-import InstituteSwitcher from '@/components/InstituteSwitcher';
 import NotificationDropdown from '@/components/NotificationDropdown';
 
 
@@ -58,6 +57,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (activeRole === 'SUPER_ADMIN') {
             return item.href === '/dashboard';
         }
+        if (activeRole === 'STUDENT') {
+            return ['/dashboard', '/dashboard/teachers', '/dashboard/classes', '/dashboard/notices'].includes(item.href);
+        }
         if (item.adminOnly) {
             return activeRole === 'ADMIN';
         }
@@ -75,6 +77,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return (
         <div className="flex min-h-screen bg-slate-50 font-sans">
+            {/* Backdrop Overlay - only visible on mobile when sidebar is open */}
+            {isSidebarOpen && (
+                <div
+                    className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
             {/* Sidebar */}
             <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 text-black transition-transform duration-300 lg:translate-x-0 shadow-lg ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="flex flex-col h-full">
@@ -142,7 +152,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </div>
                         )}
 
-                        <InstituteSwitcher />
                         <RoleSwitcher />
                     </div>
 
@@ -165,7 +174,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Main Content */}
             <div className="flex-1 lg:pl-72 flex flex-col min-h-screen">
                 {/* Topbar */}
-                <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between">
+                <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
                         <button className="lg:hidden p-2 text-slate-500 shrink-0" onClick={() => setIsSidebarOpen(true)}>
                             <Menu size={24} />
@@ -173,15 +182,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                         {/* Page Title */}
                         <div className="flex items-center min-w-0">
-                            <h2 className="text-lg md:text-xl font-bold text-slate-800 font-bengali truncate">
+                            <h2 className="text-xl font-black text-slate-800 font-bengali">
                                 {pathname?.includes('/dashboard/students') ? 'শিক্ষার্থী' :
                                     pathname?.includes('/dashboard/teachers') ? 'শিক্ষক' :
-                                        pathname?.includes('/dashboard/classes') ? 'ক্লাস' :
-                                            pathname?.includes('/dashboard/accounts') ? 'হিসাব' :
-                                                pathname?.includes('/dashboard/settings') ? 'সেটিংস' :
-                                                    pathname?.includes('/dashboard/guardians') ? 'অভিভাবক' :
-                                                        pathname?.includes('/dashboard/calendar') ? 'ক্যালেন্ডার' :
-                                                            pathname?.includes('/dashboard') ? 'ড্যাশবোর্ড' : ''}
+                                        pathname?.includes('/dashboard/institute') ? 'প্রতিষ্ঠানসমূহ' :
+                                            pathname?.includes('/dashboard/classes') ? 'ক্লাস' :
+                                                pathname?.includes('/dashboard/accounts') ? 'হিসাব' :
+                                                    pathname?.includes('/dashboard/settings') ? 'সেটিংস' :
+                                                        pathname?.includes('/dashboard/guardians') ? 'অভিভাবক' :
+                                                            pathname?.includes('/dashboard/calendar') ? 'ক্যালেন্ডার' :
+                                                                pathname?.includes('/dashboard') ? 'ড্যাশবোর্ড' : ''}
                             </h2>
                         </div>
 
@@ -196,6 +206,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
 
                     <div className="flex items-center gap-4">
+                        {/* Header Actions Portal Target */}
+                        <div id="dashboard-header-actions" className="flex items-center gap-2"></div>
+
                         <div className="relative">
                             <button
                                 onClick={() => setIsNotificationOpen(!isNotificationOpen)}
@@ -205,7 +218,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                     {isNotificationOpen ? <X size={22} /> : <Bell size={22} />}
                                 </div>
                                 {!isNotificationOpen && (
-                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[#9ad2a9] rounded-full ring-2 ring-white"></span>
+                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white animate-pulse"></span>
                                 )}
                             </button>
                             <NotificationDropdown

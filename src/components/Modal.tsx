@@ -10,9 +10,10 @@ interface ModalProps {
     title: string;
     children: React.ReactNode;
     maxWidth?: string;
+    headerActions?: React.ReactNode;
 }
 
-export default function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-xl' }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-xl', headerActions }: ModalProps) {
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -43,9 +44,12 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 'ma
                     <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
                         {title}
                     </h2>
-                    <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
-                        <X size={24} />
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {headerActions}
+                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
+                            <X size={24} />
+                        </button>
+                    </div>
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
                     {children}

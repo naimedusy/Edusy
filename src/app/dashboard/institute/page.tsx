@@ -196,10 +196,6 @@ export default function MultiInstitutePage() {
         <div className="font-bengali">
             <div className="p-8 space-y-8 animate-fade-in-up">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tight">আমার প্রতিষ্ঠানসমূহ</h1>
-                        <p className="text-slate-500 font-medium">আপনার পরিচালিত সকল প্রতিষ্ঠানের তালিকা এখান থেকে পরিচালনা করুন।</p>
-                    </div>
                     <button
                         onClick={() => {
                             setEditingInst(null);
@@ -251,6 +247,23 @@ export default function MultiInstitutePage() {
                                             ডিফল্ট
                                         </div>
                                     )}
+
+                                    {/* Owner/Joined Badge */}
+                                    <div className={`absolute top-4 ${activeInstitute?.id === inst.id ? 'right-28' : 'right-4'}`}>
+                                        {inst.isOwner !== false ? (
+                                            <div className="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm border border-amber-200">
+                                                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                                                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
+                                                </svg>
+                                                মালিক
+                                            </div>
+                                        ) : (
+                                            <div className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm border border-blue-200">
+                                                <Users size={10} />
+                                                যুক্ত
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 <div className="p-6 pt-0 relative">

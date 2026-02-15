@@ -18,7 +18,7 @@ import Modal from '@/components/Modal';
 import Toast from '@/components/Toast';
 
 export default function ClassesPage() {
-    const { activeInstitute } = useSession();
+    const { activeInstitute, activeRole } = useSession();
     const [classes, setClasses] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isClassModalOpen, setIsClassModalOpen] = useState(false);
@@ -131,17 +131,15 @@ export default function ClassesPage() {
     return (
         <div className="p-4 md:p-8 space-y-8 animate-fade-in-up font-bengali">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-800 uppercase tracking-tight font-sans">ক্লাস ও গ্রুপ ব্যবস্থাপনা</h1>
-                    <p className="text-slate-500 font-medium">আপনার প্রতিষ্ঠানের শ্রেণী এবং গ্রুপগুলো সেটআপ করুন।</p>
-                </div>
-                <button
-                    onClick={() => setIsClassModalOpen(true)}
-                    className="flex items-center gap-2 px-6 py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95"
-                >
-                    <Plus size={20} />
-                    <span>নতুন ক্লাস</span>
-                </button>
+                {activeRole !== 'STUDENT' && (
+                    <button
+                        onClick={() => setIsClassModalOpen(true)}
+                        className="flex items-center gap-2 px-6 py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95"
+                    >
+                        <Plus size={20} />
+                        <span>নতুন ক্লাস</span>
+                    </button>
+                )}
             </div>
 
             {loading ? (
@@ -153,12 +151,14 @@ export default function ClassesPage() {
                 <div className="bg-white rounded-3xl border-2 border-dashed border-slate-200 p-20 text-center text-slate-400">
                     <BookOpen className="mx-auto mb-4 opacity-20" size={64} />
                     <p className="text-xl font-bold">কোন ক্লাস পাওয়া যায়নি।</p>
-                    <button
-                        onClick={() => setIsClassModalOpen(true)}
-                        className="mt-4 text-[#045c84] font-bold hover:underline"
-                    >
-                        প্রথম ক্লাস তৈরি করুন →
-                    </button>
+                    {activeRole !== 'STUDENT' && (
+                        <button
+                            onClick={() => setIsClassModalOpen(true)}
+                            className="mt-4 text-[#045c84] font-bold hover:underline"
+                        >
+                            প্রথম ক্লাস তৈরি করুন →
+                        </button>
+                    )}
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -171,16 +171,18 @@ export default function ClassesPage() {
                                     </div>
                                     <h3 className="text-lg font-bold text-slate-800">{c.name}</h3>
                                 </div>
-                                <button
-                                    onClick={() => {
-                                        setSelectedClass(c);
-                                        setIsGroupModalOpen(true);
-                                    }}
-                                    className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:text-[#045c84] hover:border-[#045c84] transition-all"
-                                    title="গ্রুপ যোগ করুন"
-                                >
-                                    <Plus size={18} />
-                                </button>
+                                {activeRole !== 'STUDENT' && (
+                                    <button
+                                        onClick={() => {
+                                            setSelectedClass(c);
+                                            setIsGroupModalOpen(true);
+                                        }}
+                                        className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:text-[#045c84] hover:border-[#045c84] transition-all"
+                                        title="গ্রুপ যোগ করুন"
+                                    >
+                                        <Plus size={18} />
+                                    </button>
+                                )}
                             </div>
                             <div className="p-6 space-y-3">
                                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">

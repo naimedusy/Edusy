@@ -28,6 +28,8 @@ model User {
 
   // Dynamic fields storage
   metadata    Json?
+
+  teacherProfiles TeacherProfile[]
 }
 
 model Institute {
@@ -47,9 +49,12 @@ model Institute {
   // Many-to-Many with User
   admins      User[]   @relation(fields: [adminIds], references: [id])
   adminIds    String[] @db.ObjectId
+  
+  teacherProfiles TeacherProfile[]
 
   // Relations
   classes     Class[]
+  books       Book[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -64,6 +69,7 @@ model Class {
   instituteId String    @db.ObjectId
   
   groups      Group[]
+  books       Book[]
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -104,4 +110,57 @@ model SiteSettings {
   
   updatedAt      DateTime @updatedAt
   createdAt      DateTime @default(now())
+}
+
+model TeacherProfile {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  
+  userId      String   @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id])
+  
+  instituteId String   @db.ObjectId
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  
+  designation String?
+  department  String?
+  joinDate    DateTime @default(now())
+  
+  // Permissions: { canCollectFees: boolean, canManageResult: boolean, canTakeAttendance: boolean, ... }
+  permissions Json?    
+  
+  // Class Restrictions: List of Class IDs this teacher acts upon
+  assignedClassIds String[] @db.ObjectId
+  
+  isAdmin     Boolean  @default(false)
+  status      String   @default("PENDING") // PENDING, ACTIVE, REJECTED
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, instituteId])
+}
+
+model Notification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  type        String   // "TEACHER_LEFT", "TEACHER_REMOVED", etc.
+  title       String
+  message     String
+  read        Boolean  @default(false)
+  metadata    Json?    // Store additional info like teacher name, institute name, instituteId
+  createdAt   DateTime @default(now())
+}
+
+model Book {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  
+  class       Class    @relation(fields: [classId], references: [id])
+  classId     String   @db.ObjectId
+  
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  instituteId String    @db.ObjectId
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

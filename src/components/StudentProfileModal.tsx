@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Calendar, BookOpen, CreditCard, ChevronRight, User, Edit, ChevronDown, ChevronUp, Printer, Trash2 } from 'lucide-react';
+import { useSession } from './SessionProvider';
+import PrintLayout from './PrintLayout';
 
 interface StudentProfileModalProps {
     isOpen: boolean;
@@ -12,9 +14,20 @@ interface StudentProfileModalProps {
 }
 
 export default function StudentProfileModal({ isOpen, onClose, student, onEdit }: StudentProfileModalProps) {
+    const { activeInstitute } = useSession();
     const [activeTab, setActiveTab] = useState<'fees' | 'attendance' | 'assignments'>('fees');
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+    const [isPrinting, setIsPrinting] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const printRef = useRef<HTMLDivElement>(null);
+
+    const handlePrint = () => {
+        setIsPrinting(true);
+        setTimeout(() => {
+            window.print();
+            setIsPrinting(false);
+        }, 500);
+    };
 
     useEffect(() => {
         setMounted(true);
@@ -219,11 +232,87 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit }
                         বন্ধ করুন
                     </button>
                     <button
-                        className="px-8 py-3 bg-[#2563EB] text-white font-bold rounded-xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 text-sm"
+                        onClick={handlePrint}
+                        className="px-8 py-3 bg-[#2563EB] text-white font-bold rounded-xl shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all active:scale-95 text-sm flex items-center gap-2"
                     >
-                        ফি কার্ড প্রিন্ট
+                        <Printer size={18} />
+                        <span>ফি কার্ড প্রিন্ট</span>
                     </button>
                 </div>
+
+                {/* Formal Print Version (Visible only during print) */}
+                {isPrinting && (
+                    <div className="hidden">
+                        <PrintLayout title="ফি ক্লিয়ারেন্স কার্ড (Fee Clearance Card)" institute={activeInstitute}>
+                            <div className="space-y-8">
+                                {/* Student Snapshot */}
+                                <div className="grid grid-cols-2 gap-10 border-2 border-slate-100 p-6 rounded-2xl">
+                                    <div className="space-y-4">
+                                        <div className="space-y-1">
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">নাম (Name)</p>
+                                            <p className="text-2xl font-black text-slate-900">{student.name}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">আইডি (Student ID)</p>
+                                            <p className="text-xl font-bold text-slate-700">{student.metadata?.studentId || 'N/A'}</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-4 text-right">
+                                        <div className="space-y-1">
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">শ্রেণী (Class)</p>
+                                            <p className="text-xl font-bold text-slate-700">{student.metadata?.className || 'N/A'}</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">রোল (Roll)</p>
+                                            <p className="text-xl font-bold text-slate-700">{student.metadata?.roll || 'N/A'}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Fee Status Table */}
+                                <div className="space-y-4">
+                                    <h3 className="text-lg font-black text-slate-900 border-b-2 border-slate-900 pb-2 uppercase tracking-wide">লেনদেন ও বকেয়া (Transactions & Dues)</h3>
+                                    <table className="w-full border-collapse">
+                                        <thead>
+                                            <tr className="bg-slate-100">
+                                                <th className="border border-slate-300 px-4 py-2 text-left text-sm font-bold">বিবরণ (Description)</th>
+                                                <th className="border border-slate-300 px-4 py-2 text-right text-sm font-bold">পরিমাণ (Amount)</th>
+                                                <th className="border border-slate-300 px-4 py-2 text-center text-sm font-bold">অবস্থা (Status)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200">
+                                            <tr>
+                                                <td className="border border-slate-300 px-4 py-3 text-sm font-medium">মাসিক ফি (ডিসেম্বর)</td>
+                                                <td className="border border-slate-300 px-4 py-3 text-right text-sm font-bold">৳ ১,০০০</td>
+                                                <td className="border border-slate-300 px-4 py-3 text-center text-sm font-bold text-red-600">বকেয়া</td>
+                                            </tr>
+                                            <tr>
+                                                <td className="border border-slate-300 px-4 py-3 text-sm font-medium">কো-কারিকুলার ফি</td>
+                                                <td className="border border-slate-300 px-4 py-3 text-right text-sm font-bold">৳ ২০০</td>
+                                                <td className="border border-slate-300 px-4 py-3 text-center text-sm font-bold text-red-600">বকেয়া</td>
+                                            </tr>
+                                            <tr className="bg-slate-50">
+                                                <td className="border border-slate-300 px-4 py-3 text-sm font-black text-right">মোট বকেয়া (Total Due):</td>
+                                                <td className="border border-slate-300 px-4 py-3 text-right text-lg font-black text-red-600">৳ ১,২০০</td>
+                                                <td className="border border-slate-300 px-4 py-3 text-center font-bold text-red-600 uppercase text-xs">Unpaid</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                {/* Important Instructions */}
+                                <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">নির্দেশনা (Instructions):</p>
+                                    <ul className="text-[10px] text-slate-600 list-disc pl-4 space-y-1">
+                                        <li>আগামী ১০ তারিখের মধ্যে বকেয়া ফি পরিশোধ করার জন্য অনুরোধ করা হলো।</li>
+                                        <li>এই কার্ডটি সংরক্ষিত রাখুন এবং ফি পরিশোধের সময় সাথে আনুন।</li>
+                                        <li>যেকোন জিজ্ঞাসায় অফিস চলাকালীন সময়ে যোগাযোগ করুন।</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </PrintLayout>
+                    </div>
+                )}
             </div>
         </div>,
         document.body
