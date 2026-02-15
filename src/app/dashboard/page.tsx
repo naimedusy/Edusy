@@ -70,6 +70,10 @@ export default function DashboardPage() {
                 .then(data => {
                     setStatsData(data);
                     setLoading(false);
+                })
+                .catch(err => {
+                    console.error('Failed to fetch stats:', err);
+                    setLoading(false);
                 });
         }
     }, [activeRole]);
@@ -94,14 +98,14 @@ function SuperAdminDashboard({ statsData, loading }: { statsData: any, loading: 
         <div className="p-8 space-y-8 animate-fade-in">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-3">
+                    <h1 className="text-3xl font-bold text-slate-800 uppercase tracking-tight flex items-center gap-3">
                         <ShieldCheck className="text-[#045c84]" size={32} />
                         সিস্টেম ওভারসাইট
                     </h1>
                     <p className="text-slate-500 font-medium font-bengali">পুরো প্লাটফর্মের বর্তমান অবস্থা এবং পরিসংখ্যান এখানে দেখুন।</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-black uppercase tracking-widest border border-emerald-100">
+                    <span className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold uppercase tracking-widest border border-emerald-100">
                         <Activity size={14} />
                         সিস্টেম অনলাইন
                     </span>
@@ -129,7 +133,7 @@ function SuperAdminDashboard({ statsData, loading }: { statsData: any, loading: 
                                     </div>
                                 </div>
                                 <p className="text-slate-500 font-bold uppercase text-xs tracking-wider font-bengali">{stat.name}</p>
-                                <h3 className="text-3xl font-black text-slate-800 mt-1">{stat.value}</h3>
+                                <h3 className="text-3xl font-bold text-slate-800 mt-1">{stat.value}</h3>
                             </div>
                         ))}
                     </div>
@@ -137,13 +141,13 @@ function SuperAdminDashboard({ statsData, loading }: { statsData: any, loading: 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Server Health */}
                         <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
-                            <h3 className="text-xl font-black text-slate-800 mb-8 uppercase tracking-tight flex items-center gap-2 font-bengali">
+                            <h3 className="text-xl font-bold text-slate-800 mb-8 uppercase tracking-tight flex items-center gap-2 font-bengali">
                                 <Server className="text-[#045c84]" />
                                 সার্ভার পারফরম্যান্স
                             </h3>
                             <div className="space-y-6">
                                 <div className="space-y-2">
-                                    <div className="flex justify-between text-xs font-black uppercase text-slate-500 tracking-wider font-bengali">
+                                    <div className="flex justify-between text-xs font-bold uppercase text-slate-500 tracking-wider font-bengali">
                                         <span>CPU ইউসেজ</span>
                                         <span>২৫%</span>
                                     </div>
@@ -152,7 +156,7 @@ function SuperAdminDashboard({ statsData, loading }: { statsData: any, loading: 
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <div className="flex justify-between text-xs font-black uppercase text-slate-500 tracking-wider font-bengali">
+                                    <div className="flex justify-between text-xs font-bold uppercase text-slate-500 tracking-wider font-bengali">
                                         <span>মেমোরি ইউসেজ</span>
                                         <span>৪২%</span>
                                     </div>
@@ -161,7 +165,7 @@ function SuperAdminDashboard({ statsData, loading }: { statsData: any, loading: 
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <div className="flex justify-between text-xs font-black uppercase text-slate-500 tracking-wider font-bengali">
+                                    <div className="flex justify-between text-xs font-bold uppercase text-slate-500 tracking-wider font-bengali">
                                         <span>ডিস্ক স্পেস</span>
                                         <span>৬৫%</span>
                                     </div>
@@ -175,21 +179,21 @@ function SuperAdminDashboard({ statsData, loading }: { statsData: any, loading: 
                         {/* Recent System Alerts */}
                         <div className="bg-[#045c84] rounded-3xl shadow-xl p-8 text-white relative overflow-hidden">
                             <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-                            <h3 className="text-xl font-black mb-6 uppercase tracking-tight flex items-center gap-2 font-bengali">
+                            <h3 className="text-xl font-bold mb-6 uppercase tracking-tight flex items-center gap-2 font-bengali">
                                 <AlertCircle />
                                 গুরুত্বপূর্ণ এলার্ট
                             </h3>
                             <div className="space-y-4 relative z-10 font-bengali">
                                 <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md">
                                     <p className="text-sm font-bold">নতুন ৫টি প্রতিষ্ঠান অনুমোদনের অপেক্ষায়</p>
-                                    <p className="text-[10px] opacity-60 mt-1 uppercase tracking-widest font-black text-sky-200">২ ঘণ্টা আগে</p>
+                                    <p className="text-[10px] opacity-60 mt-1 uppercase tracking-widest font-bold text-sky-200">২ ঘণ্টা আগে</p>
                                 </div>
                                 <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md">
                                     <p className="text-sm font-bold">সার্ভার ব্যাকআপ সম্পন্ন হয়েছে</p>
-                                    <p className="text-[10px] opacity-60 mt-1 uppercase tracking-widest font-black text-sky-200">৫ ঘণ্টা আগে</p>
+                                    <p className="text-[10px] opacity-60 mt-1 uppercase tracking-widest font-bold text-sky-200">৫ ঘণ্টা আগে</p>
                                 </div>
                             </div>
-                            <button className="w-full mt-8 py-4 bg-white text-[#045c84] font-black rounded-2xl text-xs uppercase tracking-[0.2em] hover:bg-sky-50 transition-all shadow-lg active:scale-95 font-bengali">
+                            <button className="w-full mt-8 py-4 bg-white text-[#045c84] font-bold rounded-2xl text-xs uppercase tracking-[0.2em] hover:bg-sky-50 transition-all shadow-lg active:scale-95 font-bengali">
                                 সমস্ত লগ দেখুন
                             </button>
                         </div>
@@ -200,22 +204,96 @@ function SuperAdminDashboard({ statsData, loading }: { statsData: any, loading: 
     );
 }
 
+import InstituteOnboarding from '@/components/InstituteOnboarding';
+
+// ... (other imports)
+
 // --- Admin Dashboard ---
 function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
+    const { user, setAllInstitutes } = useSession();
     const [isInstModalOpen, setIsInstModalOpen] = useState(false);
     const [showInstituteSwitcher, setShowInstituteSwitcher] = useState(false);
 
+    // Check if user has institutes (or activeInstitute found). 
+    // If not, show Onboarding.
+    // Note: session provider usually auto-fetches, so we rely on user.institutes length check
+    // Logic: if loaded user but no institutes -> onboarding
+
+    // We need to double check if "loading" state allows this check.
+    // user.institutes can be undefined initially.
+    // Assuming if activeInstitute is null AND user.institutes is explicitly empty array
+
+    const [statsData, setStatsData] = useState<any>(null);
+    const [statsLoading, setStatsLoading] = useState(false);
+
+    useEffect(() => {
+        if (activeInstitute?.id) {
+            setStatsLoading(true);
+            fetch(`/api/admin/institutes/stats?instituteId=${activeInstitute.id}`)
+                .then(res => res.json())
+                .then(data => {
+                    setStatsData(data);
+                    setStatsLoading(false);
+                })
+                .catch(err => {
+                    console.error('Failed to fetch institute stats:', err);
+                    setStatsLoading(false);
+                });
+        }
+    }, [activeInstitute?.id]);
+
+    const showOnboarding = user?.institutes && user.institutes.length === 0;
+
+    const handleOnboardingComplete = () => {
+        // Force reload of page or re-fetch institutes is handled by the component calling refreshSession
+        // But we might need to update local state here if not fully reactive
+        window.location.reload();
+    };
+
+    if (showOnboarding) {
+        return <InstituteOnboarding onComplete={handleOnboardingComplete} />;
+    }
+
     const stats = [
-        { name: 'মোট শিক্ষার্থী', value: '১,২০০', icon: Users, color: 'blue', change: '+৫%', up: true },
-        { name: 'মোট শিক্ষক', value: '৪৫', icon: GraduationCap, color: 'sky', change: '+২', up: true },
-        { name: 'মোট আয়', value: '৳৫,৫০,০০০', icon: CreditCard, color: 'teal', change: '-৩%', up: false },
-        { name: 'উপস্থিতি', value: '৯৫%', icon: TrendingUp, color: 'cyan', change: '+১%', up: true },
+        {
+            name: 'মোট শিক্ষার্থী',
+            value: statsLoading ? '...' : (statsData?.students ?? 0).toLocaleString('bn-BD'),
+            icon: Users,
+            color: 'blue',
+            change: '+০%',
+            up: true
+        },
+        {
+            name: 'মোট শিক্ষক',
+            value: statsLoading ? '...' : (statsData?.teachers ?? 0).toLocaleString('bn-BD'),
+            icon: GraduationCap,
+            color: 'sky',
+            change: '+০',
+            up: true
+        },
+        {
+            name: 'মোট আয়',
+            value: statsLoading ? '...' : `৳${(statsData?.revenue ?? 0).toLocaleString('bn-BD')}`,
+            icon: CreditCard,
+            color: 'teal',
+            change: '০%',
+            up: true
+        },
+        {
+            name: 'উপস্থিতি',
+            value: statsLoading ? '...' : (statsData?.attendance ?? '০%'),
+            icon: TrendingUp,
+            color: 'cyan',
+            change: '০%',
+            up: true
+        },
     ];
 
     console.log('ADMIN DASHBOARD ACTIVE INST:', activeInstitute);
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col">
+
             {/* Header Section with Cover Image */}
             <div className="relative">
                 {activeInstitute?.coverImage ? (
@@ -268,7 +346,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                             </span>
                             <span className="flex items-center gap-1 text-sm bg-white px-3 py-1 rounded-full border border-slate-100 shadow-sm">
                                 <Users size={14} className="text-[#045c84]" />
-                                ১.২কে শিক্ষার্থী
+                                {statsLoading ? '...' : (statsData?.students ?? 0).toLocaleString('bn-BD')} শিক্ষার্থী
                             </span>
                         </div>
                     </div>
@@ -316,9 +394,9 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                             <TrendingUp className="text-[#045c84]" />
                             ভর্তি সংক্রান্ত তথ্য
                         </h3>
-                        <select className="bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold px-4 py-2 outline-none text-slate-700">
-                            <option>এই সপ্তাহ</option>
-                            <option>এই মাস</option>
+                        <select className="bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold px-4 py-2 outline-none text-slate-700 w-auto">
+                            <option className="text-slate-700">এই সপ্তাহ</option>
+                            <option className="text-slate-700">এই মাস</option>
                         </select>
                     </div>
                     <div className="flex-1 flex items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">

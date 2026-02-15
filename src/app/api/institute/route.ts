@@ -12,36 +12,61 @@ export async function GET(req: Request) {
             return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
         }
 
-        // Step 1: Raw Find User to get instituteIds (bypassing Client schema mismatch)
-        const rawUserResponse: any = await prisma.$runCommandRaw({
-            find: "User",
-            filter: { _id: { "$oid": userId } },
-            projection: { instituteIds: 1 },
-            limit: 1
-        });
 
-        // Parse Raw Response (MongoDB returns { cursor: { firstBatch: [...] } })
+        // Check DB Connectivity
+        try {
+            await prisma.$runCommandRaw({ ping: 1 });
+        } catch (e: any) {
+            console.error('❌ Database Connection Failed (ping):', e);
+            return NextResponse.json({
+                message: 'Database connection failed',
+                error: e.message || String(e),
+                hint: 'Please ensure MongoDB is running and network is stable.'
+            }, { status: 503 });
+        }
+
+        // Step 1: Try Standard Prisma Client first (more robust if schema matches)
         let instituteIds: string[] = [];
-
-        if (
-            rawUserResponse &&
-            rawUserResponse.cursor &&
-            rawUserResponse.cursor.firstBatch &&
-            rawUserResponse.cursor.firstBatch.length > 0
-        ) {
-            const userDoc = rawUserResponse.cursor.firstBatch[0];
-            const rawIds = userDoc.instituteIds; // likely [{ $oid: "..." }, ...] or strings
-
-            if (Array.isArray(rawIds)) {
-                instituteIds = rawIds.map((idObj: any) => {
-                    if (typeof idObj === 'string') return idObj;
-                    if (idObj && idObj.$oid) return idObj.$oid;
-                    return null;
-                }).filter(Boolean) as string[];
+        try {
+            const user = await prisma.user.findUnique({
+                where: { id: userId },
+                select: { instituteIds: true }
+            });
+            if (user && user.instituteIds) {
+                instituteIds = user.instituteIds;
+                console.log(`✅ Fetched ${instituteIds.length} instituteIds via Standard Prisma`);
             }
-        } else {
-            console.log('User not found or no institutes via raw fetch');
-            return NextResponse.json([]);
+        } catch (prismaError) {
+            console.warn('⚠️ Standard Prisma Find failed, falling back to Raw Command:', prismaError);
+
+            // Fallback: Raw Find User to get instituteIds
+            const rawUserResponse: any = await prisma.$runCommandRaw({
+                find: "User",
+                filter: { _id: { "$oid": userId } },
+                projection: { instituteIds: 1 },
+                limit: 1
+            });
+
+            if (
+                rawUserResponse &&
+                rawUserResponse.cursor &&
+                rawUserResponse.cursor.firstBatch &&
+                rawUserResponse.cursor.firstBatch.length > 0
+            ) {
+                const userDoc = rawUserResponse.cursor.firstBatch[0];
+                const rawIds = userDoc.instituteIds;
+
+                if (Array.isArray(rawIds)) {
+                    instituteIds = rawIds.map((idObj: any) => {
+                        if (typeof idObj === 'string') return idObj;
+                        if (idObj && idObj.$oid) return idObj.$oid;
+                        return null;
+                    }).filter(Boolean) as string[];
+                }
+            } else {
+                console.log('User not found or no institutes via raw fetch');
+                return NextResponse.json([]);
+            }
         }
 
         console.log(`GET /api/institute found ${instituteIds.length} IDs via RAW:`, instituteIds);
@@ -228,6 +253,85 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ id, ...updateFields });
     } catch (error) {
         console.error('Update Institute Error:', error);
+        return NextResponse.json({ message: 'Internal server error', error: String(error) }, { status: 500 });
+    }
+}
+
+export async function DELETE(req: Request) {
+    try {
+        const body = await req.json();
+        const { instituteId, userId, password } = body;
+
+        console.log('DELETE INSTITUTE REQUEST:', { instituteId, userId });
+
+        if (!instituteId || !userId || !password) {
+            return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
+        }
+
+        // 1. Verify User Password
+        const user = await prisma.user.findUnique({
+            where: { id: userId }
+        });
+
+        if (!user || user.password !== password) {
+            return NextResponse.json({ message: 'Invalid password' }, { status: 401 });
+        }
+
+        // 2. Verify Institute Ownership (Admin check)
+        const isOwner = user.instituteIds.includes(instituteId);
+        if (!isOwner && user.role !== 'SUPER_ADMIN') {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
+        }
+
+        // 3. Manual Cascade Delete using Raw Commands (Safety first)
+
+        // Find all classes for this institute to get their IDs
+        const classes = await prisma.class.findMany({
+            where: { instituteId: instituteId },
+            select: { id: true }
+        });
+        const classIds = classes.map(c => c.id);
+
+        console.log(`Found ${classIds.length} classes to delete for institute ${instituteId}`);
+
+        // Delete Groups related to these classes
+        if (classIds.length > 0) {
+            const deleteGroups = await prisma.$runCommandRaw({
+                delete: "Group",
+                deletes: [{ q: { classId: { "$in": classIds.map(id => ({ "$oid": id })) } }, limit: 0 }]
+            });
+            console.log('Deleted Groups:', deleteGroups);
+        }
+
+        // Delete Classes
+        const deleteClasses = await prisma.$runCommandRaw({
+            delete: "Class",
+            deletes: [{ q: { instituteId: { "$oid": instituteId } }, limit: 0 }]
+        });
+        console.log('Deleted Classes:', deleteClasses);
+
+        // 4. Unlink Institute from User
+        await prisma.$runCommandRaw({
+            update: "User",
+            updates: [
+                {
+                    q: { _id: { "$oid": userId } },
+                    u: { "$pull": { instituteIds: { "$oid": instituteId } } }
+                }
+            ]
+        });
+
+        // 5. Delete Institute
+        const deleteInstitute = await prisma.$runCommandRaw({
+            delete: "Institute",
+            deletes: [{ q: { _id: { "$oid": instituteId } }, limit: 1 }]
+        });
+        console.log('Deleted Institute:', deleteInstitute);
+
+        return NextResponse.json({ message: 'Institute deleted successfully' });
+
+    } catch (error) {
+        console.error('Delete Institute Error:', error);
         return NextResponse.json({ message: 'Internal server error', error: String(error) }, { status: 500 });
     }
 }

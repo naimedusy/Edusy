@@ -21,7 +21,7 @@ export default function InstituteSwitcher() {
         <div className="mx-4 mb-4 p-4 bg-emerald-50 rounded-2xl border border-emerald-100/50">
             <div className="flex items-center gap-2 mb-3 text-emerald-700">
                 <Building2 size={18} />
-                <span className="text-xs font-black uppercase tracking-wider font-bengali">প্রতিষ্ঠান পরিবর্তন</span>
+                <span className="text-xs font-bold uppercase tracking-wider font-bengali">প্রতিষ্ঠান পরিবর্তন</span>
             </div>
 
             <div className="relative group font-bengali">

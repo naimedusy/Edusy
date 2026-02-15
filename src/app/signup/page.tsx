@@ -44,13 +44,15 @@ export default function SignupPage() {
     return (
         <AuthLayout title="শুরু করুন!" subtitle="আজই আপনার ফ্রি অ্যাকাউন্ট তৈরি করুন">
 
-            <div className="bg-blue-50 border-l-4 border-[#047cac] text-[#045c84] p-4 mb-6 rounded-r-xl shadow-sm animate-fade-in-up flex items-center gap-3" role="alert">
-                <AlertCircle size={24} />
-                <div>
-                    <p className="font-normal text-red-600">দুঃখিত!</p>
-                    <p>{error}</p>
+            {error && (
+                <div className="bg-blue-50 border-l-4 border-[#047cac] text-[#045c84] p-4 mb-6 rounded-r-xl shadow-sm animate-fade-in-up flex items-center gap-3" role="alert">
+                    <AlertCircle size={24} />
+                    <div>
+                        <p className="font-normal text-red-600">দুঃখিত!</p>
+                        <p>{error}</p>
+                    </div>
                 </div>
-            </div>
+            )}
 
 
             <form onSubmit={handleSubmit} className="space-y-5">

@@ -38,12 +38,10 @@ export default function GuardianManagementPage() {
         if (!activeInstitute?.id) return;
         setLoading(true);
         try {
-            const res = await fetch(`/api/admin/users?role=GUARDIAN&search=${search}`);
+            const instituteFilter = activeInstitute?.id ? `&instituteId=${activeInstitute.id}` : '';
+            const res = await fetch(`/api/admin/users?role=GUARDIAN&search=${search}${instituteFilter}`);
             const data = await res.json();
-            const filtered = data.filter((u: any) =>
-                u.institute?.name === activeInstitute.name
-            );
-            setGuardians(filtered);
+            setGuardians(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Fetch guardians error:', error);
         } finally {
@@ -107,7 +105,7 @@ export default function GuardianManagementPage() {
         <div className="p-4 md:p-8 space-y-8 animate-fade-in-up font-bengali">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tight font-sans">অভিভাবক ব্যবস্থাপনা</h1>
+                    <h1 className="text-3xl font-bold text-slate-800 uppercase tracking-tight font-sans">অভিভাবক ব্যবস্থাপনা</h1>
                     <p className="text-slate-500 font-medium">আপনার প্রতিষ্ঠানের অভিভাবকদের তথ্য পরিচালনা করুন।</p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -122,7 +120,7 @@ export default function GuardianManagementPage() {
                     </div>
                     <button
                         onClick={() => setIsAddModalOpen(true)}
-                        className="flex items-center gap-2 px-6 py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95"
+                        className="flex items-center gap-2 px-6 py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95"
                     >
                         <UserPlus size={20} />
                         <span>নতুন অভিভাবক</span>
@@ -135,8 +133,8 @@ export default function GuardianManagementPage() {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-slate-50 border-b border-slate-200">
-                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-wider">অভিভাবক</th>
-                                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-wider text-right">অ্যাকশন</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">অভিভাবক</th>
+                                <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">অ্যাকশন</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -158,7 +156,7 @@ export default function GuardianManagementPage() {
                                 <tr key={g.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-6 py-4 text-black">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-[#045c84] font-black text-lg">
+                                            <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-[#045c84] font-bold text-lg">
                                                 {g.name?.[0] || 'G'}
                                             </div>
                                             <div>
@@ -189,7 +187,7 @@ export default function GuardianManagementPage() {
                 <form onSubmit={handleCreateGuardian} className="p-8 space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পুরো নাম</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">পুরো নাম</label>
                             <input
                                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
                                 placeholder="যেমন: মোঃ সাকিব হাসান"
@@ -199,7 +197,7 @@ export default function GuardianManagementPage() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ইমেইল (লগইন এর জন্য)</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">ইমেইল (লগইন এর জন্য)</label>
                             <input
                                 type="email"
                                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
@@ -210,7 +208,7 @@ export default function GuardianManagementPage() {
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পাসওয়ার্ড</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">পাসওয়ার্ড</label>
                             <input
                                 type="password"
                                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
@@ -226,7 +224,7 @@ export default function GuardianManagementPage() {
                         <button
                             type="submit"
                             disabled={actionLoading}
-                            className="px-8 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
+                            className="px-8 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
                         >
                             {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                             <span>সংরক্ষণ করুন</span>

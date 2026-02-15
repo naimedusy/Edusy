@@ -3,14 +3,15 @@ import prisma from '@/utils/db';
 
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const body = await req.json();
         const { name, order } = body;
 
         const updatedClass = await prisma.class.update({
-            where: { id: params.id },
+            where: { id },
             data: {
                 name,
                 order: order !== undefined ? order : undefined
@@ -26,20 +27,26 @@ export async function PATCH(
 
 export async function DELETE(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         // Find if there are students associated with this class in metadata
         // For simplicity in this demo, we'll just delete the class
         // but in a real app, we should check for students.
 
+        // First delete all groups associated with this class
+        await prisma.group.deleteMany({
+            where: { classId: id }
+        });
+
         await prisma.class.delete({
-            where: { id: params.id }
+            where: { id }
         });
 
         return NextResponse.json({ message: 'Class deleted successfully' });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Delete class error:', error);
-        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+        return NextResponse.json({ message: 'Internal server error', error: error.message }, { status: 500 });
     }
 }

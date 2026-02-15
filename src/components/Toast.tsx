@@ -23,7 +23,7 @@ export default function Toast({ message, type, onClose, duration = 3000 }: Toast
     if (!mounted) return null;
 
     return createPortal(
-        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[999999] animate-fade-in-down w-full max-w-sm px-4">
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[999999] animate-fade-in-down w-full max-w-xl px-4">
             <div className={`flex items-center gap-3 px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border-2 ${type === 'success'
                 ? 'bg-emerald-50/90 border-emerald-200/50 text-emerald-900'
                 : 'bg-red-50/90 border-red-200/50 text-red-900'

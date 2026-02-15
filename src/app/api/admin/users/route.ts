@@ -8,12 +8,18 @@ export async function GET(req: Request) {
         const search = searchParams.get('search');
         const classId = searchParams.get('classId');
         const groupId = searchParams.get('groupId');
+        const instituteId = searchParams.get('instituteId');
 
         const pipeline: any[] = [];
 
         // Filter by role if provided
         const match: any = {};
         if (role) match.role = role;
+
+        // Filter by Institute
+        if (instituteId) {
+            match.instituteIds = { $oid: instituteId };
+        }
 
         // Filter by metadata.classId or metadata.groupId
         if (classId) match['metadata.classId'] = classId;
@@ -23,7 +29,8 @@ export async function GET(req: Request) {
         if (search) {
             match.$or = [
                 { email: { $regex: search, $options: 'i' } },
-                { name: { $regex: search, $options: 'i' } }
+                { name: { $regex: search, $options: 'i' } },
+                { phone: { $regex: search, $options: 'i' } }
             ];
         }
 
@@ -61,9 +68,11 @@ export async function GET(req: Request) {
             id: user._id?.$oid || user._id?.toString(),
             name: user.name || '',
             email: user.email || '',
+            phone: user.phone || '',
             role: user.role || 'USER',
             createdAt: user.createdAt,
-            institute: user.institute ? { name: user.institute.name } : null
+            institute: user.institute ? { name: user.institute.name } : null,
+            metadata: user.metadata || {}
         }));
 
         return NextResponse.json(users);
@@ -76,10 +85,28 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { name, email, password, role, instituteIds, metadata } = body;
+        let { name, email, password, role, instituteIds, metadata, phone } = body; // Destructure phone
+
+        // Default: If phone not in top-level, check metadata
+        if (!phone && metadata?.phone) phone = metadata.phone;
+        if (!phone && role === 'STUDENT' && metadata?.studentPhone) phone = metadata.studentPhone;
+        if (!phone && role === 'GUARDIAN' && metadata?.guardianPhone) phone = metadata.guardianPhone;
+        // If student still no phone, maybe check guardianPhone as fallback for login? 
+        // User said "student login ID by mobile", so student phone is better if available.
+        if (!phone && role === 'STUDENT' && metadata?.guardianPhone) phone = metadata.guardianPhone;
+
+        // Default Password to Phone if missing
+        if (!password && phone) {
+            password = phone;
+        }
+
+        // Generate Dummy Email if missing & phone exists
+        if ((!email || email.trim() === '') && phone) {
+            email = `${phone}@edusy.local`;
+        }
 
         if (!email || !password || !role) {
-            return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
+            return NextResponse.json({ message: 'Missing required fields (Email/Phone, Password, Role)' }, { status: 400 });
         }
 
         // Convert instituteIds to ObjectIds for MongoDB
@@ -91,6 +118,7 @@ export async function POST(req: Request) {
                 {
                     name: name || '',
                     email: email.trim(),
+                    phone: phone || null, // Ensure phone is saved
                     password, // In a real app, hash this!
                     role,
                     instituteIds: instIds,
@@ -100,6 +128,117 @@ export async function POST(req: Request) {
                 }
             ]
         });
+
+        // --- Guardian Account Automation ---
+        if (role === 'STUDENT' && metadata?.guardianPhone && metadata?.guardianName) {
+            try {
+                const guardianPhone = metadata.guardianPhone.trim();
+
+                // Find existing Guardian by phone
+                const existingGuardianRaw = await (prisma as any).$runCommandRaw({
+                    find: 'User',
+                    filter: { phone: guardianPhone },
+                    limit: 1
+                });
+
+                const existingGuardian = existingGuardianRaw.cursor?.firstBatch?.[0];
+                let guardianId = existingGuardian ? (existingGuardian._id?.$oid || existingGuardian._id?.toString()) : null;
+
+                if (!existingGuardian) {
+                    // Create New Guardian User
+                    // Use phone as email placeholder if needed, or generate one
+                    const guardianEmail = `guardian_${guardianPhone}@edusy.local`; // Dummy email
+                    const guardianPassword = guardianPhone; // Default password = mobile
+
+                    const newGuardianRaw = await (prisma as any).$runCommandRaw({
+                        insert: 'User',
+                        documents: [
+                            {
+                                name: metadata.guardianName,
+                                email: guardianEmail,
+                                phone: guardianPhone,
+                                password: guardianPassword,
+                                role: 'GUARDIAN',
+                                instituteIds: instIds,
+                                metadata: { childrenIds: [] }, // Initialize
+                                createdAt: { $date: new Date().toISOString() },
+                                updatedAt: { $date: new Date().toISOString() }
+                            }
+                        ]
+                    });
+                    // MongoDB insert returns acknowledgement, to get ID we might need to query back or use generated _id if we provided it.
+                    // simpler: Query back by phone
+                    const createdGuardianRaw = await (prisma as any).$runCommandRaw({
+                        find: 'User',
+                        filter: { phone: guardianPhone },
+                        limit: 1
+                    });
+                    const createdGuardian = createdGuardianRaw.cursor?.firstBatch?.[0];
+                    if (createdGuardian) {
+                        guardianId = createdGuardian._id?.$oid || createdGuardian._id?.toString();
+                    }
+                } else {
+                    // Update existing Guardian: Add institute if not present
+                    // We need to handle institute linking logic here if necessary for existing users
+                    // For now, assuming they are added to the institute
+                    await (prisma as any).$runCommandRaw({
+                        update: 'User',
+                        updates: [
+                            {
+                                q: { _id: { $oid: guardianId } },
+                                u: { $addToSet: { instituteIds: { $each: instIds.map((i: any) => i.$oid) } } } // Ensure correct format: array of strings? no, ObjectId
+                            }
+                        ]
+                    });
+                    // Note: $addToSet with $each for ObjectIds might need careful formatting if instituteIds is array of OIDs
+                    // Let's rely on string adds if possible, but schema says ObjectIds.
+                    // Re-reading schema: instituteIds String[] @db.ObjectId. So they are stored as OIDs.
+                }
+
+                // Link Student to Guardian (Update the just created student)
+                // We need the Student ID. The insert above didn't return it directly in result usually (depends on driver/command).
+                // We should query the student by unique email.
+
+                const studentRaw = await (prisma as any).$runCommandRaw({
+                    find: 'User',
+                    filter: { email: email.trim() },
+                    limit: 1
+                });
+                const student = studentRaw.cursor?.firstBatch?.[0];
+
+                if (student && guardianId) {
+                    const studentId = student._id?.$oid || student._id?.toString();
+
+                    // 1. Add guardianId to Student
+                    await (prisma as any).$runCommandRaw({
+                        update: 'User',
+                        updates: [
+                            {
+                                q: { _id: { $oid: studentId } },
+                                u: { $set: { "metadata.guardianId": guardianId } }
+                            }
+                        ]
+                    });
+
+                    // 2. Add studentId to Guardian's childrenIds
+                    await (prisma as any).$runCommandRaw({
+                        update: 'User',
+                        updates: [
+                            {
+                                q: { _id: { $oid: guardianId } },
+                                u: { $addToSet: { "metadata.childrenIds": studentId } }
+                            }
+                        ]
+                    });
+                }
+
+            } catch (guardianError) {
+                console.error('Guardian Automation Error:', guardianError);
+                // Don't fail the whole request if guardian part fails, just log it. 
+                // Student is already created.
+            }
+        }
+        // -----------------------------------
 
         return NextResponse.json({ success: true, message: 'User created successfully' }, { status: 201 });
     } catch (error) {

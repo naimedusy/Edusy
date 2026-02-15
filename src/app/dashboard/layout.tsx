@@ -69,6 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const adminLinks = [
         { name: 'ইউজার ডাটাবেস', icon: Users, href: '/dashboard/admin/users' },
         { name: 'প্রতিষ্ঠানসমূহ', icon: Building2, href: '/dashboard/admin/institutes' },
+        { name: 'অ্যাপ ব্র্যান্ডিং', icon: Settings, href: '/dashboard/admin/settings/branding' },
     ];
 
 
@@ -141,7 +142,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             </div>
                         )}
 
-                        {/* <InstituteSwitcher /> */}
+                        <InstituteSwitcher />
                         <RoleSwitcher />
                     </div>
 
@@ -164,18 +165,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Main Content */}
             <div className="flex-1 lg:pl-72 flex flex-col min-h-screen">
                 {/* Topbar */}
-                <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button className="lg:hidden p-2 text-slate-500" onClick={() => setIsSidebarOpen(true)}>
+                <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3 md:gap-4 min-w-0">
+                        <button className="lg:hidden p-2 text-slate-500 shrink-0" onClick={() => setIsSidebarOpen(true)}>
                             <Menu size={24} />
                         </button>
-                        <div className="relative hidden md:block w-96">
+
+                        {/* Page Title */}
+                        <div className="flex items-center min-w-0">
+                            <h2 className="text-lg md:text-xl font-bold text-slate-800 font-bengali truncate">
+                                {pathname?.includes('/dashboard/students') ? 'শিক্ষার্থী' :
+                                    pathname?.includes('/dashboard/teachers') ? 'শিক্ষক' :
+                                        pathname?.includes('/dashboard/classes') ? 'ক্লাস' :
+                                            pathname?.includes('/dashboard/accounts') ? 'হিসাব' :
+                                                pathname?.includes('/dashboard/settings') ? 'সেটিংস' :
+                                                    pathname?.includes('/dashboard/guardians') ? 'অভিভাবক' :
+                                                        pathname?.includes('/dashboard/calendar') ? 'ক্যালেন্ডার' :
+                                                            pathname?.includes('/dashboard') ? 'ড্যাশবোর্ড' : ''}
+                            </h2>
+                        </div>
+
+                        <div className="relative hidden xl:block flex-1 max-w-md ml-4">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                             <input
                                 type="text"
                                 placeholder="খুঁজুন..."
                                 className="w-full pl-10 pr-4 py-2 bg-slate-100 border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-[#047cac]/20 transition-all text-sm outline-none"
-
                             />
                         </div>
                     </div>

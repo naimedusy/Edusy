@@ -23,11 +23,17 @@ import {
     Layers,
     MoreVertical,
     ChevronRight,
-    Layers3
+    ChevronLeft,
+    Layers3,
+    Phone,
+    MessageSquare,
+    MessageCircle,
+    ChevronDown,
 } from 'lucide-react';
 import Toast from '@/components/Toast';
 import Modal from '@/components/Modal';
-import FieldLibrary, { FieldDefinition } from '@/components/FieldLibrary';
+import FieldLibrary, { FieldDefinition, POSSIBLE_FIELDS } from '@/components/FieldLibrary';
+import StudentProfileModal from '@/components/StudentProfileModal';
 
 export default function StudentManagementPage() {
     const { user, activeRole, activeInstitute } = useSession();
@@ -48,6 +54,9 @@ export default function StudentManagementPage() {
     const [editingClass, setEditingClass] = useState<any>(null);
     const [isActionMenuOpen, setIsActionMenuOpen] = useState<string | null>(null);
     const [menuPosition, setMenuPosition] = useState<{ top: number, left: number } | null>(null);
+    const [selectedStudent, setSelectedStudent] = useState<any>(null);
+    const [editingStudent, setEditingStudent] = useState<any>(null);
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const classTabsRef = useRef<HTMLDivElement>(null);
     const groupTabsRef = useRef<HTMLDivElement>(null);
 
@@ -55,16 +64,18 @@ export default function StudentManagementPage() {
         if (!container) return;
         const selectedElement = container.querySelector(`[data-id="${selectedId}"]`) as HTMLElement;
         if (selectedElement) {
-            const containerWidth = container.offsetWidth;
-            const elementWidth = selectedElement.offsetWidth;
-            const elementLeft = selectedElement.offsetLeft;
-            const scrollLeft = elementLeft - (containerWidth / 2) + (elementWidth / 2);
+            const containerRect = container.getBoundingClientRect();
+            const elementRect = selectedElement.getBoundingClientRect();
+
+            const scrollLeft = container.scrollLeft + (elementRect.left - containerRect.left) - (containerRect.width / 2) + (elementRect.width / 2);
+
             container.scrollTo({
                 left: scrollLeft,
                 behavior: 'smooth'
             });
         }
     };
+
 
     useEffect(() => {
         scrollToCenter(classTabsRef.current, selectedClassId);
@@ -73,6 +84,49 @@ export default function StudentManagementPage() {
     useEffect(() => {
         scrollToCenter(groupTabsRef.current, selectedGroupId);
     }, [selectedGroupId]);
+
+    // Drag Scroll Helper
+    const useDragScroll = (ref: React.RefObject<HTMLDivElement | null>) => {
+        const [isDragging, setIsDragging] = useState(false);
+        const [startX, setStartX] = useState(0);
+        const [scrollLeft, setScrollLeft] = useState(0);
+
+        const onMouseDown = (e: React.MouseEvent) => {
+            if (!ref.current) return;
+            setIsDragging(true);
+            setStartX(e.pageX - ref.current.offsetLeft);
+            setScrollLeft(ref.current.scrollLeft);
+        };
+
+        const onMouseLeave = () => {
+            setIsDragging(false);
+        };
+
+        const onMouseUp = () => {
+            setIsDragging(false);
+        };
+
+        const onMouseMove = (e: React.MouseEvent) => {
+            if (!isDragging || !ref.current) return;
+            e.preventDefault();
+            const x = e.pageX - ref.current.offsetLeft;
+            const walk = (x - startX) * 2; // scroll speed
+            ref.current.scrollLeft = scrollLeft - walk;
+        };
+
+        return {
+            onMouseDown,
+            onMouseLeave,
+            onMouseUp,
+            onMouseMove,
+            isDragging
+        };
+    };
+
+    const { isDragging: classIsDragging, ...classDragHandlers } = useDragScroll(classTabsRef);
+    const { isDragging: groupIsDragging, ...groupDragHandlers } = useDragScroll(groupTabsRef);
+
+
 
     const [formData, setFormData] = useState<any>({
         name: '',
@@ -86,12 +140,58 @@ export default function StudentManagementPage() {
     const [classes, setClasses] = useState<any[]>([]);
     const [groups, setGroups] = useState<any[]>([]);
 
+    // Scroll Arrows Helper
+    const useScrollArrows = (ref: React.RefObject<HTMLDivElement | null>, dep: any) => {
+        const [showLeft, setShowLeft] = useState(false);
+        const [showRight, setShowRight] = useState(false);
+
+        const checkScroll = () => {
+            if (!ref.current) return;
+            const { scrollLeft, scrollWidth, clientWidth } = ref.current;
+            setShowLeft(scrollLeft > 5);
+            setShowRight(scrollLeft < scrollWidth - clientWidth - 5);
+        };
+
+        useEffect(() => {
+            checkScroll();
+            window.addEventListener('resize', checkScroll);
+            return () => window.removeEventListener('resize', checkScroll);
+        }, [ref, dep]);
+
+        const scroll = (direction: 'left' | 'right') => {
+            if (!ref.current) return;
+            const scrollAmount = 300;
+            ref.current.scrollBy({
+                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            });
+        };
+
+        return { showLeft, showRight, scroll, checkScroll };
+    };
+
+    const classScroll = useScrollArrows(classTabsRef, classes);
+    const groupScroll = useScrollArrows(groupTabsRef, groups);
+
     const fetchFormConfig = async () => {
         if (!activeInstitute?.id) return;
         try {
             const res = await fetch(`/api/admin/institutes/form-config?instituteId=${activeInstitute.id}`);
             const data = await res.json();
-            setFormConfig(Array.isArray(data) ? data : []);
+            let config = Array.isArray(data) ? data : [];
+
+            // If empty, set default fields
+            if (config.length === 0) {
+                const defaultIds = ['studentPhoto', 'studentId', 'rollNumber', 'name', 'fathersName', 'mothersName', 'guardianPhone', 'password'];
+                const defaults = POSSIBLE_FIELDS.filter(f => defaultIds.includes(f.id));
+                // Sort by defaultIds order
+                const sortedDefaults = defaultIds.map(id => defaults.find(f => f.id === id)).filter(Boolean) as FieldDefinition[];
+
+                await handleUpdateFormConfig(sortedDefaults);
+                config = sortedDefaults;
+            }
+
+            setFormConfig(config);
         } catch (error) {
             console.error('Fetch form config error:', error);
         }
@@ -124,13 +224,12 @@ export default function StudentManagementPage() {
         try {
             const classFilter = selectedClassId !== 'all' ? `&classId=${selectedClassId}` : '';
             const groupFilter = selectedGroupId !== 'all' ? `&groupId=${selectedGroupId}` : '';
-            const res = await fetch(`/api/admin/users?role=STUDENT&search=${search}${classFilter}${groupFilter}`);
+            const instituteFilter = activeInstitute?.id ? `&instituteId=${activeInstitute.id}` : '';
+
+            const res = await fetch(`/api/admin/users?role=STUDENT&search=${search}${classFilter}${groupFilter}${instituteFilter}`);
             const data = await res.json();
             const list = Array.isArray(data) ? data : [];
-            const filtered = list.filter((u: any) =>
-                u.institute?.name === activeInstitute.name
-            );
-            setStudents(filtered);
+            setStudents(list);
         } catch (error) {
             console.error('Fetch students error:', error);
         } finally {
@@ -174,6 +273,33 @@ export default function StudentManagementPage() {
         handleUpdateFormConfig(newConfig);
     };
 
+    const handleAutoGenerate = async (fieldId: string) => {
+        if (!activeInstitute?.id) return;
+        try {
+            const classId = formData.metadata?.classId || '';
+            const res = await fetch(`/api/admin/students/next-ids?instituteId=${activeInstitute.id}&classId=${classId}`);
+            const data = await res.json();
+
+            if (fieldId === 'studentId') {
+                setFormData((prev: any) => ({
+                    ...prev,
+                    metadata: { ...prev.metadata, studentId: data.nextStudentId }
+                }));
+            } else if (fieldId === 'rollNumber') {
+                if (!classId) {
+                    setToast({ message: 'প্রথমে শ্রেণী নির্বাচন করুন।', type: 'error' });
+                    return;
+                }
+                setFormData((prev: any) => ({
+                    ...prev,
+                    metadata: { ...prev.metadata, rollNumber: data.nextRollNumber }
+                }));
+            }
+        } catch (error) {
+            console.error('Auto generate failed', error);
+        }
+    };
+
     const handleRemoveField = (fieldId: string) => {
         const newConfig = formConfig.filter(f => f.id !== fieldId);
         handleUpdateFormConfig(newConfig);
@@ -206,7 +332,36 @@ export default function StudentManagementPage() {
         }
     };
 
-    const handleCreateStudent = async (e: React.FormEvent) => {
+    // Auto-fill Guardian Name
+    useEffect(() => {
+        const checkGuardian = async () => {
+            const phone = formData.metadata?.guardianPhone;
+            if (!phone || phone.length < 11) return;
+
+            try {
+                const res = await fetch(`/api/admin/users?role=GUARDIAN&search=${phone}`);
+                const data = await res.json();
+                if (Array.isArray(data) && data.length > 0) {
+                    const guardian = data[0];
+                    setFormData((prev: any) => ({
+                        ...prev,
+                        metadata: {
+                            ...prev.metadata,
+                            guardianName: guardian.name
+                        }
+                    }));
+                    setToast({ message: 'অভিভাবকের তথ্য পাওয়া গেছে!', type: 'success' });
+                }
+            } catch (error) {
+                console.error("Guardian check failed", error);
+            }
+        };
+
+        const timeoutId = setTimeout(checkGuardian, 1000);
+        return () => clearTimeout(timeoutId);
+    }, [formData.metadata?.guardianPhone]);
+
+    const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!activeInstitute?.id) {
             setToast({ message: 'সক্রিয় প্রতিষ্ঠান পাওয়া যায়নি।', type: 'error' });
@@ -215,19 +370,31 @@ export default function StudentManagementPage() {
 
         setActionLoading(true);
         try {
-            const res = await fetch('/api/admin/users', {
-                method: 'POST',
+            // Map dynamic fields to top-level if needed
+            const payload = {
+                ...formData,
+                id: editingStudent?.id, // include ID for PATCH
+                name: formData.metadata?.name || formData.name,
+                email: formData.metadata?.email || formData.email,
+                password: formData.metadata?.password || formData.password,
+                phone: formData.metadata?.guardianPhone || formData.metadata?.studentPhone || formData.phone,
+                role: 'STUDENT',
+                instituteIds: editingStudent ? undefined : [activeInstitute.id] // only for POST
+            };
+
+            const url = '/api/admin/users';
+            const method = editingStudent ? 'PATCH' : 'POST';
+
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...formData,
-                    role: 'STUDENT',
-                    instituteIds: [activeInstitute.id]
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (res.ok) {
-                setToast({ message: 'শিক্ষার্থী সফলভাবে যুক্ত করা হয়েছে!', type: 'success' });
+                setToast({ message: editingStudent ? 'শিক্ষার্থীর তথ্য আপডেট করা হয়েছে!' : 'শিক্ষার্থী সফলভাবে যুক্ত করা হয়েছে!', type: 'success' });
                 setIsAddModalOpen(false);
+                setEditingStudent(null);
                 setFormData({ name: '', email: '', password: '', metadata: {} });
                 fetchStudents();
             } else {
@@ -235,7 +402,7 @@ export default function StudentManagementPage() {
                 setToast({ message: data.message || 'ব্যর্থ হয়েছে।', type: 'error' });
             }
         } catch (error) {
-            console.error('Create student error:', error);
+            console.error('Submit student error:', error);
             setToast({ message: 'সার্ভার এরর।', type: 'error' });
         } finally {
             setActionLoading(false);
@@ -293,6 +460,8 @@ export default function StudentManagementPage() {
         }
     };
 
+
+
     const handleDeleteClass = async (id: string) => {
         if (!confirm('আপনি কি এই ক্লাসটি ডিলিট করতে চান? ')) return;
         try {
@@ -301,6 +470,19 @@ export default function StudentManagementPage() {
                 setToast({ message: 'ক্লাস ডিলিট হয়েছে!', type: 'success' });
                 if (selectedClassId === id) setSelectedClassId('all');
                 fetchClasses();
+            }
+        } catch (error) {
+            setToast({ message: 'ডিলিট করতে ক্রুটি হয়েছে।', type: 'error' });
+        }
+    };
+
+    const handleDeleteStudent = async (id: string) => {
+        if (!confirm('আপনি কি এই শিক্ষার্থীকে ডিলিট করতে চান?')) return;
+        try {
+            const res = await fetch(`/api/admin/users?id=${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setToast({ message: 'শিক্ষার্থী ডিলিট হয়েছে!', type: 'success' });
+                fetchStudents();
             }
         } catch (error) {
             setToast({ message: 'ডিলিট করতে ক্রুটি হয়েছে।', type: 'error' });
@@ -340,143 +522,168 @@ export default function StudentManagementPage() {
     }
 
     return (
-        <div className="p-4 md:p-8 space-y-8 animate-fade-in-up font-bengali">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-                <div className="space-y-1">
-                    <h1 className="text-2xl md:text-3xl font-black text-slate-800 uppercase tracking-tight font-sans">শিক্ষার্থী ব্যবস্থাপনা</h1>
-                    <p className="text-slate-500 text-sm md:text-base font-medium">আপনার প্রতিষ্ঠানের শিক্ষার্থীদের তথ্য পরিচালনা করুন।</p>
+        <div className="p-3 sm:p-4 md:p-8 space-y-6 animate-fade-in-up font-bengali max-w-full overflow-x-hidden">
+            {/* Utility Bar (Search, Action, Library, Public Link) */}
+            <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+                <div className="relative flex-1">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input
+                        className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none text-black font-medium shadow-sm"
+                        placeholder="খুঁজুন..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
                 </div>
-                <div className="flex flex-wrap items-center gap-3">
-                    <div className="relative flex-1 min-w-[200px] md:w-64">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input
-                            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none text-black font-medium shadow-sm"
-                            placeholder="খুঁজুন..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                        />
-                    </div>
-                    <button
-                        onClick={() => setIsLibraryOpen(true)}
-                        className="p-4 bg-white border border-slate-200 text-slate-600 rounded-2xl shadow-sm hover:shadow-md hover:border-[#045c84] hover:text-[#045c84] transition-all active:scale-95"
-                        title="ফর্ম ফিল্ড লাইব্রেরি"
-                    >
-                        <Settings2 size={24} />
-                    </button>
+                <div className="flex items-center gap-2 w-full lg:w-auto">
                     <button
                         onClick={() => setIsAddModalOpen(true)}
-                        className="flex items-center justify-center gap-2 px-4 md:px-6 py-3 md:py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95 flex-1 md:flex-none"
+                        className="shrink-0 flex items-center justify-center gap-2 px-4 py-3 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95 whitespace-nowrap"
                     >
                         <UserPlus size={20} />
-                        <span className="hidden sm:inline">নতুন শিক্ষার্থী</span>
-                        <span className="sm:hidden">নতুন</span>
+                        <span>নতুন</span>
                     </button>
+                    <div className="flex items-center gap-2 flex-1 lg:flex-none">
+                        <button
+                            onClick={() => {
+                                if (activeInstitute?.id) {
+                                    const url = `${window.location.origin}/admission/${activeInstitute.id}`;
+                                    navigator.clipboard.writeText(url);
+                                    setToast({ message: 'ভর্তি ফর্মের লিংক কপি হয়েছে!', type: 'success' });
+                                }
+                            }}
+                            className="flex-1 lg:flex-none p-3 lg:p-4 bg-white border border-slate-200 text-slate-600 rounded-2xl shadow-sm hover:shadow-md hover:border-[#045c84] hover:text-[#045c84] transition-all active:scale-95 flex justify-center items-center"
+                            title="ভর্তি ফর্মের লিংক কপি করুন"
+                        >
+                            <ShieldCheck size={24} />
+                        </button>
+                        <button
+                            onClick={() => setIsLibraryOpen(true)}
+                            className="flex-1 lg:flex-none p-3 lg:p-4 bg-white border border-slate-200 text-slate-600 rounded-2xl shadow-sm hover:shadow-md hover:border-[#045c84] hover:text-[#045c84] transition-all active:scale-95 flex justify-center items-center"
+                            title="ফর্ম ফিল্ড লাইব্রেরি"
+                        >
+                            <Settings2 size={24} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
             {/* Class & Group Tabs */}
-            <div className="space-y-6">
-                <div className="flex items-center gap-4">
-                    <div className="flex-1 relative flex items-center">
+            <div className="sticky top-[72px] z-30 bg-slate-50/95 backdrop-blur-sm py-3 -mx-3 px-3 sm:-mx-4 sm:px-4 md:-mx-8 md:px-8 space-y-4 shadow-sm transition-all max-w-full overflow-visible">
+                <div className="flex items-center gap-2 w-full min-w-0">
+                    <div className="relative flex items-center flex-1 min-w-0 group/scroll">
                         <div
                             ref={classTabsRef}
-                            className="flex-1 overflow-x-auto scrollbar-hide flex items-center gap-2 p-1 pr-16 scroll-smooth"
+                            {...classDragHandlers}
+                            onScroll={classScroll.checkScroll}
+                            className={`flex-1 overflow-x-auto scrollbar-thin-custom flex items-center gap-2 py-3 px-1 pr-4 scroll-smooth ${classIsDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
                         >
                             <div
                                 data-id="all"
-                                className={`relative rounded-2xl whitespace-nowrap font-bold transition-all flex items-center border ${selectedClassId === 'all'
-                                    ? 'bg-[#045c84] text-white shadow-lg shadow-blue-100 border-[#045c84]'
-                                    : 'bg-white text-slate-600 border-slate-200 hover:border-[#045c84]'
+                                className={`transition-all duration-200 shrink-0 ${selectedClassId === 'all'
+                                    ? 'group flex items-center rounded-full border border-[#045c84] bg-[#045c84] text-white shadow-md ring-2 ring-blue-100 transform scale-105 z-10 select-none'
+                                    : 'px-0' // Reset default wrapper
                                     }`}>
-                                <button
-                                    onClick={() => {
-                                        setSelectedClassId('all');
-                                        setSelectedGroupId('all');
-                                        setGroups([]);
-                                    }}
-                                    className="px-4 md:px-6 py-2 md:py-3 h-full w-full text-left"
-                                >
-                                    সকল ক্লাস
-                                </button>
-                                <div className="relative pr-2">
+                                {selectedClassId === 'all' ? (
+                                    <>
+                                        <div className="pl-4 pr-2 py-1.5 text-sm font-medium whitespace-nowrap cursor-default">
+                                            সকল ক্লাস
+                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setMenuPosition({
+                                                    top: rect.bottom,
+                                                    left: rect.right - 128
+                                                });
+                                                setIsActionMenuOpen(isActionMenuOpen === 'all' ? null : 'all');
+                                            }}
+                                            className="px-2 py-1.5 flex items-center justify-center rounded-r-full text-blue-100 hover:text-white hover:bg-[#034d6e] transition-colors"
+                                        >
+                                            <MoreVertical size={14} />
+                                        </button>
+                                    </>
+                                ) : (
                                     <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const rect = e.currentTarget.getBoundingClientRect();
-                                            setMenuPosition({
-                                                top: rect.bottom,
-                                                left: rect.right - 128 // width of menu
-                                            });
-                                            setIsActionMenuOpen(isActionMenuOpen === 'all' ? null : 'all');
+                                        onClick={() => {
+                                            setSelectedClassId('all');
+                                            setSelectedGroupId('all');
+                                            setGroups([]);
                                         }}
-                                        className={`p-1 rounded-lg transition-colors ${selectedClassId === 'all' ? 'hover:bg-white/20' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-600'}`}
+                                        className="px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 bg-white text-gray-600 border border-gray-200 hover:bg-blue-50 hover:text-[#045c84]"
                                     >
-                                        <MoreVertical size={16} />
+                                        সকল ক্লাস
                                     </button>
-                                </div>
+                                )}
                             </div>
                             {classes.map(c => (
                                 <div
                                     key={c.id}
                                     data-id={c.id}
-                                    className={`relative rounded-2xl whitespace-nowrap font-bold transition-all flex items-center border ${selectedClassId === c.id
-                                        ? 'bg-[#045c84] text-white shadow-lg shadow-blue-100 border-[#045c84]'
-                                        : 'bg-white text-slate-600 border-slate-200 hover:border-[#045c84]'
+                                    className={`transition-all duration-200 shrink-0 ${selectedClassId === c.id
+                                        ? 'group flex items-center rounded-full border border-[#045c84] bg-[#045c84] text-white shadow-md ring-2 ring-blue-100 transform scale-105 z-10 select-none'
+                                        : 'px-0'
                                         }`}
                                 >
-                                    <button
-                                        onClick={() => {
-                                            setSelectedClassId(c.id);
-                                            setSelectedGroupId('all');
-                                            fetchGroups(c.id);
-                                        }}
-                                        className="px-4 md:px-6 py-2 md:py-3 h-full w-full text-left"
-                                    >
-                                        {c.name}
-                                    </button>
-
-                                    {selectedClassId === c.id && (
-                                        <div className="relative pr-2 animate-fade-in">
+                                    {selectedClassId === c.id ? (
+                                        <>
+                                            <div className="pl-4 pr-2 py-1.5 text-sm font-medium whitespace-nowrap cursor-default">
+                                                {c.name}
+                                            </div>
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     const rect = e.currentTarget.getBoundingClientRect();
                                                     setMenuPosition({
                                                         top: rect.bottom,
-                                                        left: rect.right - 128 // width of menu
+                                                        left: rect.right - 128
                                                     });
                                                     setIsActionMenuOpen(isActionMenuOpen === c.id ? null : c.id);
                                                 }}
-                                                className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                                                className="px-2 py-1.5 flex items-center justify-center rounded-r-full text-blue-100 hover:text-white hover:bg-[#034d6e] transition-colors"
                                             >
-                                                <MoreVertical size={16} />
+                                                <MoreVertical size={14} />
                                             </button>
-                                        </div>
+                                        </>
+                                    ) : (
+                                        <button
+                                            onClick={() => {
+                                                setSelectedClassId(c.id);
+                                                setSelectedGroupId('all');
+                                                fetchGroups(c.id);
+                                            }}
+                                            className="px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 bg-white text-gray-600 border border-gray-200 hover:bg-blue-50 hover:text-[#045c84]"
+                                        >
+                                            {c.name}
+                                        </button>
                                     )}
                                 </div>
                             ))}
                         </div>
-                        <button
-                            onClick={() => setIsClassModalOpen(true)}
-                            className="absolute right-1 p-3 bg-white/80 backdrop-blur-md border border-slate-200 text-[#045c84] rounded-2xl shadow-xl hover:shadow-2xl hover:border-[#045c84] transition-all z-10 scale-90 md:scale-100"
-                            title="নতুন ক্লাস"
-                        >
-                            <Plus size={20} />
-                        </button>
                     </div>
+                    <button
+                        onClick={() => setIsClassModalOpen(true)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-blue-50 text-[#045c84] hover:bg-blue-100 whitespace-nowrap border border-blue-200 transition shadow-sm shrink-0 ml-auto"
+                        title="নতুন ক্লাস"
+                    >
+                        <Plus size={14} className="group-hover:rotate-90 transition-transform duration-300" />
+                        <span>ক্লাস</span>
+                    </button>
                 </div>
 
                 {selectedClassId !== 'all' && (
-                    <div className="flex items-center gap-4 pl-4 border-l-4 border-slate-200 animate-fade-in">
-                        <div className="flex-1 relative flex items-center">
+                    <div className="flex items-center gap-4 pl-4 border-l-4 border-slate-200 animate-fade-in w-full min-w-0">
+                        <div className="relative flex items-center flex-1 min-w-0 group/scroll">
                             <div
                                 ref={groupTabsRef}
-                                className="flex-1 overflow-x-auto scrollbar-hide flex items-center gap-2 p-1 pr-12 scroll-smooth"
+                                {...groupDragHandlers}
+                                onScroll={groupScroll.checkScroll}
+                                className={`flex-1 overflow-x-auto scrollbar-thin-custom flex items-center gap-2 py-3 px-1 pr-4 scroll-smooth ${groupIsDragging ? 'cursor-grabbing select-none' : 'cursor-grab'}`}
                             >
                                 <button
                                     onClick={() => setSelectedGroupId('all')}
                                     data-id="all"
-                                    className={`px-5 py-2 rounded-xl whitespace-nowrap text-xs font-black transition-all ${selectedGroupId === 'all'
+                                    className={`px-5 py-2 rounded-full whitespace-nowrap text-xs font-bold transition-all ${selectedGroupId === 'all'
                                         ? 'bg-slate-800 text-white shadow-md'
                                         : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-800'
                                         }`}
@@ -488,7 +695,7 @@ export default function StudentManagementPage() {
                                         key={g.id}
                                         onClick={() => setSelectedGroupId(g.id)}
                                         data-id={g.id}
-                                        className={`px-5 py-2 rounded-xl whitespace-nowrap text-xs font-black transition-all ${selectedGroupId === g.id
+                                        className={`px-5 py-2 rounded-full whitespace-nowrap text-xs font-bold transition-all ${selectedGroupId === g.id
                                             ? 'bg-slate-800 text-white shadow-md'
                                             : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-800'
                                             }`}
@@ -497,219 +704,321 @@ export default function StudentManagementPage() {
                                     </button>
                                 ))}
                             </div>
-                            <button
-                                onClick={() => setIsGroupModalOpen(true)}
-                                className="absolute right-1 p-2 bg-white/80 backdrop-blur-md border border-slate-200 text-slate-400 rounded-xl shadow-lg hover:text-slate-800 hover:border-slate-800 transition-all z-10"
-                            >
-                                <Plus size={16} />
-                            </button>
                         </div>
+                        <button
+                            onClick={() => setIsGroupModalOpen(true)}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-slate-200 text-slate-400 rounded-full shadow-sm hover:text-slate-800 hover:border-slate-800 transition-all group shrink-0 ml-auto"
+                            title="নতুন গ্রুপ"
+                        >
+                            <Plus size={16} className="group-hover:rotate-90 transition-transform duration-300" />
+                            <span className="text-[10px] font-bold hidden md:inline">গ্রুপ যোগ করুন</span>
+                        </button>
                     </div>
                 )}
             </div>
 
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse min-w-[400px]">
-                        <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200">
-                                <th className="px-4 md:px-6 py-3 md:py-4 text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-wider">শিক্ষার্থী</th>
-                                <th className="px-4 md:px-6 py-3 md:py-4 text-[10px] md:text-xs font-black text-slate-500 uppercase tracking-wider text-right">অ্যাকশন</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {loading ? (
-                                <tr>
-                                    <td colSpan={2} className="px-6 py-12 text-center text-slate-400">
-                                        <Loader2 className="animate-spin mx-auto mb-2" size={32} />
-                                        <span>লোড হচ্ছে...</span>
-                                    </td>
-                                </tr>
-                            ) : students.length === 0 ? (
-                                <tr>
-                                    <td colSpan={2} className="px-6 py-12 text-center text-slate-400">
-                                        <Users className="mx-auto mb-2 opacity-20" size={48} />
-                                        <span>কোন শিক্ষার্থী পাওয়া যায়নি।</span>
-                                    </td>
-                                </tr>
-                            ) : students.map((s) => (
-                                <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-4 md:px-6 py-3 md:py-4 text-black">
-                                        <div className="flex items-center gap-2 md:gap-3">
-                                            <div className="w-8 h-8 md:w-10 md:h-10 bg-slate-100 rounded-xl flex items-center justify-center text-[#045c84] font-black text-sm md:text-lg">
-                                                {s.name?.[0] || 'S'}
-                                            </div>
-                                            <div>
-                                                <div className="text-xs md:text-sm font-bold text-slate-800 line-clamp-1">{s.name || 'নাম নেই'}</div>
-                                                <div className="text-[10px] md:text-xs text-slate-500 line-clamp-1">{s.email}</div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 md:px-6 py-3 md:py-4 text-right">
-                                        <button className="p-1.5 md:p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
-                                            <Edit size={16} className="md:w-[18px] md:h-[18px]" />
-                                        </button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            {loading ? (
+                <div className="py-20 text-center">
+                    <Loader2 className="animate-spin mx-auto text-[#045c84] mb-4" size={40} />
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">শিক্ষার্থী লোড হচ্ছে...</p>
                 </div>
-            </div>
+            ) : students.length === 0 ? (
+                <div className="py-20 text-center flex flex-col items-center justify-center text-slate-400">
+                    <Users className="mb-4 opacity-20" size={64} />
+                    <span className="text-lg font-medium">কোন শিক্ষার্থী পাওয়া যায়নি।</span>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
+                    {students.map((s) => (
+                        <div
+                            key={s.id}
+                            onClick={() => {
+                                setSelectedStudent(s);
+                                setIsProfileModalOpen(true);
+                            }}
+                            className="bg-white p-3.5 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-lg hover:border-blue-100 transition-all flex items-center gap-4 relative group cursor-pointer"
+                        >
+                            {/* Avatar */}
+                            {(() => {
+                                const colors = ['bg-orange-500', 'bg-yellow-400', 'bg-teal-500', 'bg-emerald-500', 'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500'];
+                                const colorIndex = s.name ? s.name.length % colors.length : 0;
+                                const bgColor = colors[colorIndex];
 
-            {/* Add Student Modal */}
-            <Modal
-                isOpen={isAddModalOpen}
-                onClose={() => setIsAddModalOpen(false)}
-                title="নতুন শিক্ষার্থী যুক্ত করুন"
-                maxWidth="max-w-lg"
-            >
-                <form onSubmit={handleCreateStudent} className="p-5 md:p-8 space-y-6">
-                    <div className="space-y-4">
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পুরো নাম</label>
-                            <input
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                placeholder="যেমন: মোঃ সাকিব হাসান"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                required
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ইমেইল (লগইন এর জন্য)</label>
-                            <input
-                                type="email"
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                placeholder="student@example.com"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                required
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পাসওয়ার্ড</label>
-                            <input
-                                type="password"
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                placeholder="পাসওয়ার্ড দিন"
-                                value={formData.password}
-                                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                required
-                            />
-                        </div>
-
-                        {/* Dynamic Fields */}
-                        {formConfig.map((field) => (
-                            <div key={field.id} className="space-y-2">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">
-                                    {field.label} {field.required && <span className="text-red-500">*</span>}
-                                </label>
-
-                                {field.type === 'select' ? (
-                                    <div className="relative">
-                                        <select
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
-                                            value={formData.metadata[field.id] || ''}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                metadata: { ...formData.metadata, [field.id]: e.target.value }
-                                            })}
-                                            required={field.required}
-                                        >
-                                            <option value="">নির্বাচন করুন</option>
-                                            {field.options?.map(opt => (
-                                                <option key={opt} value={opt}>{opt}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                ) : field.type === 'attachment' ? (
-                                    <div className="relative">
-                                        <div className={`w-full px-4 py-3 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-between transition-all ${formData.metadata[field.id] ? 'border-green-200 bg-green-50/30' : 'hover:border-[#045c84]'}`}>
-                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                <CloudUpload className={formData.metadata[field.id] ? 'text-green-500' : 'text-slate-400'} size={20} />
-                                                <span className="text-sm font-medium text-slate-600 truncate">
-                                                    {formData.metadata[field.id] ? 'ফাইল আপলোড হয়েছে' : 'ফাইল নির্বাচন করুন'}
-                                                </span>
-                                            </div>
-                                            <input
-                                                type="file"
-                                                className="absolute inset-0 opacity-0 cursor-pointer"
-                                                onChange={(e) => handleFileUpload(e, field.id)}
-                                                required={field.required && !formData.metadata[field.id]}
-                                            />
-                                            {formData.metadata[field.id] && (
-                                                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                                                    <Save size={16} />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ) : field.type === 'class-lookup' ? (
-                                    <div className="relative">
-                                        <select
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
-                                            value={formData.metadata[field.id] || ''}
-                                            onChange={(e) => {
-                                                const classId = e.target.value;
-                                                setFormData({
-                                                    ...formData,
-                                                    metadata: { ...formData.metadata, [field.id]: classId, groupId: '' }
-                                                });
-                                                if (classId) fetchGroups(classId);
-                                                else setGroups([]);
-                                            }}
-                                            required={field.required}
-                                        >
-                                            <option value="">শ্রেণী নির্বাচন করুন</option>
-                                            {classes.map(c => (
-                                                <option key={c.id} value={c.id}>{c.name}</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                ) : field.type === 'group-lookup' ? (
-                                    <div className="relative">
-                                        <select
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
-                                            value={formData.metadata[field.id] || ''}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                metadata: { ...formData.metadata, [field.id]: e.target.value }
-                                            })}
-                                            required={field.required}
-                                            disabled={!formData.metadata.classId}
-                                        >
-                                            <option value="">গ্রুপ নির্বাচন করুন</option>
-                                            {groups.map(g => (
-                                                <option key={g.id} value={g.id}>{g.name}</option>
-                                            ))}
-                                        </select>
-                                        {!formData.metadata.classId && (
-                                            <p className="text-[10px] text-amber-600 font-bold mt-1">প্রথমে শ্রেণী নির্বাচন করুন</p>
+                                return (
+                                    <div className={`w-12 h-12 rounded-full ${bgColor} border-2 border-white shadow-md overflow-hidden flex items-center justify-center text-white font-bold text-lg shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                                        {s.metadata?.studentPhoto ? (
+                                            <img src={s.metadata.studentPhoto} alt={s.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            s.name?.[0] || 'S'
                                         )}
                                     </div>
-                                ) : (
-                                    <input
-                                        type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                        placeholder={field.placeholder || `${field.label} দিন`}
-                                        value={formData.metadata[field.id] || ''}
-                                        onChange={(e) => setFormData({
-                                            ...formData,
-                                            metadata: { ...formData.metadata, [field.id]: e.target.value }
-                                        })}
-                                        required={field.required}
-                                    />
-                                )}
+                                );
+                            })()}
+
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                                <h3 className="text-[18px] font-bold text-slate-800 truncate mb-1" title={s.name}>
+                                    {s.name || 'নাম নেই'}
+                                </h3>
+
+                                {/* ID | Roll Tag */}
+                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50/50 border border-blue-100 rounded-full group/tag hover:bg-blue-50 transition-colors">
+                                    <div className="flex items-center gap-1.5 text-[#045c84] text-[9px] font-bold uppercase tracking-wider">
+                                        <span>ID: {s.metadata?.studentId || '-'}</span>
+                                        <span className="opacity-30">|</span>
+                                        <span>Roll: {s.metadata?.rollNumber || '-'}</span>
+                                    </div>
+                                    <ChevronDown size={12} className="text-[#045c84] opacity-40 group-hover/tag:translate-y-0.5 transition-transform" />
+                                </div>
                             </div>
-                        ))}
+
+                            {/* 3-Dot Action Button */}
+                            <div className="relative">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        const rect = e.currentTarget.getBoundingClientRect();
+                                        setMenuPosition({
+                                            top: rect.bottom + 8,
+                                            left: rect.right - 220 // Increased width for better fit
+                                        });
+                                        setIsActionMenuOpen(isActionMenuOpen === s.id ? null : s.id);
+                                    }}
+                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+                                >
+                                    <MoreVertical size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Student Form Modal (Add/Edit) */}
+            <Modal
+                isOpen={isAddModalOpen}
+                onClose={() => {
+                    setIsAddModalOpen(false);
+                    setEditingStudent(null);
+                    setFormData({ name: '', email: '', password: '', metadata: {} });
+                }}
+                title={editingStudent ? "শিক্ষার্থীর তথ্য আপডেট করুন" : "নতুন শিক্ষার্থী যুক্ত করুন"}
+                maxWidth="max-w-lg"
+            >
+                <form onSubmit={handleFormSubmit} className="p-5 md:p-8 space-y-6">
+                    <div className="space-y-4">
+                        {/* Dynamic Fields */}
+                        {(() => {
+                            const alwaysShowFields = ['studentId', 'rollNumber'];
+                            const effectiveFields = editingStudent
+                                ? [
+                                    ...formConfig,
+                                    ...POSSIBLE_FIELDS.filter(f =>
+                                        !formConfig.some(cf => cf.id === f.id) &&
+                                        (
+                                            (formData.metadata[f.id] !== undefined && formData.metadata[f.id] !== '') ||
+                                            alwaysShowFields.includes(f.id)
+                                        ) &&
+                                        f.id !== 'password'
+                                    )
+                                ]
+                                : formConfig;
+
+                            return effectiveFields.map((field) => {
+                                const isTopLevel = ['name', 'email', 'password'].includes(field.id);
+                                const fieldValue = isTopLevel ? (formData as any)[field.id] : formData.metadata[field.id];
+
+                                return (
+                                    <div key={field.id} className="space-y-2">
+                                        {!formConfig.some(cf => cf.id === field.id) && (
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] font-bold rounded uppercase tracking-wider border border-amber-100 italic">
+                                                    Config Missing
+                                                </span>
+                                                <span className="text-[10px] text-slate-400 font-medium">This field has data or is required but is not in current form config</span>
+                                            </div>
+                                        )}
+                                        {field.id === 'guardianName' && (
+                                            <div className="flex gap-2 mb-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (formData.metadata.fathersName || formData.metadata.fathersPhone) {
+                                                            setFormData({
+                                                                ...formData,
+                                                                metadata: {
+                                                                    ...formData.metadata,
+                                                                    guardianName: formData.metadata.fathersName || formData.metadata.guardianName,
+                                                                    guardianPhone: formData.metadata.fathersPhone || formData.metadata.guardianPhone,
+                                                                    guardianRelation: 'বাবা'
+                                                                }
+                                                            });
+                                                        } else {
+                                                            setToast({ message: 'পিতার তথ্য আগে পূরণ করুন।', type: 'error' });
+                                                        }
+                                                    }}
+                                                    className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
+                                                >
+                                                    অভিভাবক হিসেবে পিতা
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (formData.metadata.mothersName || formData.metadata.mothersPhone) {
+                                                            setFormData({
+                                                                ...formData,
+                                                                metadata: {
+                                                                    ...formData.metadata,
+                                                                    guardianName: formData.metadata.mothersName || formData.metadata.guardianName,
+                                                                    guardianPhone: formData.metadata.mothersPhone || formData.metadata.guardianPhone,
+                                                                    guardianRelation: 'মা'
+                                                                }
+                                                            });
+                                                        } else {
+                                                            setToast({ message: 'মাতার তথ্য আগে পূরণ করুন।', type: 'error' });
+                                                        }
+                                                    }}
+                                                    className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-xs font-bold hover:bg-pink-100 transition-colors"
+                                                >
+                                                    অভিভাবক হিসেবে মাতা
+                                                </button>
+                                            </div>
+                                        )}
+                                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                            {field.label} {field.required && <span className="text-red-500">*</span>}
+                                        </label>
+
+                                        {field.type === 'select' ? (
+                                            <div className="relative">
+                                                <select
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
+                                                    value={fieldValue || ''}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        if (isTopLevel) {
+                                                            setFormData({ ...formData, [field.id]: val });
+                                                        } else {
+                                                            setFormData({
+                                                                ...formData,
+                                                                metadata: { ...formData.metadata, [field.id]: val }
+                                                            });
+                                                        }
+                                                    }}
+                                                    required={field.required}
+                                                >
+                                                    <option value="">নির্বাচন করুন</option>
+                                                    {field.options?.map(opt => (
+                                                        <option key={opt} value={opt}>{opt}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ) : field.type === 'attachment' ? (
+                                            <div className="relative">
+                                                <div className={`w-full px-4 py-3 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-between transition-all ${fieldValue ? 'border-green-200 bg-green-50/30' : 'hover:border-[#045c84]'}`}>
+                                                    <div className="flex items-center gap-3 overflow-hidden">
+                                                        <CloudUpload className={fieldValue ? 'text-green-500' : 'text-slate-400'} size={20} />
+                                                        <span className="text-sm font-medium text-slate-600 truncate">
+                                                            {fieldValue ? 'ফাইল আপলোড হয়েছে' : 'ফাইল নির্বাচন করুন'}
+                                                        </span>
+                                                    </div>
+                                                    <input
+                                                        type="file"
+                                                        className="absolute inset-0 opacity-0 cursor-pointer"
+                                                        onChange={(e) => handleFileUpload(e, field.id)}
+                                                        required={field.required && !fieldValue}
+                                                    />
+                                                    {fieldValue && (
+                                                        <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
+                                                            <Save size={16} />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ) : field.type === 'class-lookup' ? (
+                                            <div className="relative">
+                                                <select
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
+                                                    value={fieldValue || ''}
+                                                    onChange={(e) => {
+                                                        const classId = e.target.value;
+                                                        setFormData({
+                                                            ...formData,
+                                                            metadata: { ...formData.metadata, [field.id]: classId, groupId: '' }
+                                                        });
+                                                        if (classId) fetchGroups(classId);
+                                                        else setGroups([]);
+                                                    }}
+                                                    required={field.required}
+                                                >
+                                                    <option value="">শ্রেণী নির্বাচন করুন</option>
+                                                    {classes.map(c => (
+                                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        ) : field.type === 'group-lookup' ? (
+                                            <div className="relative">
+                                                <select
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
+                                                    value={fieldValue || ''}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        metadata: { ...formData.metadata, [field.id]: e.target.value }
+                                                    })}
+                                                    required={field.required}
+                                                    disabled={!formData.metadata.classId}
+                                                >
+                                                    <option value="">গ্রুপ নির্বাচন করুন</option>
+                                                    {groups.map(g => (
+                                                        <option key={g.id} value={g.id}>{g.name}</option>
+                                                    ))}
+                                                </select>
+                                                {!formData.metadata.classId && (
+                                                    <p className="text-[10px] text-amber-600 font-bold mt-1">প্রথমে শ্রেণী নির্বাচন করুন</p>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="relative group/field">
+                                                <input
+                                                    type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                                                    placeholder={field.placeholder || `${field.label} দিন`}
+                                                    value={fieldValue || ''}
+                                                    onChange={(e) => {
+                                                        const val = e.target.value;
+                                                        if (isTopLevel) {
+                                                            setFormData({ ...formData, [field.id]: val });
+                                                        } else {
+                                                            setFormData({
+                                                                ...formData,
+                                                                metadata: { ...formData.metadata, [field.id]: val }
+                                                            });
+                                                        }
+                                                    }}
+                                                    required={field.required}
+                                                />
+                                                {(field.id === 'rollNumber' || field.id === 'studentId') && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleAutoGenerate(field.id)}
+                                                        className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-white border border-slate-200 text-[#045c84] text-[10px] font-bold rounded-xl shadow-sm hover:bg-[#045c84] hover:text-white transition-all opacity-0 group-hover/field:opacity-100"
+                                                    >
+                                                        AUTO
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            });
+                        })()}
                     </div>
 
                     <div className="pt-6 border-t border-slate-100 flex justify-end">
                         <button
                             type="submit"
                             disabled={actionLoading}
-                            className="px-8 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
+                            className="px-8 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 disabled:opacity-50"
                         >
                             {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                             <span>সংরক্ষণ করুন</span>
@@ -740,7 +1049,7 @@ export default function StudentManagementPage() {
                 <form onSubmit={handleQuickClassCreate} className="p-5 md:p-8 space-y-6">
                     {!editingClass && (
                         <div className="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
-                            <span className="text-xs font-black text-slate-500 uppercase tracking-wider ml-2">বাল্ক অ্যাড (Bulk)</span>
+                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-2">বাল্ক অ্যাড (Bulk)</span>
                             <button
                                 type="button"
                                 onClick={() => setIsBulkClassMode(!isBulkClassMode)}
@@ -753,7 +1062,7 @@ export default function StudentManagementPage() {
 
                     {!isBulkClassMode ? (
                         <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ক্লাসের নাম</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">ক্লাসের নাম</label>
                             <input
                                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
                                 placeholder="যেমন: ষষ্ঠ শ্রেণী"
@@ -774,7 +1083,7 @@ export default function StudentManagementPage() {
                     <button
                         type="submit"
                         disabled={actionLoading}
-                        className="w-full py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
+                        className="w-full py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
                     >
                         {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                         <span>সেভ করুন</span>
@@ -791,7 +1100,7 @@ export default function StudentManagementPage() {
             >
                 <form onSubmit={handleQuickGroupCreate} className="p-5 md:p-8 space-y-6">
                     <div className="space-y-2">
-                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider">গ্রুপের নাম</label>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">গ্রুপের নাম</label>
                         <input
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
                             placeholder="যেমন: বিজ্ঞান"
@@ -803,7 +1112,7 @@ export default function StudentManagementPage() {
                     <button
                         type="submit"
                         disabled={actionLoading}
-                        className="w-full py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
+                        className="w-full py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
                     >
                         {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                         <span>সেভ করুন</span>
@@ -811,13 +1120,32 @@ export default function StudentManagementPage() {
                 </form>
             </Modal>
 
+            {/* Student Profile Modal */}
+            <StudentProfileModal
+                isOpen={isProfileModalOpen}
+                onClose={() => setIsProfileModalOpen(false)}
+                student={selectedStudent}
+                onEdit={(s) => {
+                    setIsProfileModalOpen(false);
+                    setEditingStudent(s);
+                    setFormData({
+                        name: s.name || '',
+                        email: s.email || '',
+                        password: '', // Don't pre-fill password for security
+                        metadata: s.metadata || {}
+                    });
+                    if (s.metadata?.classId) fetchGroups(s.metadata.classId);
+                    setIsAddModalOpen(true);
+                }}
+            />
+
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
             {/* Action Menu Portal */}
             {isActionMenuOpen && menuPosition && createPortal(
                 <>
                     <div className="fixed inset-0 z-[999998]" onClick={() => setIsActionMenuOpen(null)} />
                     <div
-                        className="fixed w-32 bg-white rounded-xl shadow-2xl border border-slate-100 py-1 z-[999999] overflow-hidden text-slate-700 animate-in fade-in zoom-in duration-100"
+                        className="fixed w-[220px] bg-white rounded-xl shadow-2xl border border-slate-100 py-1 z-[999999] overflow-hidden text-slate-700 animate-in fade-in zoom-in duration-100"
                         style={{
                             top: `${menuPosition.top + 8}px`,
                             left: `${menuPosition.left}px`
@@ -845,6 +1173,65 @@ export default function StudentManagementPage() {
                                     <span>বাল্ক এডিট (সর্টিং)</span>
                                 </button>
                             </div>
+                        ) : isActionMenuOpen && students.some(s => s.id === isActionMenuOpen) ? (
+                            students.filter(s => s.id === isActionMenuOpen).map(s => (
+                                <div key={s.id}>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            window.location.href = `tel:${s.phone || s.metadata?.studentPhone || s.metadata?.guardianPhone}`;
+                                            setIsActionMenuOpen(null);
+                                        }}
+                                        className="w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-slate-50 flex items-center gap-3 transition-colors text-emerald-600"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                                            <Phone size={16} />
+                                        </div>
+                                        <span>কল করুন (Call)</span>
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            window.location.href = `sms:${s.phone || s.metadata?.studentPhone || s.metadata?.guardianPhone}`;
+                                            setIsActionMenuOpen(null);
+                                        }}
+                                        className="w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-slate-50 flex items-center gap-3 transition-colors text-blue-600"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+                                            <MessageSquare size={16} />
+                                        </div>
+                                        <span>মেসেজ পাঠান (SMS)</span>
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const phone = s.phone || s.metadata?.studentPhone || s.metadata?.guardianPhone;
+                                            window.open(`https://wa.me/${phone?.replace(/\D/g, '')}`, '_blank');
+                                            setIsActionMenuOpen(null);
+                                        }}
+                                        className="w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-slate-50 flex items-center gap-3 transition-colors text-green-600"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center">
+                                            <MessageCircle size={16} />
+                                        </div>
+                                        <span>হোয়াটসঅ্যাপ (WhatsApp)</span>
+                                    </button>
+                                    <div className="h-[1px] bg-slate-100 my-1 mx-2" />
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteStudent(s.id);
+                                            setIsActionMenuOpen(null);
+                                        }}
+                                        className="w-full px-4 py-3 text-left text-[13px] font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
+                                            <Trash2 size={16} />
+                                        </div>
+                                        <span>মুছে ফেলুন (Delete)</span>
+                                    </button>
+                                </div>
+                            ))
                         ) : (
                             classes.filter(c => c.id === isActionMenuOpen).map(c => (
                                 <div key={c.id}>

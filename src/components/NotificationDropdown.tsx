@@ -53,7 +53,7 @@ export default function NotificationDropdown({ isOpen, onClose }: NotificationDr
         >
             {/* Header */}
             <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-                <h3 className="text-base font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-800 uppercase tracking-tight flex items-center gap-2">
                     <Bell className="text-[#045c84]" size={18} />
                     সাম্প্রতিক নোটিশ
                 </h3>
@@ -67,7 +67,7 @@ export default function NotificationDropdown({ isOpen, onClose }: NotificationDr
                             key={i}
                             className="flex gap-3 p-3 rounded-xl bg-slate-50 hover:bg-white border border-transparent hover:border-slate-200 transition-all cursor-pointer group shadow-sm"
                         >
-                            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm text-[#045c84] font-black text-sm group-hover:bg-[#045c84] group-hover:text-white transition-all shrink-0">
+                            <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-sm text-[#045c84] font-bold text-sm group-hover:bg-[#045c84] group-hover:text-white transition-all shrink-0">
                                 {i + 1}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -81,7 +81,7 @@ export default function NotificationDropdown({ isOpen, onClose }: NotificationDr
 
             {/* Footer */}
             <div className="p-4 bg-slate-50 border-t border-slate-100">
-                <button className="w-full md:w-auto px-8 py-3 bg-[#045c84] hover:bg-[#034d6e] text-white rounded-xl text-xs font-black transition-all uppercase tracking-widest shadow-lg shadow-blue-200">
+                <button className="w-full md:w-auto px-8 py-3 bg-[#045c84] hover:bg-[#034d6e] text-white rounded-xl text-xs font-bold transition-all uppercase tracking-widest shadow-lg shadow-blue-200">
                     সবগুলো দেখুন
                 </button>
             </div>

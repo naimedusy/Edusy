@@ -73,7 +73,7 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
                         <div className="p-3 bg-blue-50 text-[#045c84] rounded-2xl">
                             <Settings size={24} />
                         </div>
-                        <h2 className="text-2xl font-black text-slate-800 tracking-tight">ব্যক্তিগত তথ্য আপডেট</h2>
+                        <h2 className="text-2xl font-bold text-slate-800 tracking-tight">ব্যক্তিগত তথ্য আপডেট</h2>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400">
                         <X size={24} />
@@ -83,7 +83,7 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
                 <form onSubmit={handleUpdate} className="p-8 space-y-6">
                     <div className="space-y-4">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">আপনার নাম</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">আপনার নাম</label>
                             <div className="relative">
                                 <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input
@@ -96,7 +96,7 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">ইমেইল এড্রেস</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ইমেইল এড্রেস</label>
                             <div className="relative">
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input
@@ -110,7 +110,7 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">ফোন নাম্বার (যোগাযোগ)</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ফোন নাম্বার (যোগাযোগ)</label>
                             <div className="relative">
                                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input
@@ -123,7 +123,7 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
                         </div>
 
                         <div className="space-y-1.5 pt-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">পাসওয়ার্ড (পরিবর্তন করতে চাইলে)</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">পাসওয়ার্ড (পরিবর্তন করতে চাইলে)</label>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input
@@ -141,14 +141,14 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black rounded-2xl transition-all uppercase tracking-widest text-xs"
+                            className="flex-1 py-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-2xl transition-all uppercase tracking-widest text-xs"
                         >
                             বাতিল করুন
                         </button>
                         <button
                             type="submit"
                             disabled={updating}
-                            className="flex-1 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-xl shadow-blue-100 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
+                            className="flex-1 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-bold rounded-2xl shadow-xl shadow-blue-100 transition-all uppercase tracking-widest text-xs flex items-center justify-center gap-2"
                         >
                             {updating ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
                             আপডেট করুন

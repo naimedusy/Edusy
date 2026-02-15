@@ -132,12 +132,12 @@ export default function ClassesPage() {
         <div className="p-4 md:p-8 space-y-8 animate-fade-in-up font-bengali">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tight font-sans">ক্লাস ও গ্রুপ ব্যবস্থাপনা</h1>
+                    <h1 className="text-3xl font-bold text-slate-800 uppercase tracking-tight font-sans">ক্লাস ও গ্রুপ ব্যবস্থাপনা</h1>
                     <p className="text-slate-500 font-medium">আপনার প্রতিষ্ঠানের শ্রেণী এবং গ্রুপগুলো সেটআপ করুন।</p>
                 </div>
                 <button
                     onClick={() => setIsClassModalOpen(true)}
-                    className="flex items-center gap-2 px-6 py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95"
+                    className="flex items-center gap-2 px-6 py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95"
                 >
                     <Plus size={20} />
                     <span>নতুন ক্লাস</span>
@@ -155,7 +155,7 @@ export default function ClassesPage() {
                     <p className="text-xl font-bold">কোন ক্লাস পাওয়া যায়নি।</p>
                     <button
                         onClick={() => setIsClassModalOpen(true)}
-                        className="mt-4 text-[#045c84] font-black hover:underline"
+                        className="mt-4 text-[#045c84] font-bold hover:underline"
                     >
                         প্রথম ক্লাস তৈরি করুন →
                     </button>
@@ -169,7 +169,7 @@ export default function ClassesPage() {
                                     <div className="w-10 h-10 bg-[#045c84] rounded-xl flex items-center justify-center text-white">
                                         <BookOpen size={20} />
                                     </div>
-                                    <h3 className="text-lg font-black text-slate-800">{c.name}</h3>
+                                    <h3 className="text-lg font-bold text-slate-800">{c.name}</h3>
                                 </div>
                                 <button
                                     onClick={() => {
@@ -183,7 +183,7 @@ export default function ClassesPage() {
                                 </button>
                             </div>
                             <div className="p-6 space-y-3">
-                                <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                     <LayoutGrid size={12} />
                                     <span>গ্রুপসমূহ</span>
                                 </div>
@@ -211,7 +211,7 @@ export default function ClassesPage() {
             >
                 <form onSubmit={handleCreateClass} className="p-8 space-y-6">
                     <div className="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
-                        <span className="text-xs font-black text-slate-500 uppercase tracking-wider ml-2">বাল্ক অ্যাড (Bulk Add)</span>
+                        <span className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-2">বাল্ক অ্যাড (Bulk Add)</span>
                         <button
                             type="button"
                             onClick={() => setIsBulkMode(!isBulkMode)}
@@ -223,7 +223,7 @@ export default function ClassesPage() {
 
                     {!isBulkMode ? (
                         <div className="space-y-2">
-                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ক্লাসের নাম</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">ক্লাসের নাম</label>
                             <input
                                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
                                 placeholder="যেমন: ষষ্ঠ শ্রেণী"
@@ -235,7 +235,7 @@ export default function ClassesPage() {
                     ) : (
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ক্লাস লিস্ট (Pasted List)</label>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">ক্লাস লিস্ট (Pasted List)</label>
                                 <span className="text-[10px] text-slate-400 font-bold uppercase">ইংরেজি SL নম্বর থাকলে সমস্যা নেই</span>
                             </div>
                             <textarea
@@ -250,7 +250,7 @@ export default function ClassesPage() {
                     <button
                         type="submit"
                         disabled={actionLoading}
-                        className="w-full py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
+                        className="w-full py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
                     >
                         {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                         <span>সেভ করুন</span>
@@ -267,7 +267,7 @@ export default function ClassesPage() {
             >
                 <form onSubmit={handleCreateGroup} className="p-8 space-y-6">
                     <div className="space-y-2">
-                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider">গ্রুপের নাম</label>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">গ্রুপের নাম</label>
                         <input
                             className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
                             placeholder="যেমন: বিজ্ঞান"
@@ -279,7 +279,7 @@ export default function ClassesPage() {
                     <button
                         type="submit"
                         disabled={actionLoading}
-                        className="w-full py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
+                        className="w-full py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
                     >
                         {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                         <span>সেভ করুন</span>

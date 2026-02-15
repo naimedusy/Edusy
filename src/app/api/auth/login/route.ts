@@ -4,18 +4,20 @@ import prisma from '@/utils/db';
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const email = body.email?.trim();
+        const identifier = (body.email || body.phone || body.username || '').trim();
         const password = body.password; // Don't trim password as spaces can be valid
 
-
-
-        if (!email || !password) {
+        if (!identifier || !password) {
             return NextResponse.json({ message: 'Missing fields' }, { status: 400 });
         }
 
-
-        const user = await prisma.user.findUnique({
-            where: { email },
+        const user = await prisma.user.findFirst({
+            where: {
+                OR: [
+                    { email: identifier },
+                    { phone: identifier }
+                ]
+            },
             include: {
                 institutes: {
                     select: { id: true, name: true, type: true }
