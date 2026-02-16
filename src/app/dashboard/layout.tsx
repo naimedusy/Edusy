@@ -24,13 +24,12 @@ import {
 import { useSession } from '@/components/SessionProvider';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import ProfileModal from '@/components/ProfileModal';
-import NotificationDropdown from '@/components/NotificationDropdown';
+import NotificationBell from '@/components/NotificationBell';
 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-    const [isNotificationOpen, setIsNotificationOpen] = useState(false);
     const { user, activeRole, logout } = useSession();
     const pathname = usePathname();
 
@@ -210,21 +209,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <div id="dashboard-header-actions" className="flex items-center gap-2"></div>
 
                         <div className="relative">
-                            <button
-                                onClick={() => setIsNotificationOpen(!isNotificationOpen)}
-                                className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-full transition-all"
-                            >
-                                <div className={`transition-transform duration-300 ${isNotificationOpen ? 'rotate-90' : 'rotate-0'}`}>
-                                    {isNotificationOpen ? <X size={22} /> : <Bell size={22} />}
-                                </div>
-                                {!isNotificationOpen && (
-                                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white animate-pulse"></span>
-                                )}
-                            </button>
-                            <NotificationDropdown
-                                isOpen={isNotificationOpen}
-                                onClose={() => setIsNotificationOpen(false)}
-                            />
+                            <NotificationBell />
                         </div>
                         <div
                             onClick={() => setIsProfileModalOpen(true)}

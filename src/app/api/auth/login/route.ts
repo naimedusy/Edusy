@@ -21,7 +21,8 @@ export async function POST(req: Request) {
             include: {
                 institutes: {
                     select: { id: true, name: true, type: true }
-                }
+                },
+                teacherProfiles: true
             }
         });
 
@@ -41,7 +42,8 @@ export async function POST(req: Request) {
                 role: user.role,
                 name: user.name,
                 defaultInstituteId: user.defaultInstituteId,
-                institutes: user.institutes
+                institutes: user.institutes,
+                teacherProfiles: user.teacherProfiles
             }
         });
 

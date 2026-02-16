@@ -8,7 +8,7 @@ import TeacherPermissionModal from '@/components/TeacherPermissionModal';
 import Toast from '@/components/Toast';
 
 export default function TeachersPage() {
-    const { user, activeInstitute } = useSession();
+    const { user, activeInstitute, activeRole } = useSession();
     const [teachers, setTeachers] = useState<any[]>([]);
     const [classes, setClasses] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -20,6 +20,11 @@ export default function TeachersPage() {
 
     // Toast
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+
+    const showToast = (message: string, type: 'success' | 'error') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+    };
 
     const fetchTeachers = async () => {
         if (!activeInstitute?.id) return;
@@ -101,11 +106,6 @@ export default function TeachersPage() {
         }
     };
 
-    const showToast = (message: string, type: 'success' | 'error') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 3000);
-    };
-
     const filteredTeachers = teachers.filter(t => {
         const query = searchQuery.toLowerCase().trim();
         if (!query) return true;
@@ -116,6 +116,8 @@ export default function TeachersPage() {
 
         return name.includes(query) || email.includes(query) || phone.includes(query);
     });
+
+    const canManageTeachers = (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') && (activeInstitute?.isOwner !== false || user?.role === 'SUPER_ADMIN');
 
     return (
         <div className="p-4 md:p-8 space-y-8 animate-fade-in-up font-bengali min-h-screen pb-20">
@@ -132,13 +134,15 @@ export default function TeachersPage() {
                         />
                     </div>
 
-                    <button
-                        onClick={() => setIsAddModalOpen(true)}
-                        className="px-6 py-3 bg-[#045c84] text-white rounded-2xl font-bold shadow-lg shadow-blue-900/20 hover:bg-[#034a6b] transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap"
-                    >
-                        <Plus size={20} />
-                        <span className="hidden md:inline">নতুন শিক্ষক</span>
-                    </button>
+                    {canManageTeachers && (
+                        <button
+                            onClick={() => setIsAddModalOpen(true)}
+                            className="px-6 py-3 bg-[#045c84] text-white rounded-2xl font-bold shadow-lg shadow-blue-900/20 hover:bg-[#034a6b] transition-all active:scale-95 flex items-center gap-2 whitespace-nowrap"
+                        >
+                            <Plus size={20} />
+                            <span className="hidden md:inline">নতুন শিক্ষক</span>
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -152,8 +156,10 @@ export default function TeachersPage() {
                     {filteredTeachers.map((teacher) => (
                         <div
                             key={teacher.id}
-                            onClick={() => setPermissionModalData(teacher)}
-                            className="bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg transition-all cursor-pointer group relative h-full"
+                            onClick={() => {
+                                setPermissionModalData(teacher);
+                            }}
+                            className={`bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg transition-all group relative h-full cursor-pointer`}
                         >
                             {/* Badges */}
                             <div className="absolute top-4 right-16 flex items-center gap-2">
@@ -175,54 +181,56 @@ export default function TeachersPage() {
                                 )}
                             </div>
 
-                            {/* Three-dot menu */}
-                            <div className="absolute top-4 right-4">
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        // Toggle menu or show dropdown
-                                        const menu = e.currentTarget.nextElementSibling as HTMLElement;
-                                        if (menu) {
-                                            menu.classList.toggle('hidden');
-                                        }
-                                    }}
-                                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all z-10"
-                                >
-                                    <MoreVertical size={20} />
-                                </button>
+                            {/* Three-dot menu - Only for Admins */}
+                            {canManageTeachers && (
+                                <div className="absolute top-4 right-4">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            // Toggle menu or show dropdown
+                                            const menu = e.currentTarget.nextElementSibling as HTMLElement;
+                                            if (menu) {
+                                                menu.classList.toggle('hidden');
+                                            }
+                                        }}
+                                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all z-10"
+                                    >
+                                        <MoreVertical size={20} />
+                                    </button>
 
-                                {/* Dropdown menu */}
-                                <div className="hidden absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-20">
-                                    {!teacher.isAdmin && (
-                                        <button
-                                            onClick={async (e) => {
-                                                e.stopPropagation();
-                                                if (!window.confirm(`আপনি কি নিশ্চিত যে ${teacher.user.name} কে সরাতে চান?`)) return;
+                                    {/* Dropdown menu */}
+                                    <div className="hidden absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-20">
+                                        {!teacher.isAdmin && (
+                                            <button
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (!window.confirm(`আপনি কি নিশ্চিত যে ${teacher.user.name} কে সরাতে চান?`)) return;
 
-                                                try {
-                                                    const res = await fetch(`/api/teacher/${teacher.userId}?instituteId=${activeInstitute.id}&adminId=${user?.id}`, {
-                                                        method: 'DELETE'
-                                                    });
+                                                    try {
+                                                        const res = await fetch(`/api/teacher/${teacher.userId}?instituteId=${activeInstitute.id}&adminId=${user?.id}`, {
+                                                            method: 'DELETE'
+                                                        });
 
-                                                    if (res.ok) {
-                                                        showToast('শিক্ষক সফলভাবে সরানো হয়েছে', 'success');
-                                                        fetchTeachers();
-                                                    } else {
-                                                        const data = await res.json();
-                                                        showToast(data.error || 'সরাতে ব্যর্থ হয়েছে', 'error');
+                                                        if (res.ok) {
+                                                            showToast('শিক্ষক সফলভাবে সরানো হয়েছে', 'success');
+                                                            fetchTeachers();
+                                                        } else {
+                                                            const data = await res.json();
+                                                            showToast(data.error || 'সরাতে ব্যর্থ হয়েছে', 'error');
+                                                        }
+                                                    } catch (err) {
+                                                        showToast('সার্ভার এরর', 'error');
                                                     }
-                                                } catch (err) {
-                                                    showToast('সার্ভার এরর', 'error');
-                                                }
-                                            }}
-                                            className="w-full text-left px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
-                                        >
-                                            <Trash2 size={16} />
-                                            মুছে ফেলুন
-                                        </button>
-                                    )}
+                                                }}
+                                                className="w-full text-left px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                                            >
+                                                <Trash2 size={16} />
+                                                মুছে ফেলুন
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Card content */}
                             <div className="flex items-center gap-4">
@@ -242,15 +250,38 @@ export default function TeachersPage() {
                                 </div>
 
                                 {/* Permissions badges */}
-                                <div className="flex flex-wrap gap-2 shrink-0">
-                                    {teacher.permissions?.canCollectFees && (
-                                        <span className="text-[10px] uppercase font-bold px-2 py-1 bg-purple-50 text-purple-600 rounded-md border border-purple-100">Fees</span>
-                                    )}
-                                    {teacher.permissions?.canManageResult && (
-                                        <span className="text-[10px] uppercase font-bold px-2 py-1 bg-blue-50 text-blue-600 rounded-md border border-blue-100">Result</span>
-                                    )}
-                                    {teacher.permissions?.canTakeAttendance && (
-                                        <span className="text-[10px] uppercase font-bold px-2 py-1 bg-emerald-50 text-emerald-600 rounded-md border border-emerald-100">Attendance</span>
+                                <div className="flex flex-wrap gap-2 shrink-0 max-w-[200px] justify-end">
+                                    {teacher.permissions?.classWise ? (
+                                        Object.keys(teacher.permissions.classWise).length > 0 ? (
+                                            <div className="flex flex-wrap gap-1 justify-end">
+                                                {Object.keys(teacher.permissions.classWise).map(classId => {
+                                                    const cls = classes.find(c => c.id === classId);
+                                                    if (!cls) return null;
+                                                    return (
+                                                        <span key={classId} className="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-600 rounded-md border border-blue-100">
+                                                            {cls.name}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <span className="text-[10px] uppercase font-bold px-2 py-1 bg-slate-50 text-slate-400 rounded-md border border-slate-100">
+                                                No Permissions
+                                            </span>
+                                        )
+                                    ) : (
+                                        // Legacy / Fallback view
+                                        <>
+                                            {teacher.permissions?.canCollectFees && (
+                                                <span className="text-[10px] uppercase font-bold px-2 py-1 bg-purple-50 text-purple-600 rounded-md border border-purple-100">Fees</span>
+                                            )}
+                                            {teacher.permissions?.canManageResult && (
+                                                <span className="text-[10px] uppercase font-bold px-2 py-1 bg-blue-50 text-blue-600 rounded-md border border-blue-100">Result</span>
+                                            )}
+                                            {teacher.permissions?.canTakeAttendance && (
+                                                <span className="text-[10px] uppercase font-bold px-2 py-1 bg-emerald-50 text-emerald-600 rounded-md border border-emerald-100">Attendance</span>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -281,6 +312,7 @@ export default function TeachersPage() {
                 teacher={permissionModalData}
                 classes={classes}
                 onSave={handleUpdatePermissions}
+                isReadOnly={!canManageTeachers}
             />
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

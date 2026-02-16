@@ -30,7 +30,8 @@ import {
     ChevronLeft,
     Layers3,
     CheckCircle,
-    FileX
+    FileX,
+    FileSpreadsheet
 } from 'lucide-react';
 import { ScrollableTabs } from '@/components/ui/ScrollableTabs';
 import Toast from '@/components/Toast';
@@ -69,18 +70,44 @@ export default function StudentManagementPage() {
         metadata: {}
     });
 
-    // Removed legacy refs and hooks
-
     const [formConfig, setFormConfig] = useState<FieldDefinition[]>([]);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+
     const [classes, setClasses] = useState<any[]>([]);
     const [groups, setGroups] = useState<any[]>([]);
-    const [activeTab, setActiveTab] = useState<'students' | 'books' | 'applications'>('students');
+    const [activeTab, setActiveTab] = useState<'students' | 'applications' | 'books' | 'teachers'>('students');
+
+    const [teachers, setTeachers] = useState<any[]>([]);
+    const [filteredStudents, setFilteredStudents] = useState<any[]>([]);
 
     // Excel Import States
     const [isExcelMode, setIsExcelMode] = useState(false);
     const [excelData, setExcelData] = useState<string[][]>([]);
     const [columnMappings, setColumnMappings] = useState<{ [key: number]: string }>({});
+
+    const fetchTeachers = async () => {
+        if (!activeInstitute?.id) return;
+        try {
+            const res = await fetch(`/api/teacher?instituteId=${activeInstitute.id}`);
+            const text = await res.text();
+            try {
+                const data = JSON.parse(text);
+                if (Array.isArray(data)) {
+                    setTeachers(data);
+                }
+            } catch (e) {
+                console.error('Invalid JSON from fetchTeachers:', text.substring(0, 100));
+            }
+        } catch (error) {
+            console.error('Failed to fetch teachers:', error);
+        }
+    };
+
+    useEffect(() => {
+        if (activeTab === 'teachers') {
+            fetchTeachers();
+        }
+    }, [activeTab, activeInstitute?.id]);
 
     // Books States
     const [books, setBooks] = useState<any[]>([]);
@@ -194,8 +221,14 @@ export default function StudentManagementPage() {
         try {
             const classFilter = selectedClassId !== 'all' ? `&classId=${selectedClassId}` : '';
             const res = await fetch(`/api/admin/books?instituteId=${activeInstitute.id}${classFilter}`);
-            const data = await res.json();
-            setBooks(Array.isArray(data) ? data : []);
+            const text = await res.text();
+            try {
+                const data = JSON.parse(text);
+                setBooks(Array.isArray(data) ? data : []);
+            } catch (e) {
+                console.error('Invalid JSON from fetchBooks:', text.substring(0, 100));
+                setBooks([]);
+            }
         } catch (error) {
             console.error('Fetch books error:', error);
         } finally {
@@ -213,9 +246,15 @@ export default function StudentManagementPage() {
             const statusFilter = activeTab === 'applications' ? '&admissionStatus=PENDING' : '';
 
             const res = await fetch(`/api/admin/users?role=STUDENT&search=${search}${classFilter}${groupFilter}${instituteFilter}${statusFilter}`);
-            const data = await res.json();
-            const list = Array.isArray(data) ? data : [];
-            setStudents(list);
+            const text = await res.text();
+            try {
+                const data = JSON.parse(text);
+                const list = Array.isArray(data) ? data : [];
+                setStudents(list);
+            } catch (e) {
+                console.error('Invalid JSON from fetchStudents:', text.substring(0, 100));
+                setStudents([]);
+            }
         } catch (error) {
             console.error('Fetch students error:', error);
         } finally {
@@ -614,7 +653,22 @@ export default function StudentManagementPage() {
             console.error('Book delete error:', error);
         }
     };
-    if (activeRole !== 'ADMIN' && activeRole !== 'SUPER_ADMIN') {
+    // Calculate allowed classes for admission
+    const allowedClasses = React.useMemo(() => {
+        if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return classes;
+        if (activeRole === 'TEACHER' && user?.teacherProfiles) {
+            const profile = user.teacherProfiles.find((p: any) => p.instituteId === activeInstitute?.id);
+            if (!profile || !profile.permissions?.classWise) return [];
+
+            return classes.filter(c => {
+                const classPermissions = profile.permissions.classWise[c.id];
+                return classPermissions && classPermissions.includes('canManageAdmission');
+            });
+        }
+        return [];
+    }, [classes, activeRole, user, activeInstitute]);
+
+    if (activeRole !== 'ADMIN' && activeRole !== 'SUPER_ADMIN' && activeRole !== 'TEACHER') {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-500">
                 <Users size={64} className="mb-4 opacity-20" />
@@ -627,6 +681,7 @@ export default function StudentManagementPage() {
         <div className="p-3 sm:p-4 md:p-8 space-y-6 animate-fade-in-up font-bengali max-w-full overflow-x-hidden">
             {/* Tab Navigation */}
             <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl w-fit">
+                {/* ... existing tabs ... */}
                 <button
                     onClick={() => setActiveTab('students')}
                     className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'students'
@@ -635,6 +690,24 @@ export default function StudentManagementPage() {
                         }`}
                 >
                     শিক্ষার্থী
+                </button>
+                <button
+                    onClick={() => setActiveTab('books')}
+                    className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'books'
+                        ? 'bg-white text-[#045c84] shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                >
+                    বই
+                </button>
+                <button
+                    onClick={() => setActiveTab('teachers')}
+                    className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'teachers'
+                        ? 'bg-white text-[#045c84] shadow-sm'
+                        : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                >
+                    শিক্ষক
                 </button>
                 <button
                     onClick={() => setActiveTab('applications')}
@@ -647,15 +720,6 @@ export default function StudentManagementPage() {
                     <span className="bg-[#045c84]/10 text-[#045c84] px-2 py-0.5 rounded-lg text-[10px]">
                         {pendingCount || 0}
                     </span>
-                </button>
-                <button
-                    onClick={() => setActiveTab('books')}
-                    className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'books'
-                        ? 'bg-white text-[#045c84] shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                >
-                    বই
                 </button>
             </div>
 
@@ -785,7 +849,7 @@ export default function StudentManagementPage() {
                                                             : 'text-slate-300 hover:bg-slate-100 hover:text-slate-600'
                                                             }`}
                                                     >
-                                                        <MoreVertical size={14} />
+                                                        <MoreVertical size={20} />
                                                     </button>
                                                 </div>
                                             ))}
@@ -804,14 +868,17 @@ export default function StudentManagementPage() {
 
                     <div className="w-px h-8 bg-slate-200 shrink-0"></div>
 
-                    <button
-                        onClick={() => setIsClassModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold bg-[#045c84] text-white hover:bg-[#034a6b] hover:shadow-lg hover:shadow-blue-200 transition-all shadow-md active:scale-95 whitespace-nowrap"
-                    >
-                        <Plus size={18} />
-                        <span>ক্লাস</span>
-                    </button>
-                    {activeTab !== 'applications' && (
+                    {(activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') && (
+                        <button
+                            onClick={() => setIsClassModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold bg-[#045c84] text-white hover:bg-[#034a6b] hover:shadow-lg hover:shadow-blue-200 transition-all shadow-md active:scale-95 whitespace-nowrap"
+                        >
+                            <Plus size={18} />
+                            <span>ক্লাস</span>
+                        </button>
+                    )}
+
+                    {activeTab !== 'applications' && (allowedClasses.length > 0) && (
                         <button
                             onClick={() => {
                                 if (activeTab === 'students') {
@@ -874,7 +941,7 @@ export default function StudentManagementPage() {
                 )}
             </div>
 
-            {
+            {activeTab === 'students' ? (
                 loading ? (
                     <div className="py-20 text-center">
                         <Loader2 className="animate-spin mx-auto text-[#045c84] mb-4" size={40} />
@@ -887,49 +954,23 @@ export default function StudentManagementPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
-                        {activeTab === 'books' ? (
-                            books.map((book) => (
-                                <div
-                                    key={book.id}
-                                    className="bg-white p-4 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-lg hover:border-blue-100 transition-all flex items-center gap-4 relative group"
-                                >
-                                    <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-[#045c84] group-hover:bg-blue-50 transition-colors">
-                                        <BookOpen size={24} />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-base font-bold text-slate-800 truncate">
-                                            {book.name}
-                                        </h3>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                                            {classes.find(c => c.id === book.classId)?.name || 'অজানা ক্লাস'}
-                                        </p>
-                                    </div>
-                                    <button
-                                        onClick={() => handleBookDelete(book.id)}
-                                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                </div>
-                            ))
-                        ) : (
-                            students.map((s) => (
+                        {students
+                            .filter(s => {
+                                if (activeRole === 'TEACHER') {
+                                    if (allowedClasses.length > 0) {
+                                        const studentClassId = s.metadata?.classId;
+                                        return allowedClasses.some(c => c.id === studentClassId);
+                                    }
+                                    return false;
+                                }
+                                return true;
+                            })
+                            .map((s) => (
                                 <div
                                     key={s.id}
                                     onClick={() => {
-                                        if (activeTab === 'applications') {
-                                            setEditingStudent(s);
-                                            setFormData({
-                                                name: s.name || '',
-                                                email: s.email || '',
-                                                password: s.password || '',
-                                                metadata: s.metadata || {}
-                                            });
-                                            setIsAddModalOpen(true);
-                                        } else if (activeTab === 'students') {
-                                            setSelectedStudent(s);
-                                            setIsProfileModalOpen(true);
-                                        }
+                                        setSelectedStudent(s);
+                                        setIsProfileModalOpen(true);
                                     }}
                                     className="bg-white p-3.5 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-lg hover:border-blue-100 transition-all flex items-center gap-4 relative group cursor-pointer"
                                 >
@@ -967,57 +1008,161 @@ export default function StudentManagementPage() {
                                         </div>
                                     </div>
 
-                                    {/* Actions */}
-                                    {activeTab === 'applications' ? (
-                                        <div className="flex items-center gap-2 pr-2">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleStatusUpdate(s.id, 'APPROVED');
-                                                }}
-                                                className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                                                title="মঞ্জুর করুন"
-                                            >
-                                                <CheckCircle size={18} />
-                                            </button>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleStatusUpdate(s.id, 'REJECTED');
-                                                }}
-                                                className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                                                title="বাতিল করুন"
-                                            >
-                                                <FileX size={18} />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        /* 3-Dot Action Button */
-                                        <div className="relative">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                    setMenuPosition({
-                                                        top: rect.bottom + 8,
-                                                        left: rect.right - 220
-                                                    });
-                                                    setIsActionMenuOpen(isActionMenuOpen === s.id ? null : s.id);
-                                                }}
-                                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
-                                            >
-                                                <MoreVertical size={20} />
-                                            </button>
-                                        </div>
-                                    )}
+                                    {/* Actions - 3-Dot Action Button */}
+                                    <div className="relative">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                setMenuPosition({
+                                                    top: rect.bottom + 8,
+                                                    left: rect.right - 220
+                                                });
+                                                setIsActionMenuOpen(isActionMenuOpen === s.id ? null : s.id);
+                                            }}
+                                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+                                        >
+                                            <MoreVertical size={20} />
+                                        </button>
+                                    </div>
                                 </div>
-                            ))
-                        )}
+                            ))}
                     </div>
                 )
-            }
+            ) : activeTab === 'books' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {books.map((book) => (
+                        <div key={book.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-start justify-between group hover:border-[#045c84] transition-all">
+                            <div>
+                                <h3 className="font-bold text-slate-800">{book.name}</h3>
+                                <p className="text-xs text-slate-500 mt-1">শ্রেণী: {book.class?.name || 'অজানা'}</p>
+                            </div>
+                            <button
+                                onClick={() => handleBookDelete(book.id)}
+                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        </div>
+                    ))}
+                    {books.length === 0 && (
+                        <div className="col-span-full py-12 text-center text-slate-400">
+                            <BookOpen size={48} className="mx-auto mb-3 opacity-20" />
+                            <p>কোনো বই পাওয়া যায়নি</p>
+                        </div>
+                    )}
+                </div>
+            ) : activeTab === 'teachers' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {teachers.length > 0 ? (
+                        teachers.map((teacher: any) => (
+                            <div key={teacher.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-[#045c84] transition-all">
+                                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 shrink-0">
+                                    {teacher.avatar ? (
+                                        <img src={teacher.avatar} alt={teacher.name} className="w-full h-full rounded-full object-cover" />
+                                    ) : (
+                                        <span className="text-xl font-bold">{teacher.name?.[0]}</span>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="font-bold text-slate-800 truncate">{teacher.name}</h3>
+                                    <p className="text-xs text-slate-500 truncate">{teacher.phone}</p>
+                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold">
+                                            {teacher.role === 'ADMIN' ? 'অ্যাডমিন' : 'শিক্ষক'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    ) : (
+                        <div className="col-span-full py-12 text-center text-slate-400">
+                            <Users size={48} className="mx-auto mb-3 opacity-20" />
+                            <p className="font-medium">কোনো শিক্ষক পাওয়া যায়নি</p>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
+                        {students.map((s) => (
+                            <div
+                                key={s.id}
+                                onClick={() => {
+                                    setEditingStudent(s);
+                                    setFormData({
+                                        name: s.name || '',
+                                        email: s.email || '',
+                                        password: s.password || '',
+                                        metadata: s.metadata || {}
+                                    });
+                                    setIsAddModalOpen(true);
+                                }}
+                                className="bg-white p-3.5 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-lg hover:border-blue-100 transition-all flex items-center gap-4 relative group cursor-pointer"
+                            >
+                                {/* Avatar */}
+                                {(() => {
+                                    const colors = ['bg-orange-500', 'bg-yellow-400', 'bg-teal-500', 'bg-emerald-500', 'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500'];
+                                    const colorIndex = s.name ? s.name.length % colors.length : 0;
+                                    const bgColor = colors[colorIndex];
 
-            {/* Student Form Modal (Add/Edit) */}
+                                    return (
+                                        <div className={`w-12 h-12 rounded-full ${bgColor} border-2 border-white shadow-md overflow-hidden flex items-center justify-center text-white font-bold text-lg shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                                            {s.metadata?.studentPhoto ? (
+                                                <img src={s.metadata.studentPhoto} alt={s.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                s.name?.[0] || 'S'
+                                            )}
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Info */}
+                                <div className="flex-1 min-w-0">
+                                    <h3 className="text-[18px] font-bold text-slate-800 truncate mb-1" title={s.name}>
+                                        {s.name || 'নাম নেই'}
+                                    </h3>
+
+                                    {/* ID | Roll Tag */}
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50/50 border border-blue-100 rounded-full group/tag hover:bg-blue-50 transition-colors">
+                                        <div className="flex items-center gap-1.5 text-[#045c84] text-[9px] font-bold uppercase tracking-wider">
+                                            <span>ID: {s.metadata?.studentId || '-'}</span>
+                                            <span className="opacity-30">|</span>
+                                            <span>Roll: {s.metadata?.rollNumber || '-'}</span>
+                                        </div>
+                                        <ChevronDown size={12} className="text-[#045c84] opacity-40 group-hover/tag:translate-y-0.5 transition-transform" />
+                                    </div>
+                                </div>
+
+                                {/* Actions for Applications */}
+                                <div className="flex items-center gap-2 pr-2">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStatusUpdate(s.id, 'APPROVED');
+                                        }}
+                                        className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                        title="মঞ্জুর করুন"
+                                    >
+                                        <CheckCircle size={18} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleStatusUpdate(s.id, 'REJECTED');
+                                        }}
+                                        className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                        title="বাতিল করুন"
+                                    >
+                                        <FileX size={18} />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <Modal
                 isOpen={isAddModalOpen}
                 onClose={() => {
@@ -1032,42 +1177,21 @@ export default function StudentManagementPage() {
                         {!editingStudent && (
                             <button
                                 onClick={() => {
-                                    setIsExcelMode(!isExcelMode);
                                     if (!isExcelMode) {
                                         setExcelData([]);
                                         setColumnMappings({});
                                     }
+                                    setIsExcelMode(!isExcelMode);
                                 }}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all font-bold text-sm border ${isExcelMode
-                                    ? 'bg-[#045c84] text-white border-[#045c84]'
-                                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isExcelMode
+                                    ? 'bg-slate-200 text-slate-700'
+                                    : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
                                     }`}
-                                title="Excel থেকে ডাটা Paste করুন"
                             >
-                                <CloudUpload size={18} />
-                                <span>Excel Paste</span>
+                                <FileSpreadsheet size={16} />
+                                <span>{isExcelMode ? 'ফর্ম মোড' : 'Excel Import'}</span>
                             </button>
                         )}
-                        <button
-                            onClick={() => {
-                                if (activeInstitute?.id) {
-                                    const url = `${window.location.origin}/admission/${activeInstitute.id}`;
-                                    navigator.clipboard.writeText(url);
-                                    setToast({ message: 'ভর্তি ফর্মের লিংক কপি হয়েছে!', type: 'success' });
-                                }
-                            }}
-                            className="p-2.5 bg-blue-50 text-[#045c84] hover:bg-blue-100 rounded-xl transition-all border border-blue-100"
-                            title="ভর্তি ফর্মের লিংক কপি করুন"
-                        >
-                            <ShieldCheck size={20} />
-                        </button>
-                        <button
-                            onClick={() => setIsLibraryOpen(true)}
-                            className="p-2.5 bg-blue-50 text-[#045c84] hover:bg-blue-100 rounded-xl transition-all border border-blue-100"
-                            title="ফর্ম ফিল্ড লাইব্রেরি"
-                        >
-                            <Layers size={20} />
-                        </button>
                     </>
                 }
             >
@@ -1083,7 +1207,6 @@ export default function StudentManagementPage() {
                             </div>
                         </div>
                     )}
-
                     {isExcelMode ? (
                         /* Excel Paste Mode */
                         <div className="space-y-4">
@@ -1410,7 +1533,8 @@ export default function StudentManagementPage() {
                                                             required={field.required}
                                                         >
                                                             <option value="">শ্রেণী নির্বাচন করুন</option>
-                                                            {classes.map(c => (
+                                                            <option value="">শ্রেণী নির্বাচন করুন</option>
+                                                            {allowedClasses.map(c => (
                                                                 <option key={c.id} value={c.id}>{c.name}</option>
                                                             ))}
                                                         </select>

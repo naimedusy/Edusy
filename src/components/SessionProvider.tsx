@@ -11,6 +11,7 @@ interface User {
     role: Role;
     defaultInstituteId?: string;
     institutes?: any[];
+    teacherProfiles?: any[];
 }
 
 interface SessionContextType {

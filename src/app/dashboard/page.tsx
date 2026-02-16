@@ -462,7 +462,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
             value: statsLoading ? '...' : (statsData?.students ?? 0).toLocaleString('bn-BD'),
             icon: Users,
             color: 'blue',
-            change: '+০%',
+            change: (statsData?.pendingStudents > 0) ? `অপেক্ষমাণ: ${(statsData.pendingStudents).toLocaleString('bn-BD')}` : '+০%',
             up: true
         },
         {

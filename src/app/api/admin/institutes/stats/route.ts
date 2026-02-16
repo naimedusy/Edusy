@@ -10,21 +10,21 @@ export async function GET(req: Request) {
             return NextResponse.json({ message: 'Institute ID is required' }, { status: 400 });
         }
 
-        // --- Students Count ---
-        const studentResult = await (prisma as any).$runCommandRaw({
-            aggregate: 'User',
-            pipeline: [
-                {
-                    $match: {
-                        role: 'STUDENT',
-                        instituteIds: instituteId
-                    }
-                },
-                { $count: 'total' }
-            ],
-            cursor: {}
+        // Fetch all students to calculate pending count (workaround for JSON filter limitations)
+        const allStudents = await prisma.user.findMany({
+            where: {
+                role: 'STUDENT',
+                instituteIds: {
+                    has: instituteId
+                }
+            },
+            select: {
+                metadata: true
+            }
         });
-        const studentCount = studentResult.cursor?.firstBatch?.[0]?.total || 0;
+
+        const studentCount = allStudents.filter((s: any) => s.metadata?.admissionStatus !== 'PENDING').length;
+        const pendingStudentCount = allStudents.filter((s: any) => s.metadata?.admissionStatus === 'PENDING').length;
 
         // --- Teachers Count ---
         const teacherCount = await (prisma as any).teacherProfile.count({
@@ -42,6 +42,7 @@ export async function GET(req: Request) {
 
         return NextResponse.json({
             students: studentCount,
+            pendingStudents: pendingStudentCount,
             teachers: teacherCount,
             revenue: totalRevenue,
             attendance: attendanceRate
