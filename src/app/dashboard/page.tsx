@@ -35,9 +35,9 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(false);
     const hasFetchedInstitutes = React.useRef(false);
 
-    // Effect 1: Auto-fetch institutes if missing from session
+    // Effect 1: Auto-fetch institutes if missing OR empty in session (Teachers initially have empty array)
     useEffect(() => {
-        if (user?.id && !user.institutes && !hasFetchedInstitutes.current) {
+        if (user?.id && (!user.institutes || user.institutes.length === 0) && !hasFetchedInstitutes.current) {
             hasFetchedInstitutes.current = true;
             fetch(`/api/institute?userId=${user.id}`)
                 .then(res => res.json())
@@ -59,9 +59,9 @@ export default function DashboardPage() {
         }
     }, [user?.id, user?.institutes, setAllInstitutes, switchInstitute, activeInstitute, user?.defaultInstituteId]);
 
-    // Effect 2: Initialize active institute for Admins if null (and institutes already exist)
+    // Effect 2: Initialize active institute for non-Super Admins if null (and institutes already exist)
     useEffect(() => {
-        if (activeRole === 'ADMIN' && !activeInstitute && user?.institutes && user.institutes.length > 0) {
+        if (activeRole !== 'SUPER_ADMIN' && !activeInstitute && user?.institutes && user.institutes.length > 0) {
             const defaultInst = user.institutes.find((i: any) => i.id === user.defaultInstituteId) || user.institutes[0];
             switchInstitute(defaultInst);
         }
@@ -134,8 +134,8 @@ function StudentDashboard({ user, activeInstitute }: { user: any, activeInstitut
                 {/* Profile Info Overlay */}
                 <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 flex items-end gap-6 translate-y-4 md:translate-y-0">
                     <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-2xl p-1 shadow-2xl -mb-10 md:-mb-12 shrink-0 border-4 border-white/20 backdrop-blur-sm z-10 transition-transform hover:scale-105">
-                        {activeInstitute?.logoUrl ? (
-                            <img src={activeInstitute.logoUrl} alt="Logo" className="w-full h-full object-contain rounded-xl bg-white" />
+                        {activeInstitute?.logo ? (
+                            <img src={activeInstitute.logo} alt="Logo" className="w-full h-full object-contain rounded-xl bg-white" />
                         ) : (
                             <div className="w-full h-full bg-slate-50 rounded-xl flex items-center justify-center text-slate-300">
                                 <Building2 size={40} />

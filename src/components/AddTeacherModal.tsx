@@ -194,7 +194,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdd, instituteId, i
                                         required
                                         value={formData.name}
                                         onChange={e => setFormData({ ...formData, name: e.target.value })}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700 placeholder:text-slate-400"
                                         placeholder="শিক্ষকের নাম"
                                     />
                                 </div>
@@ -208,7 +208,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdd, instituteId, i
                                         type="email"
                                         value={formData.email}
                                         onChange={e => setFormData({ ...formData, email: e.target.value })}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700 font-sans"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700 font-sans placeholder:text-slate-400"
                                         placeholder="example@mail.com"
                                     />
                                 </div>
@@ -223,7 +223,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdd, instituteId, i
                                         required
                                         value={formData.phone}
                                         onChange={e => setFormData({ ...formData, phone: e.target.value })}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700 font-sans"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700 font-sans placeholder:text-slate-400"
                                         placeholder="01XXXXXXXXX"
                                     />
                                 </div>
@@ -238,7 +238,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdd, instituteId, i
                                         required
                                         value={formData.password}
                                         onChange={e => setFormData({ ...formData, password: e.target.value })}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700 font-sans"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700 font-sans placeholder:text-slate-400"
                                         placeholder="******"
                                     />
                                 </div>
@@ -252,7 +252,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdd, instituteId, i
                                         type="text"
                                         value={formData.designation}
                                         onChange={e => setFormData({ ...formData, designation: e.target.value })}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700 placeholder:text-slate-400"
                                         placeholder="উদাহরণ: সহকারী শিক্ষক"
                                     />
                                 </div>
@@ -266,7 +266,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdd, instituteId, i
                                         type="text"
                                         value={formData.department}
                                         onChange={e => setFormData({ ...formData, department: e.target.value })}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84]/20 outline-none text-sm font-bold text-slate-700 placeholder:text-slate-400"
                                         placeholder="উদাহরণ: বিজ্ঞান"
                                     />
                                 </div>

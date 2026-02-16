@@ -28,7 +28,7 @@ export default function SignupPage() {
 
 
             if (res.ok) {
-                router.push('/login');
+                router.push('/entrance');
             } else {
                 const data = await res.json();
                 setError(data.message || 'Registration failed');
@@ -163,8 +163,7 @@ export default function SignupPage() {
             <div className="mt-8 text-center animate-fade-in-up" style={{ animationDelay: '0.7s' }}>
                 <p className="text-sm text-slate-500 font-medium">
                     ইতোমধ্যে অ্যাকাউন্ট আছে?{' '}
-                    <Link href="/login" className="font-medium text-[#045c84] hover:text-[#023c57] transition-colors underline decoration-2 underline-offset-4 decoration-blue-200 hover:decoration-blue-300">
-
+                    <Link href="/entrance" className="font-medium text-[#045c84] hover:text-[#023c57] transition-colors underline decoration-2 underline-offset-4 decoration-blue-200 hover:decoration-blue-300">
                         লগ ইন করুন
                     </Link>
                 </p>

@@ -20,7 +20,7 @@ export async function POST(req: Request) {
             },
             include: {
                 institutes: {
-                    select: { id: true, name: true, type: true }
+                    select: { id: true, name: true, type: true, logo: true, coverImage: true }
                 },
                 teacherProfiles: true
             }

@@ -154,6 +154,15 @@ model Notification {
 model Book {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String
+  nameBangla  String?  // Multilingual name
+  nameEnglish String?  // Multilingual name
+  nameArabic  String?  // Multilingual name
+  description String?  // Book description
+  coverImage  String?  // Added for book cover
+  author      String?  // Added for book subtitle/author
+  rating      Float?   @default(4.0) // Added for book rating
+  pdfUrl      String?  // Link to uploaded PDF
+  readLink    String?  // Link to external reading site
   
   class       Class    @relation(fields: [classId], references: [id])
   classId     String   @db.ObjectId

@@ -70,7 +70,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         localStorage.removeItem('edusy_session');
         localStorage.removeItem('edusy_active_role');
         localStorage.removeItem('edusy_active_institute');
-        window.location.href = '/login';
+        window.location.href = '/entrance';
     }, []);
 
     const switchRole = React.useCallback((role: Role) => {

@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, GraduationCap, Search, Plus, MoreVertical, Shield, Settings, Trash2 } from 'lucide-react';
+import { Users, GraduationCap, Search, Plus, MoreVertical, Shield, Settings, Trash2, ChevronDown } from 'lucide-react';
 import { useSession } from '@/components/SessionProvider';
 import AddTeacherModal from '@/components/AddTeacherModal';
 import TeacherPermissionModal from '@/components/TeacherPermissionModal';
 import Toast from '@/components/Toast';
+import TeacherCard from '@/components/TeacherCard';
 
 export default function TeachersPage() {
     const { user, activeInstitute, activeRole } = useSession();
@@ -13,6 +14,7 @@ export default function TeachersPage() {
     const [classes, setClasses] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedClassId, setSelectedClassId] = useState('all');
 
     // Modals
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -108,13 +110,17 @@ export default function TeachersPage() {
 
     const filteredTeachers = teachers.filter(t => {
         const query = searchQuery.toLowerCase().trim();
-        if (!query) return true;
 
-        const name = t.user.name?.toLowerCase() || '';
-        const email = t.user.email?.toLowerCase() || '';
-        const phone = t.user.phone || '';
+        const matchesSearch = !query ||
+            (t.user.name?.toLowerCase() || '').includes(query) ||
+            (t.user.email?.toLowerCase() || '').includes(query) ||
+            (t.user.phone || '').includes(query);
 
-        return name.includes(query) || email.includes(query) || phone.includes(query);
+        const matchesClass = selectedClassId === 'all' ||
+            t.assignedClassIds?.includes(selectedClassId) ||
+            t.permissions?.classWise?.[selectedClassId];
+
+        return matchesSearch && matchesClass;
     });
 
     const canManageTeachers = (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') && (activeInstitute?.isOwner !== false || user?.role === 'SUPER_ADMIN');
@@ -132,6 +138,20 @@ export default function TeachersPage() {
                             className="pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none text-black font-medium shadow-sm w-full md:w-64 placeholder:text-slate-400"
                             placeholder="শিক্ষক খুঁজুন..."
                         />
+                    </div>
+                    {/* Class Filter */}
+                    <div className="relative flex-1 md:flex-none min-w-[150px]">
+                        <select
+                            value={selectedClassId}
+                            onChange={(e) => setSelectedClassId(e.target.value)}
+                            className="w-full pl-4 pr-10 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none text-black font-medium shadow-sm appearance-none cursor-pointer"
+                        >
+                            <option value="all">সব ক্লাস</option>
+                            {classes.map(cls => (
+                                <option key={cls.id} value={cls.id}>{cls.name}</option>
+                            ))}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
                     </div>
 
                     {canManageTeachers && (
@@ -154,138 +174,33 @@ export default function TeachersPage() {
             ) : filteredTeachers.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {filteredTeachers.map((teacher) => (
-                        <div
+                        <TeacherCard
                             key={teacher.id}
-                            onClick={() => {
-                                setPermissionModalData(teacher);
+                            teacher={teacher}
+                            currentUser={user}
+                            onCardClick={(t: any) => setPermissionModalData(t)}
+                            canManage={canManageTeachers}
+                            classes={classes}
+                            onDelete={async (teacherId: string, name: string) => {
+                                if (!window.confirm(`আপনি কি নিশ্চিত যে ${name} কে সরাতে চান?`)) return;
+
+                                try {
+                                    const res = await fetch(`/api/teacher/${teacherId}?instituteId=${activeInstitute.id}&adminId=${user?.id}`, {
+                                        method: 'DELETE'
+                                    });
+
+                                    if (res.ok) {
+                                        showToast('শিক্ষক সফলভাবে সরানো হয়েছে', 'success');
+                                        fetchTeachers();
+                                    } else {
+                                        const data = await res.json();
+                                        showToast(data.error || 'সরাতে ব্যর্থ হয়েছে', 'error');
+                                    }
+                                } catch (err) {
+                                    showToast('সার্ভার এরর', 'error');
+                                }
                             }}
-                            className={`bg-white rounded-2xl border border-slate-200 p-6 hover:shadow-lg transition-all group relative h-full cursor-pointer`}
-                        >
-                            {/* Badges */}
-                            <div className="absolute top-4 right-16 flex items-center gap-2">
-                                {teacher.userId === user?.id && (
-                                    <div className="bg-green-50 text-green-600 px-3 py-1 rounded-full font-bold text-xs flex items-center gap-1 border border-green-100">
-                                        ✓ আপনি
-                                    </div>
-                                )}
-                                {teacher.isAdmin && (
-                                    <div className="bg-red-50 text-red-600 px-3 py-1 rounded-full font-bold text-xs flex items-center gap-1 border border-red-100">
-                                        <Shield size={12} />
-                                        ADMIN
-                                    </div>
-                                )}
-                                {teacher.status === 'PENDING' && (
-                                    <div className="bg-yellow-50 text-yellow-600 px-3 py-1 rounded-full font-bold text-xs flex items-center gap-1 border border-yellow-100">
-                                        🕒 PENDING
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Three-dot menu - Only for Admins */}
-                            {canManageTeachers && (
-                                <div className="absolute top-4 right-4">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            // Toggle menu or show dropdown
-                                            const menu = e.currentTarget.nextElementSibling as HTMLElement;
-                                            if (menu) {
-                                                menu.classList.toggle('hidden');
-                                            }
-                                        }}
-                                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all z-10"
-                                    >
-                                        <MoreVertical size={20} />
-                                    </button>
-
-                                    {/* Dropdown menu */}
-                                    <div className="hidden absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-20">
-                                        {!teacher.isAdmin && (
-                                            <button
-                                                onClick={async (e) => {
-                                                    e.stopPropagation();
-                                                    if (!window.confirm(`আপনি কি নিশ্চিত যে ${teacher.user.name} কে সরাতে চান?`)) return;
-
-                                                    try {
-                                                        const res = await fetch(`/api/teacher/${teacher.userId}?instituteId=${activeInstitute.id}&adminId=${user?.id}`, {
-                                                            method: 'DELETE'
-                                                        });
-
-                                                        if (res.ok) {
-                                                            showToast('শিক্ষক সফলভাবে সরানো হয়েছে', 'success');
-                                                            fetchTeachers();
-                                                        } else {
-                                                            const data = await res.json();
-                                                            showToast(data.error || 'সরাতে ব্যর্থ হয়েছে', 'error');
-                                                        }
-                                                    } catch (err) {
-                                                        showToast('সার্ভার এরর', 'error');
-                                                    }
-                                                }}
-                                                className="w-full text-left px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
-                                            >
-                                                <Trash2 size={16} />
-                                                মুছে ফেলুন
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Card content */}
-                            <div className="flex items-center gap-4">
-                                {/* Profile circle */}
-                                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[#045c84] to-[#067ab8] text-white flex items-center justify-center text-2xl font-bold shrink-0 shadow-lg">
-                                    {teacher.user.name[0].toUpperCase()}
-                                </div>
-
-                                {/* Teacher info */}
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="text-lg font-bold text-slate-800 truncate">{teacher.user.name}</h3>
-                                    <p className="text-[#045c84] text-sm font-bold mb-1">{teacher.designation || 'শিক্ষক'}</p>
-                                    <div className="flex items-center gap-4 text-xs text-slate-500 font-medium font-sans">
-                                        <span>{teacher.user.phone || 'N/A'}</span>
-                                        <span className="truncate">{teacher.user.email}</span>
-                                    </div>
-                                </div>
-
-                                {/* Permissions badges */}
-                                <div className="flex flex-wrap gap-2 shrink-0 max-w-[200px] justify-end">
-                                    {teacher.permissions?.classWise ? (
-                                        Object.keys(teacher.permissions.classWise).length > 0 ? (
-                                            <div className="flex flex-wrap gap-1 justify-end">
-                                                {Object.keys(teacher.permissions.classWise).map(classId => {
-                                                    const cls = classes.find(c => c.id === classId);
-                                                    if (!cls) return null;
-                                                    return (
-                                                        <span key={classId} className="text-[10px] font-bold px-2 py-1 bg-blue-50 text-blue-600 rounded-md border border-blue-100">
-                                                            {cls.name}
-                                                        </span>
-                                                    );
-                                                })}
-                                            </div>
-                                        ) : (
-                                            <span className="text-[10px] uppercase font-bold px-2 py-1 bg-slate-50 text-slate-400 rounded-md border border-slate-100">
-                                                No Permissions
-                                            </span>
-                                        )
-                                    ) : (
-                                        // Legacy / Fallback view
-                                        <>
-                                            {teacher.permissions?.canCollectFees && (
-                                                <span className="text-[10px] uppercase font-bold px-2 py-1 bg-purple-50 text-purple-600 rounded-md border border-purple-100">Fees</span>
-                                            )}
-                                            {teacher.permissions?.canManageResult && (
-                                                <span className="text-[10px] uppercase font-bold px-2 py-1 bg-blue-50 text-blue-600 rounded-md border border-blue-100">Result</span>
-                                            )}
-                                            {teacher.permissions?.canTakeAttendance && (
-                                                <span className="text-[10px] uppercase font-bold px-2 py-1 bg-emerald-50 text-emerald-600 rounded-md border border-emerald-100">Attendance</span>
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
+                        />
                     ))}
                 </div>
             ) : (

@@ -25,12 +25,13 @@ import { useSession } from '@/components/SessionProvider';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import ProfileModal from '@/components/ProfileModal';
 import NotificationBell from '@/components/NotificationBell';
+import GlobalSearch from '@/components/GlobalSearch';
 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-    const { user, activeRole, logout } = useSession();
+    const { user, activeRole, logout, isLoading } = useSession();
     const pathname = usePathname();
 
     useEffect(() => {
@@ -39,14 +40,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         return () => window.removeEventListener('open-user-profile', handleOpenProfile);
     }, []);
 
+    if (isLoading) {
+        return (
+            <div className="flex h-screen w-full items-center justify-center bg-slate-50">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="relative">
+                        <div className="w-16 h-16 border-4 border-[#045c84]/20 border-t-[#045c84] rounded-full animate-spin"></div>
+                        <GraduationCap className="absolute inset-0 m-auto text-[#045c84] animate-pulse" size={24} />
+                    </div>
+                    <p className="text-slate-500 font-black text-xs uppercase tracking-[0.3em] animate-pulse">EDUSY লোড হচ্ছে...</p>
+                </div>
+            </div>
+        );
+    }
+
 
     const menuItems = [
         { name: 'ড্যাশবোর্ড', icon: LayoutDashboard, href: '/dashboard' },
         { name: 'প্রতিষ্ঠান', icon: Building2, href: '/dashboard/institute', adminOnly: true },
         { name: 'শিক্ষক', icon: GraduationCap, href: '/dashboard/teachers' },
-        { name: 'শিক্ষার্থী', icon: Users, href: '/dashboard/students' },
+        { name: 'শিক্ষার্থী / বই', icon: Users, href: '/dashboard/students' },
         { name: 'অভিভাবক', icon: HeartPulse, href: '/dashboard/guardians' },
-        { name: 'ক্লাস', icon: BookOpen, href: '/dashboard/classes' },
         { name: 'হিসাব', icon: CreditCard, href: '/dashboard/accounts' },
         { name: 'ক্যালেন্ডার', icon: Calendar, href: '/dashboard/calendar' },
         { name: 'সেটিংস', icon: Settings, href: '/dashboard/settings' },
@@ -57,7 +71,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             return item.href === '/dashboard';
         }
         if (activeRole === 'STUDENT') {
-            return ['/dashboard', '/dashboard/teachers', '/dashboard/classes', '/dashboard/notices'].includes(item.href);
+            return ['/dashboard', '/dashboard/teachers', '/dashboard/notices'].includes(item.href);
         }
         if (item.adminOnly) {
             return activeRole === 'ADMIN';
@@ -182,25 +196,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         {/* Page Title */}
                         <div className="flex items-center min-w-0">
                             <h2 className="text-xl font-black text-slate-800 font-bengali">
-                                {pathname?.includes('/dashboard/students') ? 'শিক্ষার্থী' :
+                                {pathname?.includes('/dashboard/students') ? 'শিক্ষার্থী / বই' :
                                     pathname?.includes('/dashboard/teachers') ? 'শিক্ষক' :
                                         pathname?.includes('/dashboard/institute') ? 'প্রতিষ্ঠানসমূহ' :
-                                            pathname?.includes('/dashboard/classes') ? 'ক্লাস' :
-                                                pathname?.includes('/dashboard/accounts') ? 'হিসাব' :
-                                                    pathname?.includes('/dashboard/settings') ? 'সেটিংস' :
-                                                        pathname?.includes('/dashboard/guardians') ? 'অভিভাবক' :
-                                                            pathname?.includes('/dashboard/calendar') ? 'ক্যালেন্ডার' :
-                                                                pathname?.includes('/dashboard') ? 'ড্যাশবোর্ড' : ''}
+                                            pathname?.includes('/dashboard/accounts') ? 'হিসাব' :
+                                                pathname?.includes('/dashboard/settings') ? 'সেটিংস' :
+                                                    pathname?.includes('/dashboard/guardians') ? 'অভিভাবক' :
+                                                        pathname?.includes('/dashboard/calendar') ? 'ক্যালেন্ডার' :
+                                                            pathname?.includes('/dashboard') ? 'ড্যাশবোর্ড' : ''}
                             </h2>
-                        </div>
-
-                        <div className="relative hidden xl:block flex-1 max-w-md ml-4">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                            <input
-                                type="text"
-                                placeholder="খুঁজুন..."
-                                className="w-full pl-10 pr-4 py-2 bg-slate-100 border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-[#047cac]/20 transition-all text-sm outline-none"
-                            />
                         </div>
                     </div>
 
@@ -208,7 +212,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         {/* Header Actions Portal Target */}
                         <div id="dashboard-header-actions" className="flex items-center gap-2"></div>
 
-                        <div className="relative">
+                        <div className="flex items-center gap-2">
+                            <GlobalSearch />
                             <NotificationBell />
                         </div>
                         <div
@@ -223,7 +228,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 {user?.name ? user.name[0] : 'U'}
                             </div>
                         </div>
-
                     </div>
 
                 </header>

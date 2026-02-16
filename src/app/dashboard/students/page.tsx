@@ -31,16 +31,25 @@ import {
     Layers3,
     CheckCircle,
     FileX,
-    FileSpreadsheet
+    FileSpreadsheet,
+    LayoutGrid,
+    LayoutList,
+    GraduationCap,
+    Library,
+    ClipboardList
 } from 'lucide-react';
 import { ScrollableTabs } from '@/components/ui/ScrollableTabs';
 import Toast from '@/components/Toast';
 import Modal from '@/components/Modal';
 import FieldLibrary, { FieldDefinition, POSSIBLE_FIELDS } from '@/components/FieldLibrary';
 import StudentProfileModal from '@/components/StudentProfileModal';
+import TeacherCard from '@/components/TeacherCard';
+import BookCard from '@/components/BookCard';
+import BookDetailsModal from '@/components/BookDetailsModal';
+import TeacherPermissionModal from '@/components/TeacherPermissionModal';
 
 export default function StudentManagementPage() {
-    const { user, activeRole, activeInstitute } = useSession();
+    const { user, activeRole, activeInstitute, isLoading } = useSession();
     const [students, setStudents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -78,12 +87,15 @@ export default function StudentManagementPage() {
     const [activeTab, setActiveTab] = useState<'students' | 'applications' | 'books' | 'teachers'>('students');
 
     const [teachers, setTeachers] = useState<any[]>([]);
-    const [filteredStudents, setFilteredStudents] = useState<any[]>([]);
+    const [permissionModalData, setPermissionModalData] = useState<any>(null);
+    const [debouncedSearch, setDebouncedSearch] = useState(search);
 
     // Excel Import States
     const [isExcelMode, setIsExcelMode] = useState(false);
     const [excelData, setExcelData] = useState<string[][]>([]);
     const [columnMappings, setColumnMappings] = useState<{ [key: number]: string }>({});
+    const [importFails, setImportFails] = useState<any[]>([]);
+    const [isImportSummaryOpen, setIsImportSummaryOpen] = useState(false);
 
     const fetchTeachers = async () => {
         if (!activeInstitute?.id) return;
@@ -103,6 +115,30 @@ export default function StudentManagementPage() {
         }
     };
 
+    const handleUpdateTeacherPermissions = async (teacherId: string, updates: any) => {
+        try {
+            const res = await fetch(`/api/teacher/${teacherId}/permissions`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...updates,
+                    adminId: user?.id,
+                    instituteId: activeInstitute?.id
+                }),
+            });
+
+            if (res.ok) {
+                setToast({ message: 'পারমিশন আপডেট করা হয়েছে', type: 'success' });
+                fetchTeachers(); // Refresh
+            } else {
+                const data = await res.json();
+                setToast({ message: data.error || 'পারমিশন আপডেট ব্যর্থ হয়েছে', type: 'error' });
+            }
+        } catch (error) {
+            setToast({ message: 'আপডেট ব্যর্থ হয়েছে', type: 'error' });
+        }
+    };
+
     useEffect(() => {
         if (activeTab === 'teachers') {
             fetchTeachers();
@@ -112,7 +148,23 @@ export default function StudentManagementPage() {
     // Books States
     const [books, setBooks] = useState<any[]>([]);
     const [isBookModalOpen, setIsBookModalOpen] = useState(false);
-    const [bookData, setBookData] = useState({ names: '', classId: '' });
+    const [isBookDetailsModalOpen, setIsBookDetailsModalOpen] = useState(false);
+    const [selectedBook, setSelectedBook] = useState<any | null>(null);
+    const [bookData, setBookData] = useState({ names: '', classId: '', coverImage: '', author: '' });
+    const [bookViewMode, setBookViewMode] = useState<'card' | 'cover'>('card');
+
+    // Persist book view mode
+    useEffect(() => {
+        const savedView = localStorage.getItem('edusy_book_view_mode');
+        if (savedView === 'card' || savedView === 'cover') {
+            setBookViewMode(savedView);
+        }
+    }, []);
+
+    const handleViewModeToggle = (mode: 'card' | 'cover') => {
+        setBookViewMode(mode);
+        localStorage.setItem('edusy_book_view_mode', mode);
+    };
 
     const [pendingCount, setPendingCount] = useState(0);
 
@@ -245,7 +297,7 @@ export default function StudentManagementPage() {
             const instituteFilter = activeInstitute?.id ? `&instituteId=${activeInstitute.id}` : '';
             const statusFilter = activeTab === 'applications' ? '&admissionStatus=PENDING' : '';
 
-            const res = await fetch(`/api/admin/users?role=STUDENT&search=${search}${classFilter}${groupFilter}${instituteFilter}${statusFilter}`);
+            const res = await fetch(`/api/admin/users?role=STUDENT&search=${debouncedSearch}${classFilter}${groupFilter}${instituteFilter}${statusFilter}`);
             const text = await res.text();
             try {
                 const data = JSON.parse(text);
@@ -270,16 +322,29 @@ export default function StudentManagementPage() {
         }
     }, [activeInstitute?.id]);
 
+    // Handle debounced search separately
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (activeTab === 'books') {
-                fetchBooks();
-            } else {
-                fetchStudents();
-            }
+            setDebouncedSearch(search);
         }, 500);
         return () => clearTimeout(timer);
-    }, [search, activeInstitute?.id, selectedClassId, selectedGroupId, activeTab]);
+    }, [search]);
+
+    // Fetch data immediately when filters or tab change
+    useEffect(() => {
+        if (!activeInstitute?.id) return;
+
+        if (activeTab === 'books') {
+            fetchBooks();
+        } else if (activeTab === 'students' || activeTab === 'applications') {
+            fetchStudents();
+        }
+    }, [debouncedSearch, activeInstitute?.id, selectedClassId, selectedGroupId, activeTab]);
+
+    // Strict Owner/SuperAdmin check
+    const isOwner = activeRole === 'SUPER_ADMIN' || (activeInstitute?.adminIds || []).includes(user?.id);
+
+    if (isLoading) return null;
 
     const handleUpdateFormConfig = async (newConfig: FieldDefinition[]) => {
         if (!activeInstitute?.id) return;
@@ -619,7 +684,9 @@ export default function StudentManagementPage() {
                 body: JSON.stringify({
                     names,
                     classId: targetClassId,
-                    instituteId: activeInstitute.id
+                    instituteId: activeInstitute.id,
+                    coverImage: bookData.coverImage || null,
+                    author: bookData.author || null
                 })
             });
 
@@ -628,7 +695,7 @@ export default function StudentManagementPage() {
             if (res.ok) {
                 setToast({ message: `${result.count || ''} টি বই সফলভাবে যুক্ত হয়েছে!`, type: 'success' });
                 setIsBookModalOpen(false);
-                setBookData({ names: '', classId: '' });
+                setBookData({ names: '', classId: '', coverImage: '', author: '' });
                 fetchBooks();
             } else {
                 setToast({ message: result.message || 'বই যুক্ত করতে সমস্যা হয়েছে।', type: 'error' });
@@ -728,7 +795,7 @@ export default function StudentManagementPage() {
                 <div className="relative flex-1">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input
-                        className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none text-black font-medium shadow-sm"
+                        className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none text-slate-800 font-medium shadow-sm placeholder:text-slate-400"
                         placeholder="খুঁজুন..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
@@ -748,10 +815,10 @@ export default function StudentManagementPage() {
                         <button
                             ref={classButtonRef}
                             onClick={handleOpenDropdown}
-                            className="flex items-center gap-3 pl-4 pr-3 py-2.5 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-[#045c84] transition-all group min-w-[200px] justify-between"
+                            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-[#045c84] transition-all group justify-between w-auto min-w-max"
                         >
-                            <div className="flex items-center gap-2 overflow-hidden">
-                                <span className="text-sm font-bold text-slate-700 truncate">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold text-slate-700 whitespace-nowrap">
                                     {selectedClassId === 'all'
                                         ? 'সকল ক্লাস'
                                         : classes.find(c => c.id === selectedClassId)?.name || 'ক্লাস নির্বাচন করুন'}
@@ -777,7 +844,8 @@ export default function StudentManagementPage() {
                                     style={{
                                         top: dropdownStyle.top - window.scrollY, // Adjust because we are using fixed positioning
                                         left: dropdownStyle.left - window.scrollX, // Adjust for fixed positioning
-                                        width: dropdownStyle.width,
+                                        minWidth: dropdownStyle.width,
+                                        width: 'auto',
                                         zIndex: 10000
                                     }}
                                 >
@@ -804,7 +872,7 @@ export default function StudentManagementPage() {
                                             }}
                                             className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-bold transition-all ${selectedClassId === 'all'
                                                 ? 'bg-[#045c84] text-white shadow-md shadow-blue-500/20'
-                                                : 'text-slate-600 hover:bg-slate-50'
+                                                : 'text-slate-700 hover:bg-slate-50'
                                                 }`}
                                         >
                                             <span>সকল ক্লাস</span>
@@ -818,7 +886,7 @@ export default function StudentManagementPage() {
                                                     key={c.id}
                                                     className={`group flex items-center justify-between px-3 py-2 rounded-xl transition-all ${selectedClassId === c.id
                                                         ? 'bg-[#045c84] text-white shadow-md shadow-blue-500/20'
-                                                        : 'text-slate-600 hover:bg-slate-50'
+                                                        : 'text-slate-700 hover:bg-slate-50'
                                                         }`}
                                                 >
                                                     <button
@@ -828,7 +896,7 @@ export default function StudentManagementPage() {
                                                             fetchGroups(c.id);
                                                             setIsClassDropdownOpen(false);
                                                         }}
-                                                        className="flex-1 text-left text-sm font-bold truncate"
+                                                        className="flex-1 text-left text-sm font-bold whitespace-nowrap"
                                                     >
                                                         {c.name}
                                                     </button>
@@ -878,41 +946,52 @@ export default function StudentManagementPage() {
                         </button>
                     )}
 
-                    {activeTab !== 'applications' && (allowedClasses.length > 0) && (
-                        <button
-                            onClick={() => {
-                                if (activeTab === 'students') {
-                                    // Auto-populate classId if a specific class is selected
-                                    if (selectedClassId !== 'all') {
-                                        setFormData({
-                                            name: '',
-                                            email: '',
-                                            password: '',
-                                            metadata: { classId: selectedClassId }
-                                        });
+                    {activeTab !== 'applications' && activeTab !== 'teachers' && (allowedClasses.length > 0) && (
+                        <div className="flex items-center gap-2">
+                            {selectedClassId !== 'all' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') && (
+                                <button
+                                    onClick={() => setIsGroupModalOpen(true)}
+                                    className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold bg-[#045c84] text-white hover:bg-[#034a6b] hover:shadow-lg hover:shadow-blue-200 transition-all shadow-md active:scale-95 whitespace-nowrap"
+                                >
+                                    <Users size={18} />
+                                    <span>গ্রুপ</span>
+                                </button>
+                            )}
+                            <button
+                                onClick={() => {
+                                    if (activeTab === 'students') {
+                                        // Auto-populate classId if a specific class is selected
+                                        if (selectedClassId !== 'all') {
+                                            setFormData({
+                                                name: '',
+                                                email: '',
+                                                password: '',
+                                                metadata: { classId: selectedClassId }
+                                            });
+                                        } else {
+                                            setFormData({
+                                                name: '',
+                                                email: '',
+                                                password: '',
+                                                metadata: {}
+                                            });
+                                        }
+                                        setIsAddModalOpen(true);
                                     } else {
-                                        setFormData({
-                                            name: '',
-                                            email: '',
-                                            password: '',
-                                            metadata: {}
-                                        });
+                                        setBookData({ names: '', classId: selectedClassId !== 'all' ? selectedClassId : '', coverImage: '', author: '' });
+                                        setIsBookModalOpen(true);
                                     }
-                                    setIsAddModalOpen(true);
-                                } else {
-                                    setBookData({ names: '', classId: selectedClassId !== 'all' ? selectedClassId : '' });
-                                    setIsBookModalOpen(true);
-                                }
-                            }}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold bg-[#045c84] text-white hover:bg-[#034a6b] hover:shadow-lg hover:shadow-blue-200 transition-all shadow-md active:scale-95 whitespace-nowrap"
-                        >
-                            {activeTab === 'students' ? <UserPlus size={18} /> : <BookOpen size={18} />}
-                            <span>{activeTab === 'students' ? 'ছাত্র' : 'বই'}</span>
-                        </button>
+                                }}
+                                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold bg-[#045c84] text-white hover:bg-[#034a6b] hover:shadow-lg hover:shadow-blue-200 transition-all shadow-md active:scale-95 whitespace-nowrap"
+                            >
+                                {activeTab === 'students' ? <UserPlus size={18} /> : <BookOpen size={18} />}
+                                <span>{activeTab === 'students' ? 'ছাত্র' : 'বই'}</span>
+                            </button>
+                        </div>
                     )}
                 </div>
 
-                {selectedClassId !== 'all' && (
+                {selectedClassId !== 'all' && groups.length > 0 && (
                     <div className="flex items-center gap-4 pl-4 border-l-4 border-slate-200 animate-fade-in w-full min-w-0">
                         <div className="relative flex items-center flex-1 min-w-0 group/scroll">
                             <ScrollableTabs
@@ -929,50 +1008,240 @@ export default function StudentManagementPage() {
                                     }`}
                             />
                         </div>
-                        <button
-                            onClick={() => setIsGroupModalOpen(true)}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-100 text-slate-400 rounded-full shadow-sm hover:text-slate-800 hover:border-slate-300 hover:shadow-md transition-all group shrink-0 ml-auto"
-                            title="নতুন গ্রুপ"
-                        >
-                            <Plus size={16} className="group-hover:rotate-90 transition-transform duration-300" />
-                            <span className="text-[10px] font-bold hidden md:inline">গ্রুপ যোগ করুন</span>
-                        </button>
                     </div>
                 )}
             </div>
 
-            {activeTab === 'students' ? (
-                loading ? (
-                    <div className="py-20 text-center">
-                        <Loader2 className="animate-spin mx-auto text-[#045c84] mb-4" size={40} />
-                        <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">শিক্ষার্থী লোড হচ্ছে...</p>
+            <div key={activeTab} className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-forwards">
+                {activeTab === 'students' ? (
+                    loading && students.length === 0 ? (
+                        <div className="py-20 text-center">
+                            <Loader2 className="animate-spin mx-auto text-[#045c84] mb-4" size={40} />
+                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">শিক্ষার্থী লোড হচ্ছে...</p>
+                        </div>
+                    ) : students.length === 0 ? (
+                        <div className="py-20 text-center flex flex-col items-center justify-center text-slate-400">
+                            <Users className="mb-4 opacity-20" size={64} />
+                            <span className="text-lg font-medium">কোন শিক্ষার্থী পাওয়া যায়নি।</span>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {students
+                                .filter(s => {
+                                    if (activeRole === 'TEACHER') {
+                                        if (allowedClasses.length > 0) {
+                                            const studentClassId = s.metadata?.classId;
+                                            return allowedClasses.some(c => c.id === studentClassId);
+                                        }
+                                        return false;
+                                    }
+                                    return true;
+                                })
+                                .map((s, index) => (
+                                    <div
+                                        key={s.id}
+                                        onClick={() => {
+                                            setSelectedStudent(s);
+                                            setIsProfileModalOpen(true);
+                                        }}
+                                        className="bg-white p-3.5 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-lg hover:border-blue-100 transition-all flex items-center gap-3 md:gap-4 relative group cursor-pointer animate-staggered-fade-in w-full min-w-[280px] overflow-hidden"
+                                        style={{ animationDelay: `${index * 50}ms` }}
+                                    >
+                                        {/* Avatar */}
+                                        {(() => {
+                                            const colors = ['bg-orange-500', 'bg-yellow-400', 'bg-teal-500', 'bg-emerald-500', 'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500'];
+                                            const colorIndex = s.name ? s.name.length % colors.length : 0;
+                                            const bgColor = colors[colorIndex];
+
+                                            return (
+                                                <div className={`w-12 h-12 rounded-full ${bgColor} border-2 border-white shadow-md overflow-hidden flex items-center justify-center text-white font-bold text-lg shrink-0 group-hover:scale-110 transition-transform duration-300`}>
+                                                    {s.metadata?.studentPhoto ? (
+                                                        <img src={s.metadata.studentPhoto} alt={s.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        s.name?.[0] || 'S'
+                                                    )}
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0">
+                                            <h3 className="text-[18px] font-bold text-slate-800 truncate mb-1" title={s.name}>
+                                                {s.name || 'নাম নেই'}
+                                            </h3>
+
+                                            {/* ID | Roll Tag */}
+                                            <div className="flex-shrink-0 inline-flex items-center gap-1.5 px-1.5 py-0 bg-blue-50/50 border border-blue-100 rounded-full group/tag hover:bg-blue-50 transition-colors whitespace-nowrap">
+                                                <div className="flex items-center gap-1 text-[#045c84] text-[7px] font-medium uppercase tracking-wider">
+                                                    <span>ID: {s.metadata?.studentId || '-'}</span>
+                                                    <span className="opacity-30">|</span>
+                                                    <span>Roll: {s.metadata?.rollNumber || '-'}</span>
+                                                </div>
+                                                <ChevronDown size={8} className="text-[#045c84] opacity-40 group-hover/tag:translate-y-0.5 transition-transform" />
+                                            </div>
+                                        </div>
+
+                                        {/* Actions - 3-Dot Action Button */}
+                                        <div className="relative">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    const rect = e.currentTarget.getBoundingClientRect();
+                                                    setMenuPosition({
+                                                        top: rect.bottom + 8,
+                                                        left: rect.right - 220
+                                                    });
+                                                    setIsActionMenuOpen(isActionMenuOpen === s.id ? null : s.id);
+                                                }}
+                                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+                                            >
+                                                <MoreVertical size={20} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    )
+                ) : activeTab === 'books' ? (
+                    <div className="relative">
+                        {/* Book Controls */}
+                        <div className="flex items-center justify-between mb-6">
+                            <div className="flex flex-col">
+                                <h3 className="text-lg font-black text-slate-800">বইসমূহ</h3>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{books.length}টি বই পাওয়া গেছে</p>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                                {selectedClassId !== 'all' && (
+                                    <button
+                                        onClick={() => setToast({ message: 'গ্রেডিং ম্যানেজমেন্ট সিস্টেম খুব শীঘ্রই আসছে!', type: 'success' })}
+                                        className="flex items-center gap-2 px-4 py-2 bg-white border border-[#045c84]/20 text-[#045c84] rounded-xl text-xs font-black hover:bg-slate-50 transition-all shadow-sm"
+                                    >
+                                        <GraduationCap size={16} />
+                                        <span>গ্রেডিং</span>
+                                    </button>
+                                )}
+
+                                <div className="flex items-center bg-slate-100 p-1 rounded-2xl border border-slate-200 shadow-inner">
+                                    <button
+                                        onClick={() => handleViewModeToggle('card')}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${bookViewMode === 'card'
+                                            ? 'bg-white text-[#045c84] shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600'
+                                            }`}
+                                    >
+                                        <LayoutList size={16} />
+                                        <span>লিস্ট</span>
+                                    </button>
+                                    <button
+                                        onClick={() => handleViewModeToggle('cover')}
+                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all ${bookViewMode === 'cover'
+                                            ? 'bg-white text-[#045c84] shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600'
+                                            }`}
+                                    >
+                                        <LayoutGrid size={16} />
+                                        <span>কভার</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {loading && books.length > 0 && (
+                            <div className="absolute inset-x-0 -top-2 h-1 bg-slate-100 overflow-hidden rounded-full z-10">
+                                <div className="h-full bg-[#045c84] animate-[shimmer_1.5s_infinite] w-1/3"></div>
+                            </div>
+                        )}
+
+                        <div className={`grid gap-4 md:gap-6 ${bookViewMode === 'card'
+                            ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                            : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+                            }`}>
+                            {books.map((book, index) => (
+                                <div key={book.id} className="animate-staggered-fade-in" style={{ animationDelay: `${index * 40}ms` }}>
+                                    <BookCard
+                                        book={book}
+                                        onDelete={handleBookDelete}
+                                        onClick={(b) => {
+                                            setSelectedBook(b);
+                                            setIsBookDetailsModalOpen(true);
+                                        }}
+                                        onMenuClick={(e, b) => {
+                                            e.stopPropagation();
+                                            const rect = e.currentTarget.getBoundingClientRect();
+                                            setMenuPosition({
+                                                top: rect.bottom + window.scrollY + 8,
+                                                left: rect.right + window.scrollX - 220
+                                            });
+                                            setIsActionMenuOpen(isActionMenuOpen === b.id ? null : b.id);
+                                        }}
+                                        isAdmin={activeRole === 'ADMIN'}
+                                        viewMode={bookViewMode}
+                                    />
+                                </div>
+                            ))}
+                            {books.length === 0 && !loading && (
+                                <div className="col-span-full py-12 text-center text-slate-400">
+                                    <BookOpen size={48} className="mx-auto mb-3 opacity-20" />
+                                    <p>কোনো বই পাওয়া যায়নি</p>
+                                </div>
+                            )}
+                            {books.length === 0 && loading && (
+                                <div className="col-span-full py-20 text-center">
+                                    <Loader2 className="animate-spin mx-auto text-[#045c84] mb-4" size={40} />
+                                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">বই লোড হচ্ছে...</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                ) : students.length === 0 ? (
-                    <div className="py-20 text-center flex flex-col items-center justify-center text-slate-400">
-                        <Users className="mb-4 opacity-20" size={64} />
-                        <span className="text-lg font-medium">কোন শিক্ষার্থী পাওয়া যায়নি।</span>
+                ) : activeTab === 'teachers' ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {(() => {
+                            const filteredTeachers = teachers.filter((t: any) => {
+                                const matchesClass = selectedClassId === 'all' ||
+                                    t.assignedClassIds?.includes(selectedClassId) ||
+                                    t.permissions?.classWise?.[selectedClassId];
+                                return matchesClass;
+                            });
+
+                            return filteredTeachers.length > 0 ? (
+                                filteredTeachers.map((teacher: any, index: number) => (
+                                    <div key={teacher.id} className="animate-staggered-fade-in" style={{ animationDelay: `${index * 60}ms` }}>
+                                        <TeacherCard
+                                            teacher={teacher}
+                                            currentUser={user}
+                                            classes={classes}
+                                            onCardClick={(t: any) => setPermissionModalData(t)}
+                                            canManage={isOwner}
+                                        />
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-12 text-center text-slate-400">
+                                    <Users size={48} className="mx-auto mb-3 opacity-20" />
+                                    <p className="font-medium">কোনো শিক্ষক পাওয়া যায়নি</p>
+                                </div>
+                            );
+                        })()}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
-                        {students
-                            .filter(s => {
-                                if (activeRole === 'TEACHER') {
-                                    if (allowedClasses.length > 0) {
-                                        const studentClassId = s.metadata?.classId;
-                                        return allowedClasses.some(c => c.id === studentClassId);
-                                    }
-                                    return false;
-                                }
-                                return true;
-                            })
-                            .map((s) => (
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                            {students.map((s, index) => (
                                 <div
                                     key={s.id}
                                     onClick={() => {
-                                        setSelectedStudent(s);
-                                        setIsProfileModalOpen(true);
+                                        setEditingStudent(s);
+                                        setFormData({
+                                            name: s.name || '',
+                                            email: s.email || '',
+                                            password: s.password || '',
+                                            metadata: s.metadata || {}
+                                        });
+                                        setIsAddModalOpen(true);
                                     }}
-                                    className="bg-white p-3.5 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-lg hover:border-blue-100 transition-all flex items-center gap-4 relative group cursor-pointer"
+                                    className="bg-white p-3.5 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-lg hover:border-blue-100 transition-all flex items-center gap-3 md:gap-4 relative group cursor-pointer animate-staggered-fade-in w-full min-w-[280px]"
+                                    style={{ animationDelay: `${index * 50}ms` }}
                                 >
                                     {/* Avatar */}
                                     {(() => {
@@ -998,170 +1267,46 @@ export default function StudentManagementPage() {
                                         </h3>
 
                                         {/* ID | Roll Tag */}
-                                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50/50 border border-blue-100 rounded-full group/tag hover:bg-blue-50 transition-colors">
-                                            <div className="flex items-center gap-1.5 text-[#045c84] text-[9px] font-bold uppercase tracking-wider">
+                                        <div className="flex-shrink-0 inline-flex items-center gap-1.5 px-1.5 py-0 bg-blue-50/50 border border-blue-100 rounded-full group/tag hover:bg-blue-50 transition-colors whitespace-nowrap">
+                                            <div className="flex items-center gap-1 text-[#045c84] text-[7px] font-medium uppercase tracking-wider">
                                                 <span>ID: {s.metadata?.studentId || '-'}</span>
                                                 <span className="opacity-30">|</span>
                                                 <span>Roll: {s.metadata?.rollNumber || '-'}</span>
                                             </div>
-                                            <ChevronDown size={12} className="text-[#045c84] opacity-40 group-hover/tag:translate-y-0.5 transition-transform" />
+                                            <ChevronDown size={8} className="text-[#045c84] opacity-40 group-hover/tag:translate-y-0.5 transition-transform" />
                                         </div>
                                     </div>
 
-                                    {/* Actions - 3-Dot Action Button */}
-                                    <div className="relative">
+                                    {/* Actions for Applications */}
+                                    <div className="flex items-center gap-2 pr-2">
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                setMenuPosition({
-                                                    top: rect.bottom + 8,
-                                                    left: rect.right - 220
-                                                });
-                                                setIsActionMenuOpen(isActionMenuOpen === s.id ? null : s.id);
+                                                handleStatusUpdate(s.id, 'APPROVED');
                                             }}
-                                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
+                                            className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
+                                            title="মঞ্জুর করুন"
                                         >
-                                            <MoreVertical size={20} />
+                                            <CheckCircle size={18} />
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleStatusUpdate(s.id, 'REJECTED');
+                                            }}
+                                            className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
+                                            title="বাতিল করুন"
+                                        >
+                                            <FileX size={18} />
                                         </button>
                                     </div>
                                 </div>
                             ))}
+                        </div>
                     </div>
                 )
-            ) : activeTab === 'books' ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {books.map((book) => (
-                        <div key={book.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-start justify-between group hover:border-[#045c84] transition-all">
-                            <div>
-                                <h3 className="font-bold text-slate-800">{book.name}</h3>
-                                <p className="text-xs text-slate-500 mt-1">শ্রেণী: {book.class?.name || 'অজানা'}</p>
-                            </div>
-                            <button
-                                onClick={() => handleBookDelete(book.id)}
-                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                            >
-                                <Trash2 size={18} />
-                            </button>
-                        </div>
-                    ))}
-                    {books.length === 0 && (
-                        <div className="col-span-full py-12 text-center text-slate-400">
-                            <BookOpen size={48} className="mx-auto mb-3 opacity-20" />
-                            <p>কোনো বই পাওয়া যায়নি</p>
-                        </div>
-                    )}
-                </div>
-            ) : activeTab === 'teachers' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {teachers.length > 0 ? (
-                        teachers.map((teacher: any) => (
-                            <div key={teacher.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 hover:border-[#045c84] transition-all">
-                                <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center text-slate-400 shrink-0">
-                                    {teacher.avatar ? (
-                                        <img src={teacher.avatar} alt={teacher.name} className="w-full h-full rounded-full object-cover" />
-                                    ) : (
-                                        <span className="text-xl font-bold">{teacher.name?.[0]}</span>
-                                    )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="font-bold text-slate-800 truncate">{teacher.name}</h3>
-                                    <p className="text-xs text-slate-500 truncate">{teacher.phone}</p>
-                                    <div className="flex flex-wrap gap-1 mt-1.5">
-                                        <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold">
-                                            {teacher.role === 'ADMIN' ? 'অ্যাডমিন' : 'শিক্ষক'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                        ))
-                    ) : (
-                        <div className="col-span-full py-12 text-center text-slate-400">
-                            <Users size={48} className="mx-auto mb-3 opacity-20" />
-                            <p className="font-medium">কোনো শিক্ষক পাওয়া যায়নি</p>
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <div className="space-y-3">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-4">
-                        {students.map((s) => (
-                            <div
-                                key={s.id}
-                                onClick={() => {
-                                    setEditingStudent(s);
-                                    setFormData({
-                                        name: s.name || '',
-                                        email: s.email || '',
-                                        password: s.password || '',
-                                        metadata: s.metadata || {}
-                                    });
-                                    setIsAddModalOpen(true);
-                                }}
-                                className="bg-white p-3.5 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-lg hover:border-blue-100 transition-all flex items-center gap-4 relative group cursor-pointer"
-                            >
-                                {/* Avatar */}
-                                {(() => {
-                                    const colors = ['bg-orange-500', 'bg-yellow-400', 'bg-teal-500', 'bg-emerald-500', 'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500'];
-                                    const colorIndex = s.name ? s.name.length % colors.length : 0;
-                                    const bgColor = colors[colorIndex];
-
-                                    return (
-                                        <div className={`w-12 h-12 rounded-full ${bgColor} border-2 border-white shadow-md overflow-hidden flex items-center justify-center text-white font-bold text-lg shrink-0 group-hover:scale-110 transition-transform duration-300`}>
-                                            {s.metadata?.studentPhoto ? (
-                                                <img src={s.metadata.studentPhoto} alt={s.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                s.name?.[0] || 'S'
-                                            )}
-                                        </div>
-                                    );
-                                })()}
-
-                                {/* Info */}
-                                <div className="flex-1 min-w-0">
-                                    <h3 className="text-[18px] font-bold text-slate-800 truncate mb-1" title={s.name}>
-                                        {s.name || 'নাম নেই'}
-                                    </h3>
-
-                                    {/* ID | Roll Tag */}
-                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50/50 border border-blue-100 rounded-full group/tag hover:bg-blue-50 transition-colors">
-                                        <div className="flex items-center gap-1.5 text-[#045c84] text-[9px] font-bold uppercase tracking-wider">
-                                            <span>ID: {s.metadata?.studentId || '-'}</span>
-                                            <span className="opacity-30">|</span>
-                                            <span>Roll: {s.metadata?.rollNumber || '-'}</span>
-                                        </div>
-                                        <ChevronDown size={12} className="text-[#045c84] opacity-40 group-hover/tag:translate-y-0.5 transition-transform" />
-                                    </div>
-                                </div>
-
-                                {/* Actions for Applications */}
-                                <div className="flex items-center gap-2 pr-2">
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleStatusUpdate(s.id, 'APPROVED');
-                                        }}
-                                        className="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"
-                                        title="মঞ্জুর করুন"
-                                    >
-                                        <CheckCircle size={18} />
-                                    </button>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            handleStatusUpdate(s.id, 'REJECTED');
-                                        }}
-                                        className="p-2 bg-red-50 text-red-600 rounded-xl hover:bg-red-600 hover:text-white transition-all shadow-sm"
-                                        title="বাতিল করুন"
-                                    >
-                                        <FileX size={18} />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+                }
+            </div>
 
             <Modal
                 isOpen={isAddModalOpen}
@@ -1171,11 +1316,29 @@ export default function StudentManagementPage() {
                     setFormData({ name: '', email: '', password: '', metadata: {} });
                 }}
                 title={editingStudent ? "শিক্ষার্থীর তথ্য আপডেট করুন" : "নতুন শিক্ষার্থী যুক্ত করুন"}
-                maxWidth="max-w-lg"
-                headerActions={
-                    <>
-                        {!editingStudent && (
+                maxWidth="max-w-3xl"
+            >
+                <form onSubmit={handleFormSubmit} className="p-5 md:p-8 space-y-6">
+                    {/* Quick Action Toolbar */}
+                    {!editingStudent && (
+                        <div className="flex items-center gap-2 pb-4 border-b border-slate-100">
+                            {activeInstitute?.id && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const link = `${window.location.origin}/admission/${activeInstitute.id}`;
+                                        navigator.clipboard.writeText(link);
+                                        setToast({ message: 'ভর্তি ফরমের লিঙ্ক কপি হয়েছে!', type: 'success' });
+                                    }}
+                                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-extrabold bg-blue-50 text-[#034a6b] hover:bg-blue-100 transition-all"
+                                    title="ভর্তি ফরমের লিঙ্ক কপি করুন"
+                                >
+                                    <ClipboardList size={18} />
+                                    <span>অনলাইন ভর্তি</span>
+                                </button>
+                            )}
                             <button
+                                type="button"
                                 onClick={() => {
                                     if (!isExcelMode) {
                                         setExcelData([]);
@@ -1183,19 +1346,26 @@ export default function StudentManagementPage() {
                                     }
                                     setIsExcelMode(!isExcelMode);
                                 }}
-                                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isExcelMode
-                                    ? 'bg-slate-200 text-slate-700'
-                                    : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-extrabold transition-all ${isExcelMode
+                                    ? 'bg-slate-200 text-slate-800'
+                                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
                                     }`}
+                                title={isExcelMode ? "ফর্ম মোড" : "Excel থেকে ডাটা ইম্পোর্ট করুন"}
                             >
-                                <FileSpreadsheet size={16} />
-                                <span>{isExcelMode ? 'ফর্ম মোড' : 'Excel Import'}</span>
+                                <FileSpreadsheet size={18} />
+                                <span>ডাটাবেজ ভর্তি</span>
                             </button>
-                        )}
-                    </>
-                }
-            >
-                <form onSubmit={handleFormSubmit} className="p-5 md:p-8 space-y-6">
+                            <button
+                                type="button"
+                                onClick={() => setIsLibraryOpen(true)}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-extrabold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all"
+                                title="ফিল্ড লাইব্রেরি থেকে ফিল্ড যোগ/মুছুন"
+                            >
+                                <Library size={18} />
+                                <span>তথ্য ফিল্ড</span>
+                            </button>
+                        </div>
+                    )}
                     {editingStudent?.metadata?.admissionStatus === 'PENDING' && (
                         <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center gap-3 animate-pulse">
                             <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
@@ -1211,11 +1381,11 @@ export default function StudentManagementPage() {
                         /* Excel Paste Mode */
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <label className="block text-sm font-bold text-slate-700">
+                                <label className="block text-sm font-black text-slate-900">
                                     Excel থেকে ডাটা Paste করুন
                                 </label>
                                 <textarea
-                                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#045c84] focus:border-[#045c84] resize-none font-mono text-sm"
+                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-4 focus:ring-[#045c84]/10 focus:border-[#045c84] resize-none font-mono text-sm text-slate-900 placeholder:text-slate-600"
                                     rows={6}
                                     placeholder="Excel থেকে কপি করে এখানে Paste করুন (Ctrl+V)..."
                                     onPaste={(e) => {
@@ -1230,7 +1400,7 @@ export default function StudentManagementPage() {
 
                             {excelData.length > 0 && (
                                 <>
-                                    <div className="text-sm text-slate-600 font-medium">
+                                    <div className="text-sm text-slate-900 font-bold">
                                         {excelData.length} সারি পাওয়া গেছে
                                     </div>
 
@@ -1248,7 +1418,7 @@ export default function StudentManagementPage() {
                                                                         ...columnMappings,
                                                                         [colIndex]: e.target.value
                                                                     })}
-                                                                    className="w-full px-2 py-1 text-xs font-bold bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#045c84] focus:border-[#045c84]"
+                                                                    className="w-full px-2 py-1 text-xs font-black bg-white border border-slate-300 text-slate-900 rounded-lg focus:ring-2 focus:ring-[#045c84] focus:border-[#045c84]"
                                                                 >
                                                                     <option value="">ফিল্ড নির্বাচন করুন</option>
                                                                     {formConfig.map(field => (
@@ -1265,7 +1435,7 @@ export default function StudentManagementPage() {
                                                     {excelData.slice(0, 5).map((row, rowIndex) => (
                                                         <tr key={rowIndex} className="hover:bg-slate-50">
                                                             {row.map((cell, cellIndex) => (
-                                                                <td key={cellIndex} className="px-3 py-2 border-b border-slate-100 text-slate-700">
+                                                                <td key={cellIndex} className="px-3 py-2 border-b border-slate-100 text-slate-900 font-medium">
                                                                     {cell || '-'}
                                                                 </td>
                                                             ))}
@@ -1275,7 +1445,7 @@ export default function StudentManagementPage() {
                                             </table>
                                         </div>
                                         {excelData.length > 5 && (
-                                            <div className="px-3 py-2 bg-slate-50 text-xs text-slate-500 text-center border-t border-slate-200">
+                                            <div className="px-3 py-2 bg-slate-50 text-xs text-slate-800 font-bold text-center border-t border-slate-200">
                                                 প্রথম 5 সারি দেখানো হচ্ছে। মোট {excelData.length} সারি Import হবে।
                                             </div>
                                         )}
@@ -1290,9 +1460,36 @@ export default function StudentManagementPage() {
                                             }
 
                                             setActionLoading(true);
+                                            setImportFails([]);
+
                                             try {
                                                 let successCount = 0;
-                                                let errorCount = 0;
+                                                const fails: any[] = [];
+
+                                                // Pre-fetch starting IDs for auto-generation
+                                                const idClassMap: { [key: string]: { nextStudentId: string, nextRollNumber: number } } = {};
+
+                                                // Function to get/increment next IDs
+                                                const getNextIds = async (classId: string) => {
+                                                    if (idClassMap[classId]) {
+                                                        const current = idClassMap[classId];
+                                                        // Simple increment for demo - ideally the API should handle a batch of IDs
+                                                        // But since we are doing sequential, we can just increment locally for this session
+                                                        const nextId = (parseInt(current.nextStudentId.replace(/\D/g, '')) + 1).toString().padStart(current.nextStudentId.length, '0');
+                                                        idClassMap[classId] = {
+                                                            nextStudentId: current.nextStudentId.startsWith('S') ? 'S' + nextId : nextId,
+                                                            nextRollNumber: current.nextRollNumber + 1
+                                                        };
+                                                        return current;
+                                                    }
+                                                    const res = await fetch(`/api/admin/students/next-ids?instituteId=${activeInstitute.id}&classId=${classId}`);
+                                                    const data = await res.json();
+                                                    idClassMap[classId] = {
+                                                        nextStudentId: data.nextStudentId,
+                                                        nextRollNumber: data.nextRollNumber
+                                                    };
+                                                    return data;
+                                                };
 
                                                 for (const row of excelData) {
                                                     const studentData: any = {
@@ -1313,9 +1510,39 @@ export default function StudentManagementPage() {
                                                         }
                                                     });
 
-                                                    // Validate required fields
-                                                    if (!studentData.name || !studentData.password) {
-                                                        errorCount++;
+                                                    const studentName = studentData.name || 'Unknown';
+
+                                                    // 1. Validation: Name is mandatory
+                                                    if (!studentData.name) {
+                                                        fails.push({ name: studentName, reason: 'নাম নেই', data: row });
+                                                        continue;
+                                                    }
+
+                                                    // 2. Set default password if missing
+                                                    if (!studentData.password) {
+                                                        studentData.password = '123456'; // Default password
+                                                    }
+
+                                                    // 3. Auto-generate ID and Roll if missing
+                                                    const classId = studentData.metadata.classId || '';
+                                                    if (!studentData.metadata.studentId || (classId && !studentData.metadata.rollNumber)) {
+                                                        const ids = await getNextIds(classId);
+                                                        if (!studentData.metadata.studentId) studentData.metadata.studentId = ids.nextStudentId;
+                                                        if (classId && !studentData.metadata.rollNumber) studentData.metadata.rollNumber = ids.nextRollNumber;
+                                                        // Increment for next iteration
+                                                        await getNextIds(classId);
+                                                    }
+
+                                                    // 4. Deduplication Check
+                                                    const isDuplicateId = students.some(s => s.metadata?.studentId === studentData.metadata.studentId);
+                                                    const isDuplicateRoll = classId && students.some(s => s.metadata?.classId === classId && s.metadata?.rollNumber == studentData.metadata.rollNumber);
+
+                                                    if (isDuplicateId) {
+                                                        fails.push({ name: studentName, reason: `ID (${studentData.metadata.studentId}) ইতিমধ্যে আছে`, data: row });
+                                                        continue;
+                                                    }
+                                                    if (isDuplicateRoll) {
+                                                        fails.push({ name: studentName, reason: `রোল (${studentData.metadata.rollNumber}) এই শ্রেণীতে ইতিমধ্যে আছে`, data: row });
                                                         continue;
                                                     }
 
@@ -1329,24 +1556,35 @@ export default function StudentManagementPage() {
                                                         if (res.ok) {
                                                             successCount++;
                                                         } else {
-                                                            errorCount++;
+                                                            const err = await res.json();
+                                                            fails.push({ name: studentName, reason: err.message || 'সার্ভার ত্রুটি', data: row });
                                                         }
                                                     } catch {
-                                                        errorCount++;
+                                                        fails.push({ name: studentName, reason: 'সংযোগ বিচ্ছিন্ন', data: row });
                                                     }
                                                 }
 
-                                                setToast({
-                                                    message: `${successCount} জন শিক্ষার্থী সফলভাবে যুক্ত হয়েছে${errorCount > 0 ? `, ${errorCount} টি ব্যর্থ হয়েছে` : ''}`,
-                                                    type: successCount > 0 ? 'success' : 'error'
-                                                });
+                                                setImportFails(fails);
+
+                                                if (fails.length > 0) {
+                                                    setIsImportSummaryOpen(true);
+                                                    setToast({
+                                                        message: `${successCount} জন যুক্ত হয়েছে, ${fails.length} জন ব্যর্থ হয়েছে।`,
+                                                        type: successCount > 0 ? 'success' : 'error'
+                                                    });
+                                                } else {
+                                                    setToast({
+                                                        message: `${successCount} জন শিক্ষার্থী সফলভাবে যুক্ত হয়েছে।`,
+                                                        type: 'success'
+                                                    });
+                                                    setIsExcelMode(false);
+                                                    setIsAddModalOpen(false);
+                                                    setExcelData([]);
+                                                    setColumnMappings({});
+                                                }
 
                                                 if (successCount > 0) {
                                                     fetchStudents();
-                                                    setIsAddModalOpen(false);
-                                                    setIsExcelMode(false);
-                                                    setExcelData([]);
-                                                    setColumnMappings({});
                                                 }
                                             } catch (error) {
                                                 setToast({ message: 'Import ব্যর্থ হয়েছে।', type: 'error' });
@@ -1400,10 +1638,10 @@ export default function StudentManagementPage() {
                                             <div key={field.id} className="space-y-2 group/field">
                                                 {!formConfig.some(cf => cf.id === field.id) && (
                                                     <div className="flex items-center gap-2 mb-1">
-                                                        <span className="px-2 py-0.5 bg-amber-50 text-amber-600 text-[10px] font-bold rounded uppercase tracking-wider border border-amber-100 italic">
+                                                        <span className="px-2 py-0.5 bg-amber-100 text-amber-900 text-[10px] font-black rounded uppercase tracking-wider border border-amber-200 italic">
                                                             Config Missing
                                                         </span>
-                                                        <span className="text-[10px] text-slate-400 font-medium">This field has data or is required but is not in current form config</span>
+                                                        <span className="text-[10px] text-slate-600 font-bold">This field has data or is required but is not in current form config</span>
                                                     </div>
                                                 )}
 
@@ -1454,8 +1692,8 @@ export default function StudentManagementPage() {
                                                     </div>
                                                 )}
 
-                                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex justify-between">
-                                                    <span>{field.label} {field.required && <span className="text-red-500">*</span>}</span>
+                                                <label className="text-xs font-black text-slate-900 uppercase tracking-wider flex justify-between">
+                                                    <span>{field.label} {field.required && <span className="text-red-600 font-black">*</span>}</span>
                                                     {field.id === 'password' && !editingStudent && (
                                                         <button
                                                             type="button"
@@ -1470,7 +1708,7 @@ export default function StudentManagementPage() {
                                                 {field.type === 'select' ? (
                                                     <div className="relative">
                                                         <select
-                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-slate-900 appearance-none"
                                                             value={fieldValue || ''}
                                                             onChange={(e) => {
                                                                 const val = e.target.value;
@@ -1495,8 +1733,8 @@ export default function StudentManagementPage() {
                                                     <div className="relative">
                                                         <div className={`w-full px-4 py-3 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-between transition-all ${fieldValue ? 'border-green-200 bg-green-50/30' : 'hover:border-[#045c84]'}`}>
                                                             <div className="flex items-center gap-3 overflow-hidden">
-                                                                <CloudUpload className={fieldValue ? 'text-green-500' : 'text-slate-400'} size={20} />
-                                                                <span className="text-sm font-medium text-slate-600 truncate">
+                                                                <CloudUpload className={fieldValue ? 'text-green-700' : 'text-slate-800'} size={20} />
+                                                                <span className="text-sm font-black text-slate-950 truncate">
                                                                     {fieldValue ? 'ফাইল আপলোড হয়েছে' : 'ফাইল নির্বাচন করুন'}
                                                                 </span>
                                                             </div>
@@ -1516,7 +1754,7 @@ export default function StudentManagementPage() {
                                                 ) : field.type === 'class-lookup' ? (
                                                     <div className="relative">
                                                         <select
-                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-slate-900 appearance-none"
                                                             value={fieldValue || ''}
                                                             onChange={(e) => {
                                                                 const classId = e.target.value;
@@ -1542,7 +1780,7 @@ export default function StudentManagementPage() {
                                                 ) : field.type === 'group-lookup' ? (
                                                     <div className="relative">
                                                         <select
-                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-slate-900 appearance-none"
                                                             value={fieldValue || ''}
                                                             onChange={(e) => setFormData({
                                                                 ...formData,
@@ -1564,7 +1802,7 @@ export default function StudentManagementPage() {
                                                     <div className="relative group/field">
                                                         <input
                                                             type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-bold text-slate-900 placeholder:text-slate-600"
                                                             placeholder={field.placeholder || `${field.label} দিন`}
                                                             value={fieldValue || ''}
                                                             onChange={(e) => {
@@ -1620,6 +1858,66 @@ export default function StudentManagementPage() {
                 onRemoveField={handleRemoveField}
             />
 
+            {/* Import Summary Modal */}
+            <Modal
+                isOpen={isImportSummaryOpen}
+                onClose={() => setIsImportSummaryOpen(false)}
+                title="ইম্পোর্ট রিপোর্ট"
+                maxWidth="max-w-4xl"
+            >
+                <div className="p-6 space-y-6">
+                    <div className="flex items-center gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-200">
+                        <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600">
+                            <Users size={24} />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-black text-slate-900">কিছু শিক্ষার্থী ইম্পোর্ট করা সম্ভব হয়নি</h3>
+                            <p className="text-sm text-slate-600 font-bold">নিচের তালিকার ডাটাগুলো চেক করে পুনরায় ইম্পোর্ট করুন।</p>
+                        </div>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                        <div className="max-h-[400px] overflow-y-auto">
+                            <table className="w-full text-sm">
+                                <thead className="sticky top-0 bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left font-black text-slate-900 uppercase tracking-wider">নাম</th>
+                                        <th className="px-4 py-3 text-left font-black text-slate-900 uppercase tracking-wider">ব্যর্থ হওয়ার কারণ</th>
+                                        <th className="px-4 py-3 text-left font-black text-slate-900 uppercase tracking-wider">ডাটা</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {importFails.map((fail, idx) => (
+                                        <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-4 py-3 text-slate-950 font-black">{fail.name}</td>
+                                            <td className="px-4 py-3">
+                                                <span className="px-3 py-1 bg-red-50 text-red-700 text-xs font-black rounded-lg border border-red-100 italic">
+                                                    {fail.reason}
+                                                </span>
+                                            </td>
+                                            <td className="px-4 py-3 text-xs text-slate-600 font-medium">
+                                                <div className="max-w-[200px] truncate" title={JSON.stringify(fail.data)}>
+                                                    {fail.data.join(' | ')}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div className="flex justify-end pt-4">
+                        <button
+                            onClick={() => setIsImportSummaryOpen(false)}
+                            className="px-6 py-2.5 bg-slate-900 text-white font-black rounded-xl hover:bg-black transition-all active:scale-95 shadow-lg shadow-slate-200"
+                        >
+                            বুঝেছি
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
             {/* Quick Class Add Modal */}
             <Modal
                 isOpen={isClassModalOpen}
@@ -1634,7 +1932,7 @@ export default function StudentManagementPage() {
                 <form onSubmit={handleQuickClassCreate} className="p-5 md:p-8 space-y-6">
                     {!editingClass && (
                         <div className="flex items-center justify-between p-2 bg-slate-50 rounded-xl">
-                            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-2">বাল্ক অ্যাড (Bulk)</span>
+                            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider ml-2">বাল্ক অ্যাড (Bulk)</span>
                             <button
                                 type="button"
                                 onClick={() => setIsBulkClassMode(!isBulkClassMode)}
@@ -1647,9 +1945,9 @@ export default function StudentManagementPage() {
 
                     {!isBulkClassMode ? (
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">ক্লাসের নাম</label>
+                            <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">ক্লাসের নাম</label>
                             <input
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-slate-900"
                                 placeholder="যেমন: ষষ্ঠ শ্রেণী"
                                 value={classData.name}
                                 onChange={(e) => setClassData({ ...classData, name: e.target.value })}
@@ -1658,7 +1956,7 @@ export default function StudentManagementPage() {
                         </div>
                     ) : (
                         <textarea
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black min-h-[150px] resize-none"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-slate-900 min-h-[150px] resize-none"
                             placeholder={"যেমন:\n1. Class One\n2. Class Two"}
                             value={bulkClassText}
                             onChange={(e) => setBulkClassText(e.target.value)}
@@ -1695,9 +1993,9 @@ export default function StudentManagementPage() {
             >
                 <form onSubmit={handleQuickGroupCreate} className="p-5 md:p-8 space-y-6">
                     <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">গ্রুপের নাম</label>
+                        <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">গ্রুপের নাম</label>
                         <input
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-slate-900"
                             placeholder="যেমন: বিজ্ঞান"
                             value={groupData.name}
                             onChange={(e) => setGroupData({ ...groupData, name: e.target.value })}
@@ -1735,6 +2033,16 @@ export default function StudentManagementPage() {
             />
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+            <BookDetailsModal
+                isOpen={isBookDetailsModalOpen}
+                onClose={() => setIsBookDetailsModalOpen(false)}
+                book={selectedBook}
+                isAdmin={activeRole === 'ADMIN'}
+                onUpdate={fetchBooks}
+                setToast={setToast}
+            />
+
             {/* Action Menu Portal */}
             {
                 isActionMenuOpen && menuPosition && createPortal(
@@ -1828,7 +2136,7 @@ export default function StudentManagementPage() {
                                         </button>
                                     </div>
                                 ))
-                            ) : (
+                            ) : classes.filter(c => c.id === isActionMenuOpen).length > 0 ? (
                                 classes.filter(c => c.id === isActionMenuOpen).map(c => (
                                     <div key={c.id}>
                                         <button
@@ -1858,7 +2166,39 @@ export default function StudentManagementPage() {
                                         </button>
                                     </div>
                                 ))
-                            )}
+                            ) : books.filter(b => b.id === isActionMenuOpen).length > 0 ? (
+                                books.filter(b => b.id === isActionMenuOpen).map(b => (
+                                    <div key={b.id} className="py-1">
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setToast({ message: 'গ্রেডিং সিস্টেম খুব শীঘ্রই আসছে!', type: 'success' });
+                                                setIsActionMenuOpen(null);
+                                            }}
+                                            className="w-full px-4 py-3 text-left text-[13px] font-bold text-[#045c84] hover:bg-slate-50 flex items-center gap-3 transition-colors"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-[#045c84]">
+                                                <GraduationCap size={16} />
+                                            </div>
+                                            <span>গ্রেডিং সিস্টেম (Grading)</span>
+                                        </button>
+                                        <div className="h-[1px] bg-slate-50 my-1 mx-2" />
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleBookDelete(b.id);
+                                                setIsActionMenuOpen(null);
+                                            }}
+                                            className="w-full px-4 py-3 text-left text-[13px] font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
+                                                <Trash2 size={16} />
+                                            </div>
+                                            <span>মুছে ফেলুন (Delete)</span>
+                                        </button>
+                                    </div>
+                                ))
+                            ) : null}
                         </div>
                     </>,
                     document.body
@@ -1888,14 +2228,74 @@ export default function StudentManagementPage() {
                     </div>
 
                     <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-2">লেখক/ক্যাটাগরি (ঐচ্ছিক)</label>
+                        <input
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
+                            placeholder="যেমন: হুমায়ূন আহমেদ বা উপন্যাস"
+                            value={bookData.author}
+                            onChange={(e) => setBookData({ ...bookData, author: e.target.value })}
+                        />
+                    </div>
+
+                    <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-2">বইয়ের তালিকা (প্রতি লাইনে একটি)</label>
                         <textarea
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black min-h-[200px] resize-none"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black min-h-[150px] resize-none"
                             placeholder={"যেমন:\nBangla\nEnglish\nMathematics"}
                             value={bookData.names}
                             onChange={(e) => setBookData({ ...bookData, names: e.target.value })}
                             required
                         />
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-2">কভার ইমেজ (ঐচ্ছিক)</label>
+                        <div className="flex items-center gap-4">
+                            {bookData.coverImage ? (
+                                <div className="relative w-20 h-24 rounded-xl overflow-hidden border border-slate-200 group/cover">
+                                    <img src={bookData.coverImage} className="w-full h-full object-cover" />
+                                    <button
+                                        type="button"
+                                        onClick={() => setBookData({ ...bookData, coverImage: '' })}
+                                        className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-opacity text-white"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+                            ) : (
+                                <label className="w-full h-24 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:border-[#045c84] hover:text-[#045c84] transition-all cursor-pointer">
+                                    <CloudUpload size={24} className="mb-1" />
+                                    <span className="text-[10px] font-bold uppercase">কভার আপলোড</span>
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={async (e) => {
+                                            const file = e.target.files?.[0];
+                                            if (!file) return;
+                                            const uploadData = new FormData();
+                                            uploadData.append('file', file);
+                                            try {
+                                                setActionLoading(true);
+                                                const res = await fetch('/api/upload', {
+                                                    method: 'POST',
+                                                    body: uploadData
+                                                });
+                                                const data = await res.json();
+                                                if (data.url) {
+                                                    setBookData({ ...bookData, coverImage: data.url });
+                                                }
+                                            } catch (error) {
+                                                console.error('Upload failed', error);
+                                            } finally {
+                                                setActionLoading(false);
+                                            }
+                                        }}
+                                    />
+                                </label>
+                            )}
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium ml-2">টিপস: একটি কভার ইমেজ আপলোড করলে তা সবগুলো বইয়ের জন্য প্রযোজ্য হবে।</p>
                     </div>
 
                     <button
@@ -1908,6 +2308,16 @@ export default function StudentManagementPage() {
                     </button>
                 </form>
             </Modal>
+            <TeacherPermissionModal
+                isOpen={!!permissionModalData}
+                onClose={() => setPermissionModalData(null)}
+                teacher={permissionModalData}
+                classes={classes}
+                onSave={handleUpdateTeacherPermissions}
+                isReadOnly={!isOwner}
+            />
+
+            {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </div >
     );
 }

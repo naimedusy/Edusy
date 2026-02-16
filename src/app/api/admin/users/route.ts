@@ -39,7 +39,9 @@ export async function GET(req: Request) {
             match.$or = [
                 { email: { $regex: search, $options: 'i' } },
                 { name: { $regex: search, $options: 'i' } },
-                { phone: { $regex: search, $options: 'i' } }
+                { phone: { $regex: search, $options: 'i' } },
+                { 'metadata.studentId': { $regex: search, $options: 'i' } },
+                { 'metadata.rollNumber': { $regex: search, $options: 'i' } }
             ];
         }
 
