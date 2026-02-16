@@ -47,6 +47,7 @@ import TeacherCard from '@/components/TeacherCard';
 import BookCard from '@/components/BookCard';
 import BookDetailsModal from '@/components/BookDetailsModal';
 import TeacherPermissionModal from '@/components/TeacherPermissionModal';
+import SubjectGradingModal from '@/components/SubjectGradingModal';
 
 export default function StudentManagementPage() {
     const { user, activeRole, activeInstitute, isLoading } = useSession();
@@ -149,6 +150,8 @@ export default function StudentManagementPage() {
     const [books, setBooks] = useState<any[]>([]);
     const [isBookModalOpen, setIsBookModalOpen] = useState(false);
     const [isBookDetailsModalOpen, setIsBookDetailsModalOpen] = useState(false);
+    const [isGradingModalOpen, setIsGradingModalOpen] = useState(false);
+    const [gradingSubjectId, setGradingSubjectId] = useState<string | null>(null);
     const [selectedBook, setSelectedBook] = useState<any | null>(null);
     const [bookData, setBookData] = useState({ names: '', classId: '', coverImage: '', author: '' });
     const [bookViewMode, setBookViewMode] = useState<'card' | 'cover'>('card');
@@ -720,6 +723,29 @@ export default function StudentManagementPage() {
             console.error('Book delete error:', error);
         }
     };
+
+    const handleSaveGrading = async (id: string, data: { totalMarks: number, gradingRules: any[] }) => {
+        try {
+            const res = await fetch(`/api/admin/books/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (res.ok) {
+                setToast({ message: 'গ্রেডিং সেটিংস সংরক্ষণ করা হয়েছে!', type: 'success' });
+                // Update local books state
+                setBooks(prev => prev.map(book =>
+                    book.id === id ? { ...book, ...data } : book
+                ));
+            } else {
+                setToast({ message: 'সেটিংস সংরক্ষণ ব্যর্থ হয়েছে।', type: 'error' });
+            }
+        } catch (error) {
+            console.error('Save grading error:', error);
+            setToast({ message: 'সার্ভার এরর!', type: 'error' });
+        }
+    };
     // Calculate allowed classes for admission
     const allowedClasses = React.useMemo(() => {
         if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return classes;
@@ -906,9 +932,15 @@ export default function StudentManagementPage() {
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             const rect = e.currentTarget.getBoundingClientRect();
+                                                            const menuHeight = 150; // Estimated max height for class menu
+                                                            const spaceBelow = window.innerHeight - rect.bottom;
+                                                            const showAbove = spaceBelow < menuHeight;
+
                                                             setMenuPosition({
-                                                                top: rect.bottom,
-                                                                left: rect.left
+                                                                top: showAbove
+                                                                    ? rect.top + window.scrollY - menuHeight - 8
+                                                                    : rect.bottom + window.scrollY + 8,
+                                                                left: rect.left + window.scrollX
                                                             });
                                                             setIsActionMenuOpen(isActionMenuOpen === c.id ? null : c.id);
                                                         }}
@@ -1087,9 +1119,15 @@ export default function StudentManagementPage() {
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     const rect = e.currentTarget.getBoundingClientRect();
+                                                    const menuHeight = 280; // Estimated max height for student menu
+                                                    const spaceBelow = window.innerHeight - rect.bottom;
+                                                    const showAbove = spaceBelow < menuHeight;
+
                                                     setMenuPosition({
-                                                        top: rect.bottom + 8,
-                                                        left: rect.right - 220
+                                                        top: showAbove
+                                                            ? rect.top + window.scrollY - menuHeight - 8
+                                                            : rect.bottom + window.scrollY + 8,
+                                                        left: rect.right + window.scrollX - 220
                                                     });
                                                     setIsActionMenuOpen(isActionMenuOpen === s.id ? null : s.id);
                                                 }}
@@ -1114,7 +1152,7 @@ export default function StudentManagementPage() {
                             <div className="flex items-center gap-3">
                                 {selectedClassId !== 'all' && (
                                     <button
-                                        onClick={() => setToast({ message: 'গ্রেডিং ম্যানেজমেন্ট সিস্টেম খুব শীঘ্রই আসছে!', type: 'success' })}
+                                        onClick={() => setIsGradingModalOpen(true)}
                                         className="flex items-center gap-2 px-4 py-2 bg-white border border-[#045c84]/20 text-[#045c84] rounded-xl text-xs font-black hover:bg-slate-50 transition-all shadow-sm"
                                     >
                                         <GraduationCap size={16} />
@@ -1169,8 +1207,14 @@ export default function StudentManagementPage() {
                                         onMenuClick={(e, b) => {
                                             e.stopPropagation();
                                             const rect = e.currentTarget.getBoundingClientRect();
+                                            const menuHeight = 160; // Estimated max height for book menu
+                                            const spaceBelow = window.innerHeight - rect.bottom;
+                                            const showAbove = spaceBelow < menuHeight;
+
                                             setMenuPosition({
-                                                top: rect.bottom + window.scrollY + 8,
+                                                top: showAbove
+                                                    ? rect.top + window.scrollY - menuHeight - 8
+                                                    : rect.bottom + window.scrollY + 8,
                                                 left: rect.right + window.scrollX - 220
                                             });
                                             setIsActionMenuOpen(isActionMenuOpen === b.id ? null : b.id);
@@ -2051,7 +2095,7 @@ export default function StudentManagementPage() {
                         <div
                             className="fixed w-[220px] bg-white rounded-xl shadow-2xl border border-slate-100 py-1 z-[999999] overflow-hidden text-slate-700 animate-in fade-in zoom-in duration-100"
                             style={{
-                                top: `${menuPosition.top + 8}px`,
+                                top: `${menuPosition.top}px`,
                                 left: `${menuPosition.left}px`
                             }}
                         >
@@ -2172,7 +2216,8 @@ export default function StudentManagementPage() {
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                setToast({ message: 'গ্রেডিং সিস্টেম খুব শীঘ্রই আসছে!', type: 'success' });
+                                                setGradingSubjectId(b.id);
+                                                setIsGradingModalOpen(true);
                                                 setIsActionMenuOpen(null);
                                             }}
                                             className="w-full px-4 py-3 text-left text-[13px] font-bold text-[#045c84] hover:bg-slate-50 flex items-center gap-3 transition-colors"
@@ -2318,6 +2363,17 @@ export default function StudentManagementPage() {
             />
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+            <SubjectGradingModal
+                isOpen={isGradingModalOpen}
+                onClose={() => {
+                    setIsGradingModalOpen(false);
+                    setGradingSubjectId(null);
+                }}
+                subjects={books}
+                initialSubjectId={gradingSubjectId}
+                onSave={handleSaveGrading}
+            />
         </div >
     );
 }

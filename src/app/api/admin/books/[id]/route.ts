@@ -24,6 +24,8 @@ export async function PATCH(
             pdfUrl: body.pdfUrl,
             readLink: body.readLink,
             rating: isNaN(ratingValue as number) ? undefined : ratingValue,
+            totalMarks: body.totalMarks !== undefined ? Number(body.totalMarks) : undefined,
+            gradingRules: body.gradingRules || undefined,
         };
 
         const updatedBook = await (prisma.book as any).update({

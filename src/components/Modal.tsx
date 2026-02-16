@@ -40,14 +40,14 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 'ma
 
             {/* Modal Content */}
             <div className={`bg-white w-full ${maxWidth} rounded-3xl shadow-2xl animate-scale-in overflow-hidden relative z-10 flex flex-col max-h-[90vh] font-bengali`}>
-                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-                    <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
+                <div className="px-5 md:px-6 py-3.5 md:py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                    <h2 className="text-base md:text-xl font-semibold text-slate-800 uppercase tracking-tight">
                         {title}
                     </h2>
                     <div className="flex items-center gap-2">
                         {headerActions}
-                        <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition-colors">
-                            <X size={24} />
+                        <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 transition-colors">
+                            <X size={20} className="md:w-6 md:h-6" />
                         </button>
                     </div>
                 </div>

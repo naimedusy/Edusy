@@ -12,6 +12,7 @@ interface BookCardProps {
         rating?: number | null;
         pdfUrl?: string | null;
         readLink?: string | null;
+        totalMarks?: number | null;
         class?: {
             name: string;
         };
@@ -35,6 +36,7 @@ const BookCard: React.FC<BookCardProps> = ({
 }) => {
     const hasReadOption = !!(book.pdfUrl || book.readLink);
     const showMenu = !isReadOnly && isAdmin;
+    const totalMarks = book.totalMarks || 100;
 
     if (viewMode === 'cover') {
         return (
@@ -61,6 +63,13 @@ const BookCard: React.FC<BookCardProps> = ({
                             </div>
                         </div>
                     )}
+
+                    {/* Full Marks Badge */}
+                    <div className="absolute top-2 left-2 z-10">
+                        <div className="bg-slate-900/40 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-lg border border-white/20 uppercase tracking-widest">
+                            {totalMarks} Marks
+                        </div>
+                    </div>
                 </div>
 
                 <div className="w-full px-1">
@@ -101,13 +110,22 @@ const BookCard: React.FC<BookCardProps> = ({
                         <BookOpen size={20} />
                     </div>
                 )}
+                {/* Float marks on small cover */}
+                <div className="absolute top-1 left-1 bg-black/30 backdrop-blur-sm text-white text-[7px] font-black px-1 py-0.5 rounded uppercase">
+                    {totalMarks}M
+                </div>
             </div>
 
             {/* Right: Info */}
             <div className="flex-1 min-w-0 pr-6">
-                <h3 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-[#045c84] transition-colors">
-                    {book.name}
-                </h3>
+                <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <h3 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-[#045c84] transition-colors">
+                        {book.name}
+                    </h3>
+                    <span className="text-[10px] font-black text-[#045c84] bg-blue-50 px-2 py-0.5 rounded-lg shrink-0 border border-blue-100/50">
+                        {totalMarks} Marks
+                    </span>
+                </div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-0.5">
                     {book.author || 'নির্ধারিত নয়'}
                 </p>

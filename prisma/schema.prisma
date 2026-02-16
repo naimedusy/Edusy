@@ -170,6 +170,10 @@ model Book {
   institute   Institute @relation(fields: [instituteId], references: [id])
   instituteId String    @db.ObjectId
   
+  // Grading Settings
+  totalMarks   Int?      @default(100)
+  gradingRules Json?     // Array of GradingRule objects
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
