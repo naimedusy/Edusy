@@ -80,8 +80,9 @@ export async function GET(req: Request) {
             name: user.name || '',
             email: user.email || '',
             phone: user.phone || '',
+            password: user.password || '',
             role: user.role || 'USER',
-            createdAt: user.createdAt,
+            createdAt: user.createdAt?.$date || user.createdAt,
             institute: user.institute ? { name: user.institute.name } : null,
             metadata: user.metadata || {}
         }));
@@ -98,58 +99,70 @@ export async function POST(req: Request) {
         const body = await req.json();
         let { name, email, password, role, instituteIds, metadata, phone } = body; // Destructure phone
 
-        // Default: If phone not in top-level, check metadata
-        if (!phone && metadata?.phone) phone = metadata.phone;
-        if (!phone && role === 'STUDENT' && metadata?.studentPhone) phone = metadata.studentPhone;
-        if (!phone && role === 'GUARDIAN' && metadata?.guardianPhone) phone = metadata.guardianPhone;
-        // If student still no phone, maybe check guardianPhone as fallback for login? 
-        // User said "student login ID by mobile", so student phone is better if available.
-        if (!phone && role === 'STUDENT' && metadata?.guardianPhone) phone = metadata.guardianPhone;
-
-        // Default Password to Phone if missing
-        if (!password && phone) {
-            password = phone;
+        if (!phone) {
+            phone = body.phone || metadata?.phone || (role === 'STUDENT' ? metadata?.studentPhone || metadata?.guardianPhone : metadata?.guardianPhone);
         }
 
-        // Generate Dummy Email if missing & phone exists
-        if ((!email || email.trim() === '') && phone) {
-            email = `${phone}@edusy.local`;
-        }
-
-        if (!email || !password || !role) {
-            return NextResponse.json({ message: 'Missing required fields (Email/Phone, Password, Role)' }, { status: 400 });
-        }
-
-        // --- Auto-assign Student ID & Roll Number for students ---
+        // --- Auto-assign Student ID & Roll Number for students BEFORE setting default password ---
         const finalMetadata = { ...(metadata || {}) };
         if (role === 'STUDENT' && instituteIds?.[0]) {
             const instituteId = instituteIds[0];
             if (!finalMetadata.studentId) {
-                finalMetadata.studentId = await getNextStudentId(instituteId);
+                // Priority: Specific Student Phone -> Generated ID
+                // Explicitly avoid using guardianPhone as studentId
+                if (finalMetadata.studentPhone) {
+                    finalMetadata.studentId = finalMetadata.studentPhone;
+                } else {
+                    finalMetadata.studentId = await getNextStudentId(instituteId);
+                }
             }
             if (!finalMetadata.rollNumber && finalMetadata.classId) {
                 finalMetadata.rollNumber = await getNextRollNumber(instituteId, finalMetadata.classId);
             }
         }
 
+        // Default Password Logic
+        if (!password) {
+            if (role === 'STUDENT' && finalMetadata.studentId) {
+                // For students, use Student ID as default password
+                password = finalMetadata.studentId;
+            } else if (phone) {
+                // For other roles (Guardian, etc.), use phone as password
+                password = phone;
+            }
+        }
+
+        if ((!email || email?.trim() === '') && (!phone || phone?.trim() === '')) {
+            return NextResponse.json({ message: 'ইমেইল অথবা মোবাইল নম্বর - যেকোনো একটি অবশ্যই দিতে হবে।' }, { status: 400 });
+        }
+
+        if (!password || !role) {
+            return NextResponse.json({ message: 'Missing required fields (Password and Role required)' }, { status: 400 });
+        }
+
         // Convert instituteIds to ObjectIds for MongoDB
         const instIds = (instituteIds || []).map((id: string) => ({ $oid: id }));
 
+        const userDoc: any = {
+            name: name || '',
+            password,
+            role,
+            instituteIds: instIds,
+            metadata: finalMetadata,
+            createdAt: { $date: new Date().toISOString() },
+            updatedAt: { $date: new Date().toISOString() }
+        };
+
+        if (email && email.trim() !== '') {
+            userDoc.email = email.trim();
+        }
+        if (phone) {
+            userDoc.phone = phone;
+        }
+
         await (prisma as any).$runCommandRaw({
             insert: 'User',
-            documents: [
-                {
-                    name: name || '',
-                    email: email.trim(),
-                    phone: phone || null, // Ensure phone is saved
-                    password, // In a real app, hash this!
-                    role,
-                    instituteIds: instIds,
-                    metadata: finalMetadata,
-                    createdAt: { $date: new Date().toISOString() },
-                    updatedAt: { $date: new Date().toISOString() }
-                }
-            ]
+            documents: [userDoc]
         });
 
         // -----------------------------------
@@ -171,8 +184,8 @@ export async function POST(req: Request) {
 
                 if (!existingGuardian) {
                     // Create New Guardian User
-                    const guardianEmail = `guardian_${guardianPhone}@edusy.local`;
-                    const guardianPassword = guardianPhone;
+                    const guardianEmail = null;
+                    const guardianPassword = metadata.guardianPassword || guardianPhone;
 
                     await (prisma as any).$runCommandRaw({
                         insert: 'User',
@@ -214,7 +227,7 @@ export async function POST(req: Request) {
 
                 const studentRaw = await (prisma as any).$runCommandRaw({
                     find: 'User',
-                    filter: { email: email.trim() },
+                    filter: { email: email?.trim() || null }, // Use email or null for lookup
                     limit: 1
                 });
                 const student = studentRaw.cursor?.firstBatch?.[0];
@@ -255,7 +268,7 @@ export async function POST(req: Request) {
 
                 const createdGuardianRaw = await (prisma as any).$runCommandRaw({
                     find: 'User',
-                    filter: { email: email.trim() },
+                    filter: { email: email?.trim() || null }, // Use email or null for lookup
                     limit: 1
                 });
                 const createdGuardian = createdGuardianRaw.cursor?.firstBatch?.[0];
@@ -303,7 +316,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
     try {
         const body = await req.json();
-        const { id, email, password, role, name, metadata } = body;
+        const { id, email, password, role, name, metadata, phone } = body;
 
         if (!id) return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
 
@@ -313,6 +326,7 @@ export async function PATCH(req: Request) {
         if (role) set.role = role;
         if (name) set.name = name;
         if (metadata) set.metadata = metadata;
+        if (phone) set.phone = phone;
 
         await (prisma as any).$runCommandRaw({
             update: 'User',

@@ -96,7 +96,7 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ইমেইল এড্রেস</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ইমেইল এড্রেস (লগইন আইডি)</label>
                             <div className="relative">
                                 <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input
@@ -110,7 +110,7 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ফোন নাম্বার (যোগাযোগ)</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">ফোন নাম্বার (লগইন আইডি)</label>
                             <div className="relative">
                                 <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                 <input

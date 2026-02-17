@@ -9,10 +9,10 @@ datasource db {
 
 model User {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  email       String   @unique
+  email       String?  @unique
   password    String
   name        String?
-  phone       String?  // Added for personal contact info
+  phone       String?  @unique // Added for personal contact info and unique login
   role        Role     @default(STUDENT)
 
   
@@ -166,14 +166,16 @@ model Book {
   pdfUrl      String?  // Link to uploaded PDF
   readLink    String?  // Link to external reading site
   
-  class       Class    @relation(fields: [classId], references: [id])
-  classId     String   @db.ObjectId
+  category    String?  // Added for book categorization (e.g., "Fiction", "Science")
+  
+  class       Class?   @relation(fields: [classId], references: [id])
+  classId     String?  @db.ObjectId
   
   group       Group?   @relation(fields: [groupId], references: [id])
   groupId     String?  @db.ObjectId
   
-  institute   Institute @relation(fields: [instituteId], references: [id])
-  instituteId String    @db.ObjectId
+  institute   Institute? @relation(fields: [instituteId], references: [id])
+  instituteId String?    @db.ObjectId
   
   // Grading Settings
   totalMarks   Int?      @default(100)

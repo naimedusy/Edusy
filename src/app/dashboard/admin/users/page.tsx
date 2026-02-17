@@ -206,7 +206,16 @@ export default function GlobalUserManagement() {
                                             </div>
                                             <div>
                                                 <div className="text-sm font-bold text-slate-800">{u.name || 'নাম নেই'}</div>
-                                                <div className="text-xs text-slate-500">{u.email}</div>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <div className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+                                                        <Mail size={12} className="shrink-0" />
+                                                        {u.email || u.phone || 'ID নেই'}
+                                                    </div>
+                                                    <div className="text-[11px] text-[#045c84] font-bold flex items-center gap-1">
+                                                        <Key size={12} className="shrink-0" />
+                                                        {u.password || 'পাসওয়ার্ড নেই'}
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </td>

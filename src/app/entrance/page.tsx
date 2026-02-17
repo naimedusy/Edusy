@@ -9,7 +9,7 @@ import AuthLayout from '../../components/AuthLayout';
 import { Mail, Lock, LogIn, Loader2, AlertCircle } from 'lucide-react';
 
 export default function LoginPage() {
-    const [email, setEmail] = useState('');
+    const [identifier, setIdentifier] = useState(''); // Can be email or phone
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ export default function LoginPage() {
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ email: identifier, phone: identifier, password }),
             });
 
             const data = await res.json();
@@ -60,8 +60,8 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-                    <label className="block text-sm text-slate-900 mb-2 uppercase tracking-wide" htmlFor="email">
-                        ইমেইল অ্যাড্রেস
+                    <label className="block text-sm text-slate-900 mb-2 uppercase tracking-wide" htmlFor="identifier">
+                        ইমেইল বা মোবাইল নম্বর
                     </label>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#047cac] group-focus-within:text-[#045c84] transition-colors">
@@ -71,11 +71,11 @@ export default function LoginPage() {
                         <input
                             className="w-full pl-11 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-[#045c84] transition-all bg-slate-50 focus:bg-white text-black placeholder-slate-400 shadow-sm"
 
-                            id="email"
-                            type="email"
-                            placeholder="name@edusy.com"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
+                            id="identifier"
+                            type="text"
+                            placeholder="name@edusy.com বা 01XXXXXXXXX"
+                            value={identifier}
+                            onChange={(e) => setIdentifier(e.target.value)}
                             required
                         />
                     </div>

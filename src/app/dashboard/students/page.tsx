@@ -39,7 +39,10 @@ import {
     GraduationCap,
     Library,
     ClipboardList,
-    GripVertical
+    GripVertical,
+    User,
+    Info,
+    Key
 } from 'lucide-react';
 import { ScrollableTabs } from '@/components/ui/ScrollableTabs';
 import Toast from '@/components/Toast';
@@ -111,6 +114,10 @@ export default function StudentManagementPage() {
     const [importFails, setImportFails] = useState<any[]>([]);
     const [isImportSummaryOpen, setIsImportSummaryOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
+
+    // Login Credentials Modal States
+    const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
+    const [credentialsData, setCredentialsData] = useState<any>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -213,7 +220,7 @@ export default function StudentManagementPage() {
 
             // If empty, set default fields
             if (config.length === 0) {
-                const defaultIds = ['studentPhoto', 'studentId', 'rollNumber', 'name', 'fathersName', 'mothersName', 'guardianPhone', 'password'];
+                const defaultIds = ['studentPhoto', 'studentId', 'rollNumber', 'name', 'email', 'fathersName', 'mothersName', 'guardianPhone', 'password', 'guardianPassword'];
                 const defaults = POSSIBLE_FIELDS.filter(f => defaultIds.includes(f.id));
                 // Sort by defaultIds order
                 const sortedDefaults = defaultIds.map(id => defaults.find(f => f.id === id)).filter(Boolean) as FieldDefinition[];
@@ -506,18 +513,37 @@ export default function StudentManagementPage() {
 
         setActionLoading(true);
         try {
-            // Map dynamic fields to top-level if needed
+            // Priority: top-level formData fields should always override metadata if present
+            const finalName = formData.name || formData.metadata?.name;
+            const finalEmail = formData.email || formData.metadata?.email;
+            const finalPassword = formData.password || formData.metadata?.password;
+
+            // Clean metadata to avoid shadowing/legacy conflicts
+            const cleanedMetadata = { ...(formData.metadata || {}) };
+            delete cleanedMetadata.name;
+            delete cleanedMetadata.email;
+            delete cleanedMetadata.password;
+            delete cleanedMetadata.phone; // Top level phone is preferred
+
+            const finalPhone = formData.metadata?.guardianPhone || formData.metadata?.studentPhone || formData.phone;
+
+            if (!finalEmail) {
+                setToast({ message: 'ইমেইল অবশ্যই দিতে হবে (Email is required)।', type: 'error' });
+                setActionLoading(false);
+                return;
+            }
+
             const payload = {
                 ...formData,
                 id: editingStudent?.id, // include ID for PATCH
-                name: formData.metadata?.name || formData.name,
-                email: formData.metadata?.email || formData.email,
-                password: formData.metadata?.password || formData.password,
+                name: finalName,
+                email: finalEmail,
+                password: finalPassword,
                 phone: formData.metadata?.guardianPhone || formData.metadata?.studentPhone || formData.phone,
                 role: 'STUDENT',
                 metadata: editingStudent?.metadata?.admissionStatus === 'PENDING'
-                    ? { ...formData.metadata, admissionStatus: 'APPROVED' }
-                    : formData.metadata,
+                    ? { ...cleanedMetadata, admissionStatus: 'APPROVED' }
+                    : cleanedMetadata,
                 instituteIds: editingStudent ? undefined : [activeInstitute.id] // only for POST
             };
 
@@ -1997,7 +2023,37 @@ export default function StudentManagementPage() {
                                 })()}
                             </div>
 
-                            <div className="pt-6 border-t border-slate-100 flex justify-end">
+                            <div className="pt-6 border-t border-slate-100 flex justify-between items-center">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const studentPhone = formData.metadata?.guardianPhone || formData.metadata?.studentPhone || formData.phone || 'N/A';
+                                        const studentPassword = formData.password || formData.metadata?.studentId || 'Student ID will be auto-generated';
+                                        const guardianPhone = formData.metadata?.guardianPhone || 'N/A';
+                                        const guardianPassword = guardianPhone !== 'N/A' ? guardianPhone : 'N/A';
+
+                                        const message = `📱 লগইন তথ্য (Login Info):\n\n` +
+                                            `👨‍🎓 শিক্ষার্থী (Student):\n` +
+                                            `   📞 ইউজারনেম: ${studentPhone}\n` +
+                                            `   🔑 পাসওয়ার্ড: ${studentPassword}\n\n` +
+                                            `👨‍👩‍👧 অভিভাবক (Guardian):\n` +
+                                            `   📞 ইউজারনেম: ${guardianPhone}\n` +
+                                            `   🔑 পাসওয়ার্ড: ${guardianPassword}`;
+
+                                        setCredentialsData({
+                                            studentPhone,
+                                            studentPassword,
+                                            guardianPhone,
+                                            guardianPassword
+                                        });
+                                        setIsCredentialsModalOpen(true);
+                                    }}
+                                    className="px-6 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all active:scale-95 flex items-center gap-2"
+                                >
+                                    <User size={20} />
+                                    <span>লগইন তথ্য দেখুন</span>
+                                </button>
+
                                 <button
                                     type="submit"
                                     disabled={actionLoading}
@@ -2190,7 +2246,7 @@ export default function StudentManagementPage() {
                     setFormData({
                         name: s.name || '',
                         email: s.email || '',
-                        password: '', // Don't pre-fill password for security
+                        password: s.password || '',
                         metadata: s.metadata || {}
                     });
                     if (s.metadata?.classId) fetchGroups(s.metadata.classId);
@@ -2252,6 +2308,31 @@ export default function StudentManagementPage() {
                             {isActionMenuOpen && students.some(s => s.id === isActionMenuOpen) ? (
                                 students.filter(s => s.id === isActionMenuOpen).map(s => (
                                     <div key={s.id}>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const studentPhone = s.metadata?.studentId || s.metadata?.studentPhone || s.phone || 'N/A';
+                                                const studentPassword = s.password || s.metadata?.studentId || 'generated';
+                                                const guardianPhone = s.metadata?.guardianPhone || s.phone || 'N/A';
+                                                const guardianPassword = s.metadata?.guardianPassword || guardianPhone;
+
+                                                setCredentialsData({
+                                                    studentPhone,
+                                                    studentPassword,
+                                                    guardianPhone,
+                                                    guardianPassword
+                                                });
+                                                setIsCredentialsModalOpen(true);
+                                                setIsActionMenuOpen(null);
+                                            }}
+                                            className="w-full px-4 py-3 text-left text-[13px] font-bold text-amber-600 hover:bg-amber-50 flex items-center gap-3 transition-colors"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+                                                <Key size={16} />
+                                            </div>
+                                            <span>লগইন তথ্য (Credentials)</span>
+                                        </button>
+                                        <div className="h-[1px] bg-slate-100 my-1 mx-2" />
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -2826,6 +2907,96 @@ export default function StudentManagementPage() {
                 </div>,
                 document.body
             )}
+
+            {/* Login Credentials Modal */}
+            <Modal
+                isOpen={isCredentialsModalOpen}
+                onClose={() => setIsCredentialsModalOpen(false)}
+                title="লগইন তথ্য"
+                maxWidth="max-w-md"
+            >
+                {credentialsData && (
+                    <div className="p-6 space-y-6">
+                        {/* Student Login Info */}
+                        <div className="bg-blue-50 rounded-2xl p-5 border-2 border-blue-100">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+                                    <GraduationCap size={24} />
+                                </div>
+                                <h3 className="text-lg font-black text-slate-900">শিক্ষার্থী লগইন</h3>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">ইউজারনেম (মোবাইল নম্বর)</label>
+                                    <div className="mt-1 px-4 py-3 bg-white rounded-xl border border-blue-200 font-mono text-lg font-bold text-slate-900 select-all">
+                                        {credentialsData.studentPhone}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">পাসওয়ার্ড</label>
+                                    <div className="mt-1 px-4 py-3 bg-white rounded-xl border border-blue-200 font-mono text-lg font-bold text-slate-900 select-all">
+                                        {credentialsData.studentPassword}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Guardian Login Info */}
+                        <div className="bg-purple-50 rounded-2xl p-5 border-2 border-purple-100">
+                            <div className="flex items-center gap-3 mb-4">
+                                <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center text-white">
+                                    <Users size={24} />
+                                </div>
+                                <h3 className="text-lg font-black text-slate-900">অভিভাবক লগইন</h3>
+                            </div>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">ইউজারনেম (মোবাইল নম্বর)</label>
+                                    <div className="mt-1 px-4 py-3 bg-white rounded-xl border border-purple-200 font-mono text-lg font-bold text-slate-900 select-all">
+                                        {credentialsData.guardianPhone}
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">পাসওয়ার্ড</label>
+                                    <div className="mt-1 px-4 py-3 bg-white rounded-xl border border-purple-200 font-mono text-lg font-bold text-slate-900 select-all">
+                                        {credentialsData.guardianPassword}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => {
+                                    const text = `Student Login:\nUsername: ${credentialsData.studentPhone}\nPassword: ${credentialsData.studentPassword}\n\nGuardian Login:\nUsername: ${credentialsData.guardianPhone}\nPassword: ${credentialsData.guardianPassword}`;
+                                    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                }}
+                                className="flex-1 py-3 bg-[#25D366] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#20bd5a] transition-colors"
+                            >
+                                <MessageCircle size={18} />
+                                <span>WhatsApp</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const text = `Student Login: Username: ${credentialsData.studentPhone}, Password: ${credentialsData.studentPassword} | Guardian Login: Username: ${credentialsData.guardianPhone}, Password: ${credentialsData.guardianPassword}`;
+                                    window.location.href = `sms:?body=${encodeURIComponent(text)}`;
+                                }}
+                                className="flex-1 py-3 bg-blue-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-blue-600 transition-colors"
+                            >
+                                <MessageSquare size={18} />
+                                <span>SMS</span>
+                            </button>
+                        </div>
+
+                        <div className="flex items-start gap-2 p-4 bg-amber-50 rounded-xl border border-amber-200">
+                            <Info size={20} className="text-amber-600 mt-0.5 shrink-0" />
+                            <p className="text-sm text-amber-800 font-bold">
+                                এই তথ্য ব্যবহার করে শিক্ষার্থী ও অভিভাবক সিস্টেমে লগইন করতে পারবেন।
+                            </p>
+                        </div>
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 }

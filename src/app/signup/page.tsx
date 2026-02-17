@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import AuthLayout from '../../components/AuthLayout';
 import { useRouter } from 'next/navigation';
+import { useSession } from '@/components/SessionProvider';
 import { User, Mail, Lock, Briefcase, ChevronDown, Rocket, Loader2, AlertCircle } from 'lucide-react';
 
 export default function SignupPage() {
@@ -12,6 +13,7 @@ export default function SignupPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const { login } = useSession();
     const router = useRouter();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -28,7 +30,10 @@ export default function SignupPage() {
 
 
             if (res.ok) {
-                router.push('/entrance');
+                const data = await res.json();
+                // Login immediately to carry session to roles page
+                login(data.user);
+                router.push('/roles');
             } else {
                 const data = await res.json();
                 setError(data.message || 'Registration failed');
@@ -80,19 +85,17 @@ export default function SignupPage() {
 
                 <div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                     <label className="block text-sm text-slate-900 mb-2 uppercase tracking-wide" htmlFor="email">
-                        ইমেইল অ্যাড্রেস
+                        ইমেইল বা মোবাইল নম্বর
                     </label>
                     <div className="relative group">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#047cac] group-focus-within:text-[#045c84] transition-colors">
-
                             <Mail size={20} />
                         </div>
                         <input
                             className="w-full pl-11 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-[#045c84] transition-all bg-slate-50 focus:bg-white text-black placeholder-slate-400 shadow-sm"
-
                             id="email"
-                            type="email"
-                            placeholder="name@edusy.com"
+                            type="text"
+                            placeholder="name@mail.com বা 01XXXXXXXXX"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required

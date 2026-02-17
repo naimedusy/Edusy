@@ -18,7 +18,11 @@ import {
     Calendar,
     Building2,
     ShieldCheck,
-    HeartPulse
+    HeartPulse,
+    Presentation, // Classroom
+    Library,      // Library
+    ClipboardList,// Assignment
+    Megaphone     // Notice
 } from 'lucide-react';
 
 import { useSession } from '@/components/SessionProvider';
@@ -55,6 +59,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
 
 
+    // ...
     const menuItems = [
         { name: 'ড্যাশবোর্ড', icon: LayoutDashboard, href: '/dashboard' },
         { name: 'প্রতিষ্ঠান', icon: Building2, href: '/dashboard/institute', adminOnly: true },
@@ -62,18 +67,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: 'শিক্ষার্থী / বই', icon: Users, href: '/dashboard/students' },
         { name: 'অভিভাবক', icon: HeartPulse, href: '/dashboard/guardians' },
         { name: 'হিসাব', icon: CreditCard, href: '/dashboard/accounts' },
+        { name: 'ক্লাস রুম', icon: Presentation, href: '/dashboard/classroom' },
+        // Role-specific Library Links
+        { name: 'লাইব্রেরি', icon: Library, href: '/dashboard/library', roles: ['STUDENT'] },
+        { name: 'লাইব্রেরি', icon: Library, href: '/dashboard/admin/library', roles: ['ADMIN', 'SUPER_ADMIN'] },
+
+        { name: 'এসাইন্মেন্ট', icon: ClipboardList, href: '/dashboard/assignments' },
+        { name: 'নোটিশ', icon: Megaphone, href: '/dashboard/notices' },
         { name: 'ক্যালেন্ডার', icon: Calendar, href: '/dashboard/calendar' },
         { name: 'সেটিংস', icon: Settings, href: '/dashboard/settings' },
     ];
 
     const filteredMenuItems = menuItems.filter(item => {
+        // Role based filtering if 'roles' property exists
+        if ((item as any).roles && !(item as any).roles.includes(activeRole)) {
+            return false;
+        }
+
         if (activeRole === 'SUPER_ADMIN') {
-            return item.href === '/dashboard';
+            return item.href === '/dashboard' || item.href === '/dashboard/admin/library';
         }
         if (activeRole === 'STUDENT') {
-            return ['/dashboard', '/dashboard/teachers', '/dashboard/notices'].includes(item.href);
+            return ['/dashboard', '/dashboard/notices', '/dashboard/classroom', '/dashboard/library', '/dashboard/assignments'].includes(item.href);
         }
-        if (item.adminOnly) {
+        if ((item as any).adminOnly) {
             return activeRole === 'ADMIN';
         }
         return true;

@@ -42,15 +42,15 @@ export interface FieldDefinition {
 export const POSSIBLE_FIELDS: FieldDefinition[] = [
     // Core (New defaults)
     { id: 'name', label: 'শিক্ষার্থীর নাম', type: 'text', category: 'মৌলিক তথ্য', icon: UsersIcon, placeholder: 'পুরো নাম', required: true },
-    { id: 'email', label: 'ইমেইল (লগইন আইডি)', type: 'text', category: 'মৌলিক তথ্য', icon: Mail, placeholder: 'student@example.com', required: true },
-    { id: 'password', label: 'পাসওয়ার্ড', type: 'text', category: 'মৌলিক তথ্য', icon: Fingerprint, placeholder: 'লগইন পাসওয়ার্ড', required: true },
-    { id: 'studentPhone', label: 'শিক্ষার্থীর মোবাইল নম্বর', type: 'number', category: 'মৌলিক তথ্য', icon: Smartphone, placeholder: 'যদি থাকে' },
+    { id: 'email', label: 'ইমেইল (লগইন আইডি-আবশ্যিক)', type: 'text', category: 'মৌলিক তথ্য', icon: Mail, placeholder: 'পুরো ইমেইল অ্যাড্রেস দিন', required: true },
+    { id: 'password', label: 'পাসওয়ার্ড', type: 'text', category: 'মৌলিক তথ্য', icon: Fingerprint, placeholder: 'লগইন পাসওয়ার্ড (ফাঁকা রাখলে স্টুডেন্ট আইডি ব্যবহার হবে)' },
+    { id: 'studentPhone', label: 'শিক্ষার্থীর মোবাইল (লগইন আইডি - ঐচ্ছিক)', type: 'text', category: 'মৌলিক তথ্য', icon: Smartphone, placeholder: 'লগইন আইডি হিসেবে ব্যবহার হবে' },
 
     // Basic Info
     { id: 'fathersName', label: 'পিতার নাম', type: 'text', category: 'মৌলিক তথ্য', icon: UsersIcon, placeholder: 'বাবার পুরো নাম' },
-    { id: 'fathersPhone', label: 'পিতার মোবাইল', type: 'number', category: 'মৌলিক তথ্য', icon: Smartphone, placeholder: 'বাবার মোবাইল নম্বর' },
+    { id: 'fathersPhone', label: 'পিতার মোবাইল', type: 'text', category: 'মৌলিক তথ্য', icon: Smartphone, placeholder: 'বাবার মোবাইল নম্বর' },
     { id: 'mothersName', label: 'মাতার নাম', type: 'text', category: 'মৌলিক তথ্য', icon: UsersIcon, placeholder: 'মায়ের পুরো নাম' },
-    { id: 'mothersPhone', label: 'মাতার মোবাইল', type: 'number', category: 'মৌলিক তথ্য', icon: Smartphone, placeholder: 'মায়ের মোবাইল নম্বর' },
+    { id: 'mothersPhone', label: 'মাতার মোবাইল', type: 'text', category: 'মৌলিক তথ্য', icon: Smartphone, placeholder: 'মায়ের মোবাইল নম্বর' },
     { id: 'gender', label: 'লিঙ্গ', type: 'select', category: 'মৌলিক তথ্য', options: ['ছেলে', 'মেয়ে'], icon: Info },
     { id: 'bloodGroup', label: 'রক্তের গ্রুপ', type: 'select', category: 'মৌলিক তথ্য', options: ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], icon: HeartPulse },
     { id: 'religion', label: 'ধর্ম', type: 'select', category: 'মৌলিক তথ্য', options: ['ইসলাম', 'হিন্দু', 'খ্রিস্টান', 'বৌদ্ধ', 'অন্যান্য'], icon: Anchor },
@@ -69,7 +69,8 @@ export const POSSIBLE_FIELDS: FieldDefinition[] = [
 
     // Guardian Info
     { id: 'guardianName', label: 'অভিভাবকের নাম', type: 'text', category: 'অভিভাবক তথ্য', icon: UsersIcon, placeholder: 'অভিভাবকের নাম', required: true },
-    { id: 'guardianPhone', label: 'অভিভাবকের মোবাইল (লগইন আইডি)', type: 'number', category: 'অভিভাবক তথ্য', icon: Smartphone, placeholder: 'ব্যাবহার হবে লগইন এর জন্য', required: true },
+    { id: 'guardianPhone', label: 'অভিভাবকের মোবাইল (লগইন আইডি - ঐচ্ছিক)', type: 'text', category: 'অভিভাবক তথ্য', icon: Smartphone, placeholder: 'লগইন আইডি হিসেবে ব্যবহার হবে' },
+    { id: 'guardianPassword', label: 'অভিভাবকের পাসওয়ার্ড', type: 'text', category: 'অভিভাবক তথ্য', icon: Fingerprint, placeholder: 'লগইন পাসওয়ার্ড (ফাঁকা রাখলে মোবাইল নম্বর ব্যবহার হবে)' },
     { id: 'guardianRelation', label: 'সম্পর্ক', type: 'select', category: 'অভিভাবক তথ্য', options: ['বাবা', 'মা', 'ভাই', 'বোন', 'চাচা', 'মামা', 'অন্যান্য'], icon: UsersIcon, required: true },
     { id: 'guardianOccupation', label: 'অভিভাবকের পেশা', type: 'text', category: 'অভিভাবক তথ্য', icon: Briefcase, placeholder: 'যেমন: শিক্ষক, ব্যবসায়ী' },
     { id: 'yearlyIncome', label: 'বার্ষিক আয়', type: 'number', category: 'অভিভাবক তথ্য', icon: DollarSign, placeholder: 'টাকায় পরিমাণ' },

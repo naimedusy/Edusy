@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
-import { Loader2, Save, CloudUpload, CheckCircle2, Building2, Printer } from 'lucide-react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Loader2, Save, CloudUpload, CheckCircle2, Building2, Printer, LogIn } from 'lucide-react';
 import { FieldDefinition } from '@/components/FieldLibrary';
 import Toast from '@/components/Toast';
 import PrintLayout from '@/components/PrintLayout';
@@ -27,6 +28,7 @@ export default function PublicAdmissionPage() {
     const [groups, setGroups] = useState<any[]>([]);
     const [isPrinting, setIsPrinting] = useState(false);
     const [printMode, setPrintMode] = useState<'receipt' | 'form'>('receipt');
+    const [credentials, setCredentials] = useState<{ studentId: string; password: string } | null>(null);
     const [draftStatus, setDraftStatus] = useState<'saved' | 'saving' | 'recovered' | null>(null);
 
     const draftKey = `edusy_admission_draft_${instituteId}`;
@@ -110,6 +112,7 @@ export default function PublicAdmissionPage() {
         const uploadData = new FormData();
         uploadData.append('file', file);
 
+        setActionLoading(true);
         try {
             const res = await fetch('/api/upload', {
                 method: 'POST',
@@ -125,6 +128,8 @@ export default function PublicAdmissionPage() {
         } catch (error) {
             console.error('Upload failed', error);
             setToast({ message: 'ফাইল আপলোড ব্যর্থ হয়েছে।', type: 'error' });
+        } finally {
+            setActionLoading(false);
         }
     };
 
@@ -175,6 +180,7 @@ export default function PublicAdmissionPage() {
 
             if (res.ok) {
                 setSubmitted(true);
+                setCredentials(data.credentials);
                 localStorage.removeItem(draftKey);
             } else {
                 setToast({ message: data.message || 'আবেদন ব্যর্থ হয়েছে।', type: 'error' });
@@ -228,22 +234,30 @@ export default function PublicAdmissionPage() {
                     </div>
                     <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 text-left space-y-2">
                         <p className="text-xs font-bold text-blue-800 uppercase tracking-widest">লগইন তথ্য (যেকোন সময় চেক করার জন্য)</p>
-                        <p className="text-sm text-slate-700 font-bold">আইডি: <span className="bg-white px-2 py-0.5 rounded border border-blue-200">{formData.phone}</span></p>
-                        <p className="text-sm text-slate-700 font-bold">পাসওয়ার্ড: <span className="bg-white px-2 py-0.5 rounded border border-blue-200">{formData.phone}</span></p>
+                        <p className="text-sm text-slate-700 font-bold">আইডি: <span className="bg-white px-2 py-0.5 rounded border border-blue-200">{credentials?.studentId || formData.phone}</span></p>
+                        <p className="text-sm text-slate-700 font-bold">পাসওয়ার্ড: <span className="bg-white px-2 py-0.5 rounded border border-blue-200">{credentials?.password || formData.phone}</span></p>
                     </div>
 
                     <div className="grid grid-cols-1 gap-3 pt-4">
+                        <Link
+                            href="/entrance"
+                            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#045c84] to-[#047cac] text-white font-black rounded-2xl shadow-lg shadow-blue-100 hover:shadow-xl transition-all active:scale-95"
+                        >
+                            <LogIn size={20} />
+                            <span>লগইন করে স্ট্যাটাস চেক করুন</span>
+                        </Link>
+
                         <div className="grid grid-cols-2 gap-3">
                             <button
                                 onClick={() => handlePrint('receipt')}
-                                className="flex items-center justify-center gap-2 px-6 py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-lg shadow-blue-100 hover:bg-[#034d6e] transition-all active:scale-95 text-xs"
+                                className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-100 text-[#045c84] font-black rounded-2xl hover:bg-slate-200 transition-all active:scale-95 text-xs"
                             >
                                 <Printer size={16} />
                                 <span>রশিদ প্রিন্ট</span>
                             </button>
                             <button
                                 onClick={() => handlePrint('form')}
-                                className="flex items-center justify-center gap-2 px-6 py-4 bg-blue-50 text-[#045c84] border border-blue-100 font-black rounded-2xl hover:bg-blue-100 transition-all active:scale-95 text-xs"
+                                className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-100 text-[#045c84] font-black rounded-2xl hover:bg-slate-200 transition-all active:scale-95 text-xs"
                             >
                                 <Printer size={16} />
                                 <span>ফর্ম প্রিন্ট</span>
@@ -251,7 +265,7 @@ export default function PublicAdmissionPage() {
                         </div>
                         <button
                             onClick={handleReapply}
-                            className="w-full px-6 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl hover:bg-slate-200 transition-all active:scale-95"
+                            className="w-full px-6 py-2 bg-transparent text-slate-400 font-bold rounded-2xl hover:text-slate-600 transition-all active:scale-95 text-xs"
                         >
                             পূনরায় আবেদন করুন
                         </button>
@@ -284,7 +298,7 @@ export default function PublicAdmissionPage() {
                                                 </div>
                                                 <div className="space-y-1">
                                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">লগইন পাসওয়ার্ড</p>
-                                                    <p className="text-xl font-bold text-[#045c84]">{formData.phone}</p>
+                                                    <p className="text-xl font-bold text-[#045c84]">{credentials?.password || formData.phone}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -455,7 +469,7 @@ export default function PublicAdmissionPage() {
                                 <div className="space-y-2">
                                     <label className="text-xs font-black text-slate-500 uppercase tracking-wider">মোবাইল নম্বর (লগইন আইডি) <span className="text-red-500">*</span></label>
                                     <input
-                                        type="tel"
+                                        type="text"
                                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
                                         placeholder="017xxxxxxxx"
                                         value={formData.phone}
@@ -464,13 +478,14 @@ export default function PublicAdmissionPage() {
                                     />
                                 </div>
                                 <div className="space-y-2 md:col-span-2">
-                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ইমেইল (অপশনাল)</label>
+                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ইমেইল অ্যাড্রেস <span className="text-red-500">*</span></label>
                                     <input
-                                        type="email"
+                                        type="text"
                                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
                                         placeholder="example@mail.com"
                                         value={formData.email}
                                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                        required
                                     />
                                 </div>
                             </div>
@@ -565,8 +580,15 @@ export default function PublicAdmissionPage() {
                                                         required={field.required && !formData.metadata[field.id]}
                                                     />
                                                     {formData.metadata[field.id] && (
-                                                        <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                                                            <Save size={16} />
+                                                        <div className="flex flex-col items-center gap-2">
+                                                            {field.id === 'studentPhoto' && (
+                                                                <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-green-500 shadow-lg">
+                                                                    <img src={formData.metadata[field.id]} alt="Preview" className="w-full h-full object-cover" />
+                                                                </div>
+                                                            )}
+                                                            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
+                                                                <Save size={16} />
+                                                            </div>
                                                         </div>
                                                     )}
                                                 </div>

@@ -23,7 +23,8 @@ import {
     FileText,
     BookOpen,
     LogOut,
-    MoreVertical
+    MoreVertical,
+    Clock
 } from 'lucide-react';
 import { useSession } from '@/components/SessionProvider';
 import InstituteProfileModal from '@/components/InstituteProfileModal';
@@ -97,6 +98,64 @@ export default function DashboardPage() {
 
 // --- Student Dashboard ---
 function StudentDashboard({ user, activeInstitute }: { user: any, activeInstitute: any }) {
+    const isPending = user?.metadata?.admissionStatus === 'PENDING';
+
+    if (isPending) {
+        return (
+            <div className="min-h-[80vh] flex items-center justify-center p-4 md:p-8 animate-fade-in font-bengali">
+                <div className="max-w-2xl w-full bg-white rounded-[32px] shadow-2xl border border-blue-100 overflow-hidden text-center relative">
+                    {/* Decorative Background */}
+                    <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-r from-blue-50 to-indigo-50 -z-0" />
+
+                    <div className="p-10 space-y-8 relative z-10">
+                        <div className="w-24 h-24 bg-blue-100/50 rounded-full flex items-center justify-center mx-auto text-[#045c84] mb-6 animate-pulse">
+                            <Clock className="w-12 h-12" />
+                        </div>
+
+                        <div className="space-y-4">
+                            <h2 className="text-3xl font-black text-slate-800 tracking-tight">আপনার আবেদনটি বর্তমানে <span className="text-[#045c84]">পেন্ডিং</span> আছে!</h2>
+                            <p className="text-slate-500 text-lg font-medium leading-relaxed max-w-lg mx-auto">
+                                আপনার ভর্তি আবেদনটি সফলভাবে গৃহীত হয়েছে এবং বর্তমানে প্রতিষ্ঠান কর্তৃপক্ষের অনুমোদনের অপেক্ষায় আছে। অনুমোদন সম্পন্ন হলে আপনি ড্যাশবোর্ড এর সমস্ত ফিচার ব্যবহার করতে পারবেন।
+                            </p>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200 rounded-[24px] p-6 text-left space-y-4">
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b pb-2">আবেদন তথ্যের সারাংশ</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">নাম</p>
+                                    <p className="font-bold text-slate-800">{user.name}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">মোবাইল</p>
+                                    <p className="font-bold text-slate-800">{user.phone}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">ইনস্টিটিউট</p>
+                                    <p className="font-bold text-slate-800">{activeInstitute?.name || 'লোডিং...'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase">স্ট্যাটাস</p>
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-700 border border-amber-200">
+                                        অপেক্ষমাণ (Pending)
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-slate-100 text-slate-400 text-sm font-medium">
+                            প্রতিষ্ঠান কর্তৃপক্ষ শীঘ্রই আপনার সাথে যোগাযোগ করবে। যেকোনো প্রয়োজনে প্রতিষ্ঠানের সাথে সরাসরি যোগাযোগ করুন।
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (!activeInstitute) {
+        return <OnboardingRouter role="STUDENT" user={user} onComplete={() => window.location.reload()} />;
+    }
+
     // Mock Data for now
     const notices = [
         { id: 1, title: 'Upcoming Exam Schedule', date: '2024-03-20', type: 'Exam' },
@@ -407,6 +466,71 @@ function SuperAdminDashboard({ statsData, loading }: { statsData: any, loading: 
 }
 
 import InstituteOnboarding from '@/components/InstituteOnboarding';
+import PublicInstituteSearch from '@/components/PublicInstituteSearch';
+import { useRouter } from 'next/navigation';
+import { Briefcase, School, UserPlus } from 'lucide-react';
+
+function OnboardingRouter({ role, user, onComplete }: { role: string, user: any, onComplete: () => void }) {
+    const [view, setView] = useState<'CHOICE' | 'CREATE' | 'SEARCH'>(
+        role === 'ADMIN' ? 'CREATE' : (role === 'STUDENT' || role === 'GUARDIAN' ? 'SEARCH' : 'CHOICE')
+    );
+    const router = useRouter();
+
+    if (view === 'CREATE') {
+        return <InstituteOnboarding onComplete={onComplete} />;
+    }
+
+    if (view === 'SEARCH') {
+        return (
+            <div className="min-h-screen bg-slate-50 flex flex-col pt-20">
+                <PublicInstituteSearch
+                    role={role}
+                    onBack={role === 'TEACHER' ? () => setView('CHOICE') : undefined}
+                    onSelect={(inst) => {
+                        if (role === 'STUDENT' || role === 'GUARDIAN') {
+                            router.push(`/admission/${inst.id}`);
+                        } else if (role === 'TEACHER') {
+                            // Link as teacher logic? For now, redirect to institute page or show apply modal
+                            router.push(`/admission/${inst.id}`); // They can apply as teacher via public form for now or we add Join API
+                        }
+                    }}
+                />
+            </div>
+        );
+    }
+
+    return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-bengali">
+            <div className="max-w-4xl w-full grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in-up">
+                <button
+                    onClick={() => setView('CREATE')}
+                    className="group bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl hover:shadow-2xl transition-all flex flex-col items-center text-center gap-6 hover:-translate-y-2 active:scale-95"
+                >
+                    <div className="w-24 h-24 bg-blue-50 text-[#045c84] rounded-3xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-blue-900/5">
+                        <School size={48} />
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-2">নতুন প্রতিষ্ঠান তৈরি করুন</h3>
+                        <p className="text-slate-500 font-medium leading-relaxed">আপনার নিজের মাদরাসা বা স্কুলের জন্য একটি নতুন এডুসি প্রোফাইল প্রোফাইল খুলুন।</p>
+                    </div>
+                </button>
+
+                <button
+                    onClick={() => setView('SEARCH')}
+                    className="group bg-white p-10 rounded-[40px] border border-slate-100 shadow-xl hover:shadow-2xl transition-all flex flex-col items-center text-center gap-6 hover:-translate-y-2 active:scale-95"
+                >
+                    <div className="w-24 h-24 bg-teal-50 text-teal-600 rounded-3xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-lg shadow-teal-900/5">
+                        <Briefcase size={48} />
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black text-slate-800 uppercase tracking-tight mb-2">প্রতিষ্ঠানে যোগ দিন</h3>
+                        <p className="text-slate-500 font-medium leading-relaxed">সার্চ করে আপনার পছন্দের প্রতিষ্ঠানে শিক্ষক বা স্টাফ হিসেবে যোগ দেওয়ার জন্য আবেদন করুন।</p>
+                    </div>
+                </button>
+            </div>
+        </div>
+    );
+}
 
 // ... (other imports)
 
@@ -453,7 +577,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
     };
 
     if (showOnboarding) {
-        return <InstituteOnboarding onComplete={handleOnboardingComplete} />;
+        return <OnboardingRouter role={user.role} user={user} onComplete={handleOnboardingComplete} />;
     }
 
     const stats = [

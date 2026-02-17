@@ -79,15 +79,19 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { names, classId, instituteId, books: booksData, groupId } = body;
 
-        if (!instituteId) {
-            return NextResponse.json({ message: 'Institute ID is required' }, { status: 400 });
+        if (!instituteId && !body.isGlobal) {
+            // If not explicitly global and no instituteId, it's an error (unless we infer Super Admin from elsewhere, but for now let's rely on a flag or just optionality if we trust the source)
+            // Actually, for Super Admin, they might just not send instituteId.
+            // Let's allow it if we assume the caller knows what they are doing, or checks auth.
+            // For safety, let's just make it optional.
         }
 
         const commonData = {
-            instituteId: { $oid: instituteId },
+            instituteId: instituteId ? { $oid: instituteId } : null,
             classId: classId ? { $oid: classId } : null,
             groupId: groupId ? { $oid: groupId } : null,
             description: body.description || null,
+            category: body.category || null,
             pdfUrl: body.pdfUrl || null,
             readLink: body.readLink || null,
             bookmarks: body.bookmarks || [],
@@ -107,11 +111,12 @@ export async function POST(req: Request) {
                     description: book.description || commonData.description,
                     coverImage: book.coverImage || null,
                     author: book.author || null,
+                    category: book.category || commonData.category,
                     pdfUrl: book.pdfUrl || commonData.pdfUrl,
                     readLink: book.readLink || commonData.readLink,
                     bookmarks: book.bookmarks || commonData.bookmarks,
                     instituteId: commonData.instituteId,
-                    classId: book.classId ? { $oid: book.classId } : commonData.classId,
+                    classId: book.classId ? { $oid: book.classId } : (commonData.classId ? commonData.classId : null),
                     groupId: book.groupId ? { $oid: book.groupId } : commonData.groupId,
                     totalMarks: 100,
                     createdAt: commonData.createdAt,
@@ -125,6 +130,7 @@ export async function POST(req: Request) {
                     description: commonData.description,
                     coverImage: body.coverImage || null,
                     author: body.author || null,
+                    category: body.category || null,
                     pdfUrl: commonData.pdfUrl,
                     readLink: commonData.readLink,
                     bookmarks: commonData.bookmarks,

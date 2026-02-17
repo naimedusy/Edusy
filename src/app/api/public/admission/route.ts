@@ -16,61 +16,99 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'Phone number is required' }, { status: 400 });
         }
 
-        // Default password and email if missing
-        const password = phone;
-        if (!email || email.trim() === '') {
-            email = `${phone}@edusy.local`;
+        if ((!email || email?.trim() === '') && (!phone || phone?.trim() === '')) {
+            return NextResponse.json({ message: 'ইমেইল অথবা মোবাইল নম্বর - যেকোনো একটি অবশ্যই দিতে হবে।' }, { status: 400 });
         }
 
-        // Check if user already exists
-        const existingUserRaw = await (prisma as any).$runCommandRaw({
+        // Check if student already exists
+        const studentCheckRaw = await (prisma as any).$runCommandRaw({
             find: 'User',
             filter: {
                 $or: [
-                    { email: email },
+                    { email: email && email?.trim() !== '' ? email.trim() : 'never_match_this_val' },
                     { phone: phone }
                 ]
             },
             limit: 1
         });
-        const existingUser = existingUserRaw.cursor?.firstBatch?.[0];
+        const studentExists = studentCheckRaw.cursor?.firstBatch?.[0];
 
-        if (existingUser) {
-            return NextResponse.json({ message: 'User with this phone/email already exists.' }, { status: 400 });
+        if (studentExists) {
+            const isEmail = studentExists.email === email?.trim();
+            return NextResponse.json({
+                message: `এই ${isEmail ? 'ইমেইল' : 'মোবাইল নম্বর'} দিয়ে ইতোমধ্যে একটি শিক্ষার্থী অ্যাকাউন্ট আছে। দয়া করে ভিন্ন ${isEmail ? 'ইমেইল' : 'নম্বর'} ব্যবহার করুন অথবা লগইন করুন।`,
+                duplicateField: isEmail ? 'email' : 'phone'
+            }, { status: 400 });
         }
 
-        // --- Auto-assign Student ID & Roll Number if missing ---
+        // Check for Guardian duplicate email
+        if (metadata?.guardianEmail && metadata?.guardianEmail?.trim() !== '') {
+            const guardianEmailCheck = await prisma.user.findFirst({
+                where: { email: metadata.guardianEmail.trim() }
+            });
+            if (guardianEmailCheck) {
+                return NextResponse.json({
+                    message: 'এই অভিভাবক ইমেইলটি ইতোমধ্যে ব্যবহার করা হয়েছে। দয়া করে ভিন্ন ইমেইল ব্যবহার করুন।',
+                    duplicateField: 'guardianEmail'
+                }, { status: 400 });
+            }
+        }
+
+        // Check for Guardian duplicate phone
+        if (metadata?.guardianPhone && metadata?.guardianPhone?.trim() !== '') {
+            const guardianPhoneCheck = await prisma.user.findFirst({
+                where: { phone: metadata.guardianPhone.trim() }
+            });
+            if (guardianPhoneCheck) {
+                return NextResponse.json({
+                    message: 'এই অভিভাবক মোবাইল নম্বরটি ইতোমধ্যে ব্যবহার করা হয়েছে। দয়া করে ভিন্ন মোবাইল নম্বর ব্যবহার করুন।',
+                    duplicateField: 'guardianPhone'
+                }, { status: 400 });
+            }
+        }
+
+        // --- Auto-assign Student ID & Roll Number BEFORE password ---
         const finalMetadata = { ...(metadata || {}) };
 
         if (!finalMetadata.studentId) {
-            finalMetadata.studentId = await getNextStudentId(instituteId);
+            // In public admission, the registered 'phone' is treated as the student's primary mobile
+            // So we use it as Student ID
+            finalMetadata.studentId = phone;
         }
 
         if (!finalMetadata.rollNumber && finalMetadata.classId) {
             finalMetadata.rollNumber = await getNextRollNumber(instituteId, finalMetadata.classId);
         }
 
+        // Default password to Student ID
+        const password = finalMetadata.studentId;
+
         // Create Student
         const instIds = [{ $oid: instituteId }];
 
+        const userDoc: any = {
+            name: String(name || ''),
+            password: String(password || ''),
+            role: 'STUDENT',
+            instituteIds: instIds,
+            metadata: {
+                ...finalMetadata,
+                admissionStatus: 'PENDING'
+            },
+            createdAt: { $date: new Date().toISOString() },
+            updatedAt: { $date: new Date().toISOString() }
+        };
+
+        if (email && email.trim() !== '') {
+            userDoc.email = email.trim();
+        }
+        if (phone) {
+            userDoc.phone = String(phone);
+        }
+
         await (prisma as any).$runCommandRaw({
             insert: 'User',
-            documents: [
-                {
-                    name: name || '',
-                    email: email.trim(),
-                    phone: phone,
-                    password: password,
-                    role: 'STUDENT',
-                    instituteIds: instIds,
-                    metadata: {
-                        ...finalMetadata,
-                        admissionStatus: 'PENDING'
-                    },
-                    createdAt: { $date: new Date().toISOString() },
-                    updatedAt: { $date: new Date().toISOString() }
-                }
-            ]
+            documents: [userDoc]
         });
 
         // Copy logic for Guardian Automation from Admin API (Simplified)
@@ -87,17 +125,17 @@ export async function POST(req: Request) {
                 let guardianId = existingGuardian ? (existingGuardian._id?.$oid || existingGuardian._id?.toString()) : null;
 
                 if (!existingGuardian) {
-                    const guardianEmail = `guardian_${guardianPhone}@edusy.local`;
-                    const guardianPassword = guardianPhone;
+                    const guardianEmail = null;
+                    const guardianPassword = metadata.guardianPassword || guardianPhone;
 
                     await (prisma as any).$runCommandRaw({
                         insert: 'User',
                         documents: [
                             {
-                                name: metadata.guardianName,
+                                name: String(metadata.guardianName || ''),
                                 email: guardianEmail,
-                                phone: guardianPhone,
-                                password: guardianPassword,
+                                phone: String(guardianPhone || ''),
+                                password: String(guardianPassword || ''),
                                 role: 'GUARDIAN',
                                 instituteIds: instIds,
                                 metadata: { childrenIds: [] },
@@ -167,7 +205,14 @@ export async function POST(req: Request) {
             }
         }
 
-        return NextResponse.json({ success: true, message: 'Application submitted successfully' }, { status: 201 });
+        return NextResponse.json({
+            success: true,
+            message: 'Application submitted successfully',
+            credentials: {
+                studentId: finalMetadata.studentId,
+                password: password
+            }
+        }, { status: 201 });
 
     } catch (error) {
         console.error('Public Admission Error:', error);

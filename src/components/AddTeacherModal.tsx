@@ -219,7 +219,7 @@ export default function AddTeacherModal({ isOpen, onClose, onAdd, instituteId, i
                                 <div className="relative">
                                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                     <input
-                                        type="tel"
+                                        type="text"
                                         required
                                         value={formData.phone}
                                         onChange={e => setFormData({ ...formData, phone: e.target.value })}
