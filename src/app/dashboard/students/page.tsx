@@ -20,7 +20,9 @@ import {
     BookOpen,
     Layers,
     Plus,
+    Link,
     ChevronDown,
+    ChevronUp,
     MoreVertical,
     ChevronRight,
     Phone,
@@ -36,7 +38,8 @@ import {
     LayoutList,
     GraduationCap,
     Library,
-    ClipboardList
+    ClipboardList,
+    GripVertical
 } from 'lucide-react';
 import { ScrollableTabs } from '@/components/ui/ScrollableTabs';
 import Toast from '@/components/Toast';
@@ -46,6 +49,7 @@ import StudentProfileModal from '@/components/StudentProfileModal';
 import TeacherCard from '@/components/TeacherCard';
 import BookCard from '@/components/BookCard';
 import BookDetailsModal from '@/components/BookDetailsModal';
+import PdfReaderModal from '@/components/PdfReaderModal';
 import TeacherPermissionModal from '@/components/TeacherPermissionModal';
 import SubjectGradingModal from '@/components/SubjectGradingModal';
 
@@ -66,12 +70,17 @@ export default function StudentManagementPage() {
     const [bulkClassText, setBulkClassText] = useState('');
     const [groupData, setGroupData] = useState({ name: '' });
     const [editingClass, setEditingClass] = useState<any>(null);
+    const [editingGroup, setEditingGroup] = useState<any>(null);
     const [isActionMenuOpen, setIsActionMenuOpen] = useState<string | null>(null);
     const [menuPosition, setMenuPosition] = useState<{ top: number, left: number } | null>(null);
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
     const [editingStudent, setEditingStudent] = useState<any>(null);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isClassDropdownOpen, setIsClassDropdownOpen] = useState(false);
+    const [isClassManagementModalOpen, setIsClassManagementModalOpen] = useState(false);
+    const [managedClasses, setManagedClasses] = useState<any[]>([]);
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+    const canDrag = useRef(false);
     const [classSearch, setClassSearch] = useState('');
     const [formData, setFormData] = useState<any>({
         name: '',
@@ -91,12 +100,21 @@ export default function StudentManagementPage() {
     const [permissionModalData, setPermissionModalData] = useState<any>(null);
     const [debouncedSearch, setDebouncedSearch] = useState(search);
 
+    const [isStudentSelectionModalOpen, setIsStudentSelectionModalOpen] = useState(false);
+    const [selectedStudentsForGroup, setSelectedStudentsForGroup] = useState<string[]>([]);
+    const [allStudentsInClass, setAllStudentsInClass] = useState<any[]>([]);
+
     // Excel Import States
     const [isExcelMode, setIsExcelMode] = useState(false);
     const [excelData, setExcelData] = useState<string[][]>([]);
     const [columnMappings, setColumnMappings] = useState<{ [key: number]: string }>({});
     const [importFails, setImportFails] = useState<any[]>([]);
     const [isImportSummaryOpen, setIsImportSummaryOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const fetchTeachers = async () => {
         if (!activeInstitute?.id) return;
@@ -143,6 +161,7 @@ export default function StudentManagementPage() {
     useEffect(() => {
         if (activeTab === 'teachers') {
             fetchTeachers();
+            fetchBooks();
         }
     }, [activeTab, activeInstitute?.id]);
 
@@ -153,7 +172,8 @@ export default function StudentManagementPage() {
     const [isGradingModalOpen, setIsGradingModalOpen] = useState(false);
     const [gradingSubjectId, setGradingSubjectId] = useState<string | null>(null);
     const [selectedBook, setSelectedBook] = useState<any | null>(null);
-    const [bookData, setBookData] = useState({ names: '', classId: '', coverImage: '', author: '' });
+    const [isReaderOpen, setIsReaderOpen] = useState(false);
+    const [bookData, setBookData] = useState({ names: '', classId: '', groupId: '', coverImage: '', author: '' });
     const [bookViewMode, setBookViewMode] = useState<'card' | 'cover'>('card');
 
     // Persist book view mode
@@ -275,7 +295,8 @@ export default function StudentManagementPage() {
         setLoading(true);
         try {
             const classFilter = selectedClassId !== 'all' ? `&classId=${selectedClassId}` : '';
-            const res = await fetch(`/api/admin/books?instituteId=${activeInstitute.id}${classFilter}`);
+            const groupFilter = selectedGroupId !== 'all' ? `&groupId=${selectedGroupId}` : '';
+            const res = await fetch(`/api/admin/books?instituteId=${activeInstitute.id}${classFilter}${groupFilter}`);
             const text = await res.text();
             try {
                 const data = JSON.parse(text);
@@ -598,6 +619,33 @@ export default function StudentManagementPage() {
         }
     };
 
+    const handleSaveClassManagement = async () => {
+        setActionLoading(true);
+        try {
+            const res = await fetch('/api/admin/classes/reorder', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    instituteId: activeInstitute?.id,
+                    classes: managedClasses.map((c, i) => ({
+                        id: c.id,
+                        name: c.name,
+                        order: i
+                    }))
+                })
+            });
+            if (res.ok) {
+                setToast({ message: 'ক্লাসগুলো সফলভাবে আপডেট ও সাজানো হয়েছে!', type: 'success' });
+                setIsClassManagementModalOpen(false);
+                fetchClasses();
+            }
+        } catch (error) {
+            setToast({ message: 'ক্রুটি হয়েছে।', type: 'error' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
     const handleDeleteStudent = async (id: string) => {
         if (!confirm('আপনি কি এই শিক্ষার্থীকে ডিলিট করতে চান?')) return;
         try {
@@ -650,14 +698,22 @@ export default function StudentManagementPage() {
         if (selectedClassId === 'all') return;
         setActionLoading(true);
         try {
-            const res = await fetch('/api/admin/groups', {
-                method: 'POST',
+            const method = editingGroup ? 'PATCH' : 'POST';
+            const url = editingGroup ? `/api/admin/groups/${editingGroup.id}` : '/api/admin/groups';
+
+            const res = await fetch(url, {
+                method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...groupData, classId: selectedClassId })
             });
+
             if (res.ok) {
-                setToast({ message: 'গ্রুপ সফলভাবে তৈরি হয়েছে!', type: 'success' });
+                setToast({
+                    message: editingGroup ? 'গ্রুপ আপডেট হয়েছে!' : 'গ্রুপ সফলভাবে তৈরি হয়েছে!',
+                    type: 'success'
+                });
                 setIsGroupModalOpen(false);
+                setEditingGroup(null);
                 setGroupData({ name: '' });
                 fetchGroups(selectedClassId);
             }
@@ -665,6 +721,97 @@ export default function StudentManagementPage() {
             setToast({ message: 'ক্রুটি হয়েছে।', type: 'error' });
         } finally {
             setActionLoading(false);
+        }
+    };
+
+    const handleDeleteGroup = async (id: string, name: string) => {
+        if (!window.confirm(`আপনি কি নিশ্চিত যে "${name}" গ্রুপটি ডিলিট করতে চান?`)) return;
+        setActionLoading(true);
+        try {
+            const res = await fetch(`/api/admin/groups/${id}`, {
+                method: 'DELETE'
+            });
+            if (res.ok) {
+                setToast({ message: 'গ্রুপ ডিলিট হয়েছে!', type: 'success' });
+                fetchGroups(selectedClassId);
+                if (selectedGroupId === id) setSelectedGroupId('all');
+            } else {
+                const data = await res.json();
+                setToast({ message: data.error || 'ডিলিট করতে ব্যর্থ হয়েছে।', type: 'error' });
+            }
+        } catch (error) {
+            setToast({ message: 'ক্রুটি হয়েছে।', type: 'error' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleBulkGroupAssign = async () => {
+        if (selectedGroupId === 'all' || selectedStudentsForGroup.length === 0) return;
+        setActionLoading(true);
+        try {
+            const res = await fetch('/api/admin/users/bulk-group', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userIds: selectedStudentsForGroup,
+                    groupId: selectedGroupId
+                })
+            });
+
+            if (res.ok) {
+                setToast({ message: 'শিক্ষার্থীদের গ্রুপে যোগ করা হয়েছে!', type: 'success' });
+                setIsStudentSelectionModalOpen(false);
+                setSelectedStudentsForGroup([]);
+                fetchStudents();
+            } else {
+                setToast({ message: 'ব্যর্থ হয়েছে।', type: 'error' });
+            }
+        } catch (error) {
+            console.error('Bulk Assign Error:', error);
+            setToast({ message: 'ক্রুটি হয়েছে।', type: 'error' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const handleRemoveFromGroup = async (student: any) => {
+        if (!confirm(`${student.name}-কে গ্রুপ থেকে বাদ দিতে চান?`)) return;
+        setActionLoading(true);
+        try {
+            const updatedMetadata = { ...student.metadata };
+            delete updatedMetadata.groupId;
+
+            const res = await fetch('/api/admin/users', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: student.id,
+                    metadata: updatedMetadata
+                })
+            });
+
+            if (res.ok) {
+                setToast({ message: 'গ্রুপ থেকে বাদ দেওয়া হয়েছে!', type: 'success' });
+                fetchStudents();
+            } else {
+                setToast({ message: 'ব্যর্থ হয়েছে।', type: 'error' });
+            }
+        } catch (error) {
+            setToast({ message: 'ক্রুটি হয়েছে।', type: 'error' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const fetchAllStudentsInClass = async () => {
+        if (!activeInstitute?.id || selectedClassId === 'all') return;
+        try {
+            const res = await fetch(`/api/admin/users?role=STUDENT&classId=${selectedClassId}&instituteId=${activeInstitute.id}`);
+            const data = await res.json();
+            setAllStudentsInClass(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error('Fetch all students error:', error);
         }
     };
 
@@ -687,6 +834,7 @@ export default function StudentManagementPage() {
                 body: JSON.stringify({
                     names,
                     classId: targetClassId,
+                    groupId: bookData.groupId || null,
                     instituteId: activeInstitute.id,
                     coverImage: bookData.coverImage || null,
                     author: bookData.author || null
@@ -698,7 +846,7 @@ export default function StudentManagementPage() {
             if (res.ok) {
                 setToast({ message: `${result.count || ''} টি বই সফলভাবে যুক্ত হয়েছে!`, type: 'success' });
                 setIsBookModalOpen(false);
-                setBookData({ names: '', classId: '', coverImage: '', author: '' });
+                setBookData({ names: '', classId: '', groupId: '', coverImage: '', author: '' });
                 fetchBooks();
             } else {
                 setToast({ message: result.message || 'বই যুক্ত করতে সমস্যা হয়েছে।', type: 'error' });
@@ -771,50 +919,8 @@ export default function StudentManagementPage() {
     }
 
     return (
-        <div className="p-3 sm:p-4 md:p-8 space-y-6 animate-fade-in-up font-bengali max-w-full overflow-x-hidden">
-            {/* Tab Navigation */}
-            <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl w-fit">
-                {/* ... existing tabs ... */}
-                <button
-                    onClick={() => setActiveTab('students')}
-                    className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'students'
-                        ? 'bg-white text-[#045c84] shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                >
-                    শিক্ষার্থী
-                </button>
-                <button
-                    onClick={() => setActiveTab('books')}
-                    className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'books'
-                        ? 'bg-white text-[#045c84] shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                >
-                    বই
-                </button>
-                <button
-                    onClick={() => setActiveTab('teachers')}
-                    className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${activeTab === 'teachers'
-                        ? 'bg-white text-[#045c84] shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                >
-                    শিক্ষক
-                </button>
-                <button
-                    onClick={() => setActiveTab('applications')}
-                    className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'applications'
-                        ? 'bg-white text-[#045c84] shadow-sm'
-                        : 'text-slate-500 hover:text-slate-700'
-                        }`}
-                >
-                    <span>আবেদনসমূহ</span>
-                    <span className="bg-[#045c84]/10 text-[#045c84] px-2 py-0.5 rounded-lg text-[10px]">
-                        {pendingCount || 0}
-                    </span>
-                </button>
-            </div>
+        <div className="p-3 sm:p-4 md:p-8 space-y-6 animate-fade-in-up font-bengali w-full min-w-0 overflow-x-hidden">
+
 
             {/* Utility Bar (Search, Action, Library, Public Link) */}
             <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
@@ -833,212 +939,198 @@ export default function StudentManagementPage() {
 
 
             {/* Class & Group Tabs */}
-            <div className="sticky top-[72px] z-[100] bg-slate-50/95 backdrop-blur-sm py-3 -mx-3 px-3 sm:-mx-4 sm:px-4 md:-mx-8 md:px-8 space-y-4 shadow-sm transition-all max-w-full overflow-visible">
+            <div className="sticky top-0 z-[100] bg-slate-50 py-3 space-y-4 shadow-sm transition-all w-full min-w-0 overflow-hidden">
                 {/* Class Dropdown */}
-                <div className="flex items-center gap-3 relative z-[110]">
+                <div className="flex items-center gap-2 relative z-[110] w-full overflow-hidden">
 
-                    <div className="relative">
-                        <button
-                            ref={classButtonRef}
-                            onClick={handleOpenDropdown}
-                            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md hover:border-[#045c84] transition-all group justify-between w-auto min-w-max"
-                        >
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-slate-700 whitespace-nowrap">
-                                    {selectedClassId === 'all'
-                                        ? 'সকল ক্লাস'
-                                        : classes.find(c => c.id === selectedClassId)?.name || 'ক্লাস নির্বাচন করুন'}
-                                </span>
-                            </div>
-                            <ChevronDown
-                                size={18}
-                                className={`text-slate-400 group-hover:text-[#045c84] transition-transform duration-300 ${isClassDropdownOpen ? 'rotate-180' : ''}`}
-                            />
-                        </button>
-
-
-
-                        {/* Dropdown Menu Portal */}
-                        {isClassDropdownOpen && typeof document !== 'undefined' && createPortal(
-                            <div className="fixed inset-0 z-[9999]">
-                                <div
-                                    className="fixed inset-0 bg-transparent"
-                                    onClick={() => setIsClassDropdownOpen(false)}
-                                ></div>
-                                <div
-                                    className="fixed bg-white rounded-2xl shadow-xl border border-slate-100 p-2 animate-in fade-in zoom-in-95 duration-200"
-                                    style={{
-                                        top: dropdownStyle.top - window.scrollY, // Adjust because we are using fixed positioning
-                                        left: dropdownStyle.left - window.scrollX, // Adjust for fixed positioning
-                                        minWidth: dropdownStyle.width,
-                                        width: 'auto',
-                                        zIndex: 10000
-                                    }}
-                                >
-                                    <div className="relative mb-2">
-                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                                        <input
-                                            autoFocus
-                                            type="text"
-                                            placeholder="ক্লাস খুঁজুন..."
-                                            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#045c84]/10"
-                                            value={classSearch}
-                                            onChange={(e) => setClassSearch(e.target.value)}
-                                            onClick={(e) => e.stopPropagation()}
-                                        />
+                    <ScrollableTabs
+                        items={[
+                            { id: 'all', label: 'সকল ক্লাস' },
+                            ...classes.map(c => ({ id: c.id, label: c.name })),
+                            ...(activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' ? [{ id: 'add-class', label: 'নতুন ক্লাস' }] : [])
+                        ]}
+                        selectedId={selectedClassId}
+                        onSelect={(id) => {
+                            setSelectedClassId(id);
+                            setSelectedGroupId('all');
+                            if (id !== 'all') fetchGroups(id);
+                            else setGroups([]);
+                        }}
+                        className="flex-1 min-w-0"
+                        renderItem={(item, isSelected) => {
+                            if (item.id === 'add-class') {
+                                return (
+                                    <div
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setIsClassModalOpen(true);
+                                        }}
+                                        className="flex items-center gap-2 px-5 py-2 rounded-2xl text-sm font-bold transition-all border border-dashed border-slate-300 bg-slate-50/50 hover:bg-slate-100/50 text-slate-500 hover:text-[#045c84] hover:border-[#045c84] shrink-0 cursor-pointer active:scale-95"
+                                    >
+                                        <Plus size={16} />
+                                        <span className="whitespace-nowrap">{item.label}</span>
                                     </div>
-
-                                    <div className="max-h-[240px] overflow-y-auto scrollbar-hide space-y-1">
+                                );
+                            }
+                            return (
+                                <div className={`flex items-center gap-2 pl-5 pr-4 py-2 rounded-2xl text-sm font-bold transition-all border shrink-0 group/tab ${isSelected
+                                    ? 'bg-[#045c84] text-white border-[#045c84] shadow-md'
+                                    : 'bg-white text-slate-700 border-slate-200 hover:border-[#045c84] hover:text-[#045c84]'
+                                    }`}>
+                                    <span className="whitespace-nowrap">{item.label}</span>
+                                    {(item.id !== 'all' || item.id === 'all') && isSelected && (
                                         <button
-                                            onClick={() => {
-                                                setSelectedClassId('all');
-                                                setSelectedGroupId('all');
-                                                setGroups([]);
-                                                setIsClassDropdownOpen(false);
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const rect = e.currentTarget.getBoundingClientRect();
+                                                const menuHeight = 150;
+                                                const spaceBelow = window.innerHeight - rect.bottom;
+                                                const showAbove = spaceBelow < menuHeight;
+
+                                                setMenuPosition({
+                                                    top: showAbove
+                                                        ? rect.top + window.scrollY - menuHeight - 8
+                                                        : rect.bottom + window.scrollY + 8,
+                                                    left: rect.left + window.scrollX
+                                                });
+                                                setIsActionMenuOpen(isActionMenuOpen === item.id ? null : item.id);
                                             }}
-                                            className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-bold transition-all ${selectedClassId === 'all'
-                                                ? 'bg-[#045c84] text-white shadow-md shadow-blue-500/20'
-                                                : 'text-slate-700 hover:bg-slate-50'
-                                                }`}
+                                            className="p-1 rounded-lg transition-all ml-1 border-l pl-2 text-white/70 hover:bg-white/20 hover:text-white border-white/20"
                                         >
-                                            <span>সকল ক্লাস</span>
-                                            {selectedClassId === 'all' && <ChevronRight size={14} />}
+                                            <MoreVertical size={16} />
                                         </button>
-
-                                        {classes
-                                            .filter(c => c.name.toLowerCase().includes(classSearch.toLowerCase()))
-                                            .map(c => (
-                                                <div
-                                                    key={c.id}
-                                                    className={`group flex items-center justify-between px-3 py-2 rounded-xl transition-all ${selectedClassId === c.id
-                                                        ? 'bg-[#045c84] text-white shadow-md shadow-blue-500/20'
-                                                        : 'text-slate-700 hover:bg-slate-50'
-                                                        }`}
-                                                >
-                                                    <button
-                                                        onClick={() => {
-                                                            setSelectedClassId(c.id);
-                                                            setSelectedGroupId('all');
-                                                            fetchGroups(c.id);
-                                                            setIsClassDropdownOpen(false);
-                                                        }}
-                                                        className="flex-1 text-left text-sm font-bold whitespace-nowrap"
-                                                    >
-                                                        {c.name}
-                                                    </button>
-
-                                                    {/* Quick Action Menu for Class */}
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            const rect = e.currentTarget.getBoundingClientRect();
-                                                            const menuHeight = 150; // Estimated max height for class menu
-                                                            const spaceBelow = window.innerHeight - rect.bottom;
-                                                            const showAbove = spaceBelow < menuHeight;
-
-                                                            setMenuPosition({
-                                                                top: showAbove
-                                                                    ? rect.top + window.scrollY - menuHeight - 8
-                                                                    : rect.bottom + window.scrollY + 8,
-                                                                left: rect.left + window.scrollX
-                                                            });
-                                                            setIsActionMenuOpen(isActionMenuOpen === c.id ? null : c.id);
-                                                        }}
-                                                        className={`p-1 rounded-lg transition-colors ${selectedClassId === c.id
-                                                            ? 'text-blue-200 hover:bg-white/20 hover:text-white'
-                                                            : 'text-slate-300 hover:bg-slate-100 hover:text-slate-600'
-                                                            }`}
-                                                    >
-                                                        <MoreVertical size={20} />
-                                                    </button>
-                                                </div>
-                                            ))}
-
-                                        {classes.length > 0 && classes.filter(c => c.name.toLowerCase().includes(classSearch.toLowerCase())).length === 0 && (
-                                            <div className="py-4 text-center text-xs text-slate-400 font-medium">
-                                                কোন ক্লাস পাওয়া যায়নি
-                                            </div>
-                                        )}
-                                    </div>
+                                    )}
                                 </div>
-                            </div>,
-                            document.body
-                        )}
-                    </div>
+                            );
+                        }}
+                    />
 
                     <div className="w-px h-8 bg-slate-200 shrink-0"></div>
 
-                    {(activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') && (
-                        <button
-                            onClick={() => setIsClassModalOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold bg-[#045c84] text-white hover:bg-[#034a6b] hover:shadow-lg hover:shadow-blue-200 transition-all shadow-md active:scale-95 whitespace-nowrap"
-                        >
-                            <Plus size={18} />
-                            <span>ক্লাস</span>
-                        </button>
-                    )}
 
-                    {activeTab !== 'applications' && activeTab !== 'teachers' && (allowedClasses.length > 0) && (
-                        <div className="flex items-center gap-2">
-                            {selectedClassId !== 'all' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') && (
-                                <button
-                                    onClick={() => setIsGroupModalOpen(true)}
-                                    className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold bg-[#045c84] text-white hover:bg-[#034a6b] hover:shadow-lg hover:shadow-blue-200 transition-all shadow-md active:scale-95 whitespace-nowrap"
-                                >
-                                    <Users size={18} />
-                                    <span>গ্রুপ</span>
-                                </button>
-                            )}
-                            <button
-                                onClick={() => {
-                                    if (activeTab === 'students') {
-                                        // Auto-populate classId if a specific class is selected
-                                        if (selectedClassId !== 'all') {
-                                            setFormData({
-                                                name: '',
-                                                email: '',
-                                                password: '',
-                                                metadata: { classId: selectedClassId }
-                                            });
-                                        } else {
-                                            setFormData({
-                                                name: '',
-                                                email: '',
-                                                password: '',
-                                                metadata: {}
-                                            });
-                                        }
-                                        setIsAddModalOpen(true);
-                                    } else {
-                                        setBookData({ names: '', classId: selectedClassId !== 'all' ? selectedClassId : '', coverImage: '', author: '' });
-                                        setIsBookModalOpen(true);
-                                    }
-                                }}
-                                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-bold bg-[#045c84] text-white hover:bg-[#034a6b] hover:shadow-lg hover:shadow-blue-200 transition-all shadow-md active:scale-95 whitespace-nowrap"
-                            >
-                                {activeTab === 'students' ? <UserPlus size={18} /> : <BookOpen size={18} />}
-                                <span>{activeTab === 'students' ? 'ছাত্র' : 'বই'}</span>
-                            </button>
-                        </div>
-                    )}
+
+                    {/* Redundant header buttons hidden in favor of FAB */}
+                    {/* {activeTab !== 'applications' && activeTab !== 'teachers' && (allowedClasses.length > 0) && ( ... )} */}
                 </div>
 
-                {selectedClassId !== 'all' && groups.length > 0 && (
+                {/* Main Navigation Tabs */}
+                <div className="flex items-center gap-2 p-1 bg-slate-100/50 rounded-2xl w-fit">
+                    <button
+                        onClick={() => setActiveTab('students')}
+                        className={`px-4 sm:px-6 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all ${activeTab === 'students'
+                            ? 'bg-white text-[#045c84] shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        শিক্ষার্থী
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('books')}
+                        className={`px-4 sm:px-6 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all ${activeTab === 'books'
+                            ? 'bg-white text-[#045c84] shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        বই
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('teachers')}
+                        className={`px-4 sm:px-6 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all ${activeTab === 'teachers'
+                            ? 'bg-white text-[#045c84] shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        শিক্ষক
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('applications')}
+                        className={`px-4 sm:px-6 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all flex items-center gap-2 ${activeTab === 'applications'
+                            ? 'bg-white text-[#045c84] shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
+                    >
+                        <span>আবেদনসমূহ</span>
+                        <span className="bg-[#045c84]/10 text-[#045c84] px-2 py-0.5 rounded-lg text-[10px]">
+                            {pendingCount || 0}
+                        </span>
+                    </button>
+                </div>
+
+                {selectedClassId !== 'all' && (
                     <div className="flex items-center gap-4 pl-4 border-l-4 border-slate-200 animate-fade-in w-full min-w-0">
                         <div className="relative flex items-center flex-1 min-w-0 group/scroll">
                             <ScrollableTabs
                                 items={[
                                     { id: 'all', label: 'সকল গ্রুপ' },
-                                    ...groups.map(g => ({ id: g.id, label: g.name }))
+                                    ...groups.map(g => ({ id: g.id, label: g.name })),
+                                    ...(activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' ? [{ id: 'add-group', label: 'নতুন গ্রুপ' }] : [])
                                 ]}
                                 selectedId={selectedGroupId}
-                                onSelect={(id) => setSelectedGroupId(id)}
+                                onSelect={(id) => {
+                                    if (id !== 'add-group') setSelectedGroupId(id);
+                                }}
                                 className="flex-1"
-                                itemClassName={(item, isSelected) => `px-5 py-2 rounded-full whitespace-nowrap text-xs font-bold transition-all border ${isSelected
-                                    ? 'bg-slate-800 text-white shadow-md shadow-slate-900/20 border-slate-800'
-                                    : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50 hover:text-slate-800 hover:shadow-sm'
-                                    }`}
+                                renderItem={(item, isSelected) => {
+                                    if (item.id === 'add-group') {
+                                        return (
+                                            <div
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEditingGroup(null);
+                                                    setGroupData({ name: '' });
+                                                    setIsGroupModalOpen(true);
+                                                }}
+                                                className="flex items-center gap-2 px-5 py-2 rounded-2xl text-xs font-bold transition-all border border-dashed border-slate-300 bg-slate-50/50 hover:bg-slate-100/50 text-slate-500 hover:text-[#045c84] hover:border-[#045c84] shrink-0 cursor-pointer active:scale-95"
+                                            >
+                                                <Plus size={14} />
+                                                <span className="whitespace-nowrap">{item.label}</span>
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <div className={`flex items-center gap-2 pl-5 pr-4 py-1.5 rounded-2xl text-xs font-bold transition-all border shrink-0 group/tab ${isSelected
+                                            ? 'bg-slate-800 text-white border-slate-800 shadow-md shadow-slate-900/10'
+                                            : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50 hover:text-slate-800 hover:shadow-sm'
+                                            }`}>
+                                            <span className="whitespace-nowrap">{item.label}</span>
+                                            {item.id !== 'all' && isSelected && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        const menuHeight = 100;
+                                                        const spaceBelow = window.innerHeight - rect.bottom;
+                                                        const showAbove = spaceBelow < menuHeight;
+
+                                                        setMenuPosition({
+                                                            top: showAbove
+                                                                ? rect.top + window.scrollY - menuHeight - 8
+                                                                : rect.bottom + window.scrollY + 8,
+                                                            left: rect.left + window.scrollX
+                                                        });
+                                                        setIsActionMenuOpen(isActionMenuOpen === `group-${item.id}` ? null : `group-${item.id}`);
+                                                    }}
+                                                    className="p-1 rounded-lg transition-all ml-1 border-l pl-2 text-white/50 hover:bg-white/10 hover:text-white border-white/10"
+                                                >
+                                                    <MoreVertical size={14} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    );
+                                }}
                             />
+                            {selectedGroupId !== 'all' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') && (
+                                <button
+                                    onClick={() => {
+                                        fetchAllStudentsInClass();
+                                        setIsStudentSelectionModalOpen(true);
+                                    }}
+                                    className="ml-4 flex items-center gap-2 px-4 py-2 bg-[#045c84]/10 text-[#045c84] rounded-xl text-xs font-black hover:bg-[#045c84] hover:text-white transition-all shrink-0 active:scale-95"
+                                >
+                                    <UserPlus size={16} />
+                                    <span>গ্রুপে শিক্ষার্থী যোগ করুন</span>
+                                </button>
+                            )}
                         </div>
                     </div>
                 )}
@@ -1057,7 +1149,7 @@ export default function StudentManagementPage() {
                             <span className="text-lg font-medium">কোন শিক্ষার্থী পাওয়া যায়নি।</span>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 pb-32">
                             {students
                                 .filter(s => {
                                     if (activeRole === 'TEACHER') {
@@ -1113,28 +1205,40 @@ export default function StudentManagementPage() {
                                             </div>
                                         </div>
 
-                                        {/* Actions - 3-Dot Action Button */}
-                                        <div className="relative">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    const rect = e.currentTarget.getBoundingClientRect();
-                                                    const menuHeight = 280; // Estimated max height for student menu
-                                                    const spaceBelow = window.innerHeight - rect.bottom;
-                                                    const showAbove = spaceBelow < menuHeight;
+                                        {/* Actions */}
+                                        <div className="flex items-center gap-1 shrink-0">
+                                            {(s.phone || s.metadata?.phone || s.metadata?.guardianPhone) && (
+                                                <a
+                                                    href={`tel:${s.phone || s.metadata?.phone || s.metadata?.guardianPhone}`}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all"
+                                                    title="কল করুন"
+                                                >
+                                                    <Phone size={20} />
+                                                </a>
+                                            )}
+                                            <div className="relative">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const rect = e.currentTarget.getBoundingClientRect();
+                                                        const menuHeight = 280; // Estimated max height for student menu
+                                                        const spaceBelow = window.innerHeight - rect.bottom;
+                                                        const showAbove = spaceBelow < menuHeight;
 
-                                                    setMenuPosition({
-                                                        top: showAbove
-                                                            ? rect.top + window.scrollY - menuHeight - 8
-                                                            : rect.bottom + window.scrollY + 8,
-                                                        left: rect.right + window.scrollX - 220
-                                                    });
-                                                    setIsActionMenuOpen(isActionMenuOpen === s.id ? null : s.id);
-                                                }}
-                                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-all"
-                                            >
-                                                <MoreVertical size={20} />
-                                            </button>
+                                                        setMenuPosition({
+                                                            top: showAbove
+                                                                ? rect.top + window.scrollY - menuHeight - 8
+                                                                : rect.bottom + window.scrollY + 8,
+                                                            left: rect.right + window.scrollX - 220
+                                                        });
+                                                        setIsActionMenuOpen(isActionMenuOpen === s.id ? null : s.id);
+                                                    }}
+                                                    className="p-2 text-slate-500 hover:text-[#045c84] hover:bg-blue-50 rounded-xl transition-all"
+                                                >
+                                                    <MoreVertical size={20} />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}
@@ -1191,7 +1295,7 @@ export default function StudentManagementPage() {
                             </div>
                         )}
 
-                        <div className={`grid gap-4 md:gap-6 ${bookViewMode === 'card'
+                        <div className={`grid gap-4 md:gap-6 pb-32 ${bookViewMode === 'card'
                             ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                             : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
                             }`}>
@@ -1203,6 +1307,10 @@ export default function StudentManagementPage() {
                                         onClick={(b) => {
                                             setSelectedBook(b);
                                             setIsBookDetailsModalOpen(true);
+                                        }}
+                                        onRead={(b) => {
+                                            setSelectedBook(b);
+                                            setIsReaderOpen(true);
                                         }}
                                         onMenuClick={(e, b) => {
                                             e.stopPropagation();
@@ -1270,7 +1378,7 @@ export default function StudentManagementPage() {
                     </div>
                 ) : (
                     <div className="space-y-3">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 pb-32">
                             {students.map((s, index) => (
                                 <div
                                     key={s.id}
@@ -1322,7 +1430,17 @@ export default function StudentManagementPage() {
                                     </div>
 
                                     {/* Actions for Applications */}
-                                    <div className="flex items-center gap-2 pr-2">
+                                    <div className="flex items-center gap-1 shrink-0 pr-2">
+                                        {(s.phone || s.metadata?.phone || s.metadata?.guardianPhone) && (
+                                            <a
+                                                href={`tel:${s.phone || s.metadata?.phone || s.metadata?.guardianPhone}`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all mr-1"
+                                                title="কল করুন"
+                                            >
+                                                <Phone size={18} />
+                                            </a>
+                                        )}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -2028,11 +2146,15 @@ export default function StudentManagementPage() {
                 </form>
             </Modal>
 
-            {/* Quick Group Add Modal */}
+            {/* Quick Group Modal (Add/Edit) */}
             <Modal
                 isOpen={isGroupModalOpen}
-                onClose={() => setIsGroupModalOpen(false)}
-                title="নতুন গ্রুপ যোগ করুন"
+                onClose={() => {
+                    setIsGroupModalOpen(false);
+                    setEditingGroup(null);
+                    setGroupData({ name: '' });
+                }}
+                title={editingGroup ? "গ্রুপ আপডেট করুন" : "নতুন গ্রুপ যোগ করুন"}
                 maxWidth="max-w-md"
             >
                 <form onSubmit={handleQuickGroupCreate} className="p-5 md:p-8 space-y-6">
@@ -2052,7 +2174,7 @@ export default function StudentManagementPage() {
                         className="w-full py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
                     >
                         {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                        <span>সেভ করুন</span>
+                        <span>{editingGroup ? 'আপডেট করুন' : 'সেভ করুন'}</span>
                     </button>
                 </form>
             </Modal>
@@ -2087,6 +2209,34 @@ export default function StudentManagementPage() {
                 setToast={setToast}
             />
 
+            {selectedBook && selectedBook.pdfUrl && (
+                <PdfReaderModal
+                    isOpen={isReaderOpen}
+                    onClose={() => setIsReaderOpen(false)}
+                    pdfUrl={selectedBook.pdfUrl || ''}
+                    title={selectedBook.name || 'বই'}
+                    bookmarks={selectedBook.bookmarks || []}
+                    onUpdateBookmarks={async (newBookmarks) => {
+                        try {
+                            const updatedBook = { ...selectedBook, bookmarks: newBookmarks };
+                            setSelectedBook(updatedBook);
+
+                            // Persist to database
+                            await fetch(`/api/admin/books/${selectedBook.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ bookmarks: newBookmarks })
+                            });
+
+                            // Refresh context if needed
+                            fetchBooks();
+                        } catch (error) {
+                            console.error('Failed to update bookmarks:', error);
+                        }
+                    }}
+                />
+            )}
+
             {/* Action Menu Portal */}
             {
                 isActionMenuOpen && menuPosition && createPortal(
@@ -2099,29 +2249,7 @@ export default function StudentManagementPage() {
                                 left: `${menuPosition.left}px`
                             }}
                         >
-                            {isActionMenuOpen === 'all' ? (
-                                <div>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            // Format classes as SL. Name
-                                            const text = [...classes]
-                                                .sort((a, b) => (a.order || 0) - (b.order || 0))
-                                                .map((c, i) => `${c.order || i + 1}. ${c.name}`)
-                                                .join('\n');
-                                            setBulkClassText(text);
-                                            setIsBulkClassMode(true);
-                                            setEditingClass(null);
-                                            setIsClassModalOpen(true);
-                                            setIsActionMenuOpen(null);
-                                        }}
-                                        className="w-full px-4 py-2 text-left text-sm font-bold hover:bg-slate-50 flex items-center gap-2 transition-colors text-[#045c84]"
-                                    >
-                                        <Settings2 size={14} />
-                                        <span>বাল্ক এডিট (সর্টিং)</span>
-                                    </button>
-                                </div>
-                            ) : isActionMenuOpen && students.some(s => s.id === isActionMenuOpen) ? (
+                            {isActionMenuOpen && students.some(s => s.id === isActionMenuOpen) ? (
                                 students.filter(s => s.id === isActionMenuOpen).map(s => (
                                     <div key={s.id}>
                                         <button
@@ -2165,6 +2293,21 @@ export default function StudentManagementPage() {
                                             <span>হোয়াটসঅ্যাপ (WhatsApp)</span>
                                         </button>
                                         <div className="h-[1px] bg-slate-100 my-1 mx-2" />
+                                        {selectedGroupId !== 'all' && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRemoveFromGroup(s);
+                                                    setIsActionMenuOpen(null);
+                                                }}
+                                                className="w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-slate-50 flex items-center gap-3 transition-colors text-orange-600"
+                                            >
+                                                <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                                                    <FileX size={16} />
+                                                </div>
+                                                <span>গ্রুপ থেকে বাদ দিন (Remove)</span>
+                                            </button>
+                                        )}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -2180,6 +2323,23 @@ export default function StudentManagementPage() {
                                         </button>
                                     </div>
                                 ))
+                            ) : isActionMenuOpen === 'all' ? (
+                                <div className="py-1">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setManagedClasses([...classes]);
+                                            setIsClassManagementModalOpen(true);
+                                            setIsActionMenuOpen(null);
+                                        }}
+                                        className="w-full px-4 py-3 text-[13px] font-bold text-[#045c84] hover:bg-blue-50/50 flex items-center gap-3 transition-colors"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-[#045c84]">
+                                            <Settings2 size={16} />
+                                        </div>
+                                        <span>ক্লাস ম্যানেজমেন্ট (Manage)</span>
+                                    </button>
+                                </div>
                             ) : classes.filter(c => c.id === isActionMenuOpen).length > 0 ? (
                                 classes.filter(c => c.id === isActionMenuOpen).map(c => (
                                     <div key={c.id}>
@@ -2207,6 +2367,35 @@ export default function StudentManagementPage() {
                                         >
                                             <Trash2 size={14} />
                                             <span>ডিলিট</span>
+                                        </button>
+                                    </div>
+                                ))
+                            ) : isActionMenuOpen.startsWith('group-') ? (
+                                groups.filter(g => `group-${g.id}` === isActionMenuOpen).map(g => (
+                                    <div key={g.id}>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingGroup(g);
+                                                setGroupData({ name: g.name });
+                                                setIsGroupModalOpen(true);
+                                                setIsActionMenuOpen(null);
+                                            }}
+                                            className="w-full px-4 py-2 text-left text-sm font-bold hover:bg-slate-50 flex items-center gap-2 transition-colors"
+                                        >
+                                            <Edit size={14} />
+                                            <span>এডিট (Edit Group)</span>
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteGroup(g.id, g.name);
+                                                setIsActionMenuOpen(null);
+                                            }}
+                                            className="w-full px-4 py-2 text-left text-sm font-bold text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                                        >
+                                            <Trash2 size={14} />
+                                            <span>ডিলিট (Delete Group)</span>
                                         </button>
                                     </div>
                                 ))
@@ -2293,6 +2482,22 @@ export default function StudentManagementPage() {
                         />
                     </div>
 
+                    {selectedClassId !== 'all' && groups.length > 0 && (
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold text-slate-800 uppercase tracking-wider ml-2">গ্রুপ (Group Selection)</label>
+                            <select
+                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-slate-900 appearance-none cursor-pointer"
+                                value={bookData.groupId}
+                                onChange={(e) => setBookData({ ...bookData, groupId: e.target.value })}
+                            >
+                                <option value="">সকল গ্রুপ (General)</option>
+                                {groups.map(g => (
+                                    <option key={g.id} value={g.id}>{g.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+
                     <div className="space-y-2">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-2">কভার ইমেজ (ঐচ্ছিক)</label>
                         <div className="flex items-center gap-4">
@@ -2358,12 +2563,133 @@ export default function StudentManagementPage() {
                 onClose={() => setPermissionModalData(null)}
                 teacher={permissionModalData}
                 classes={classes}
+                allBooks={books}
                 onSave={handleUpdateTeacherPermissions}
                 isReadOnly={!isOwner}
             />
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
+            {/* Class Management Modal with DnD */}
+            <Modal
+                isOpen={isClassManagementModalOpen}
+                onClose={() => setIsClassManagementModalOpen(false)}
+                title="ক্লাস ম্যানেজমেন্ট (Manage Classes)"
+                maxWidth="max-w-2xl"
+            >
+                <div className="p-5 md:p-8 space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar p-1">
+                        {managedClasses.map((c, index) => (
+                            <div
+                                key={c.id}
+                                draggable
+                                onDragStart={(e) => {
+                                    if (!canDrag.current) {
+                                        e.preventDefault();
+                                        return;
+                                    }
+                                    setDraggedIndex(index);
+                                    e.currentTarget.classList.add('opacity-40', 'scale-95');
+                                }}
+                                onDragEnd={(e) => {
+                                    setDraggedIndex(null);
+                                    canDrag.current = false;
+                                    e.currentTarget.classList.remove('opacity-40', 'scale-95');
+                                }}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDragEnter={(e) => {
+                                    e.preventDefault();
+                                    if (draggedIndex === null || draggedIndex === index) return;
+
+                                    const newItems = [...managedClasses];
+                                    const [movedItem] = newItems.splice(draggedIndex, 1);
+                                    newItems.splice(index, 0, movedItem);
+                                    setDraggedIndex(index);
+                                    setManagedClasses(newItems);
+                                }}
+                                className={`group relative flex items-center p-3 bg-white border border-slate-200 rounded-2xl gap-3 transition-all duration-300 hover:shadow-lg hover:border-[#045c84] border-b-4 active:border-b-0 active:translate-y-1 ${draggedIndex === index ? 'opacity-0' : ''}`}
+                            >
+                                <div
+                                    onMouseDown={() => { canDrag.current = true; }}
+                                    onMouseUp={() => { canDrag.current = false; }}
+                                    className="drag-handle text-slate-300 group-hover:text-[#045c84] transition-colors shrink-0 cursor-grab active:cursor-grabbing p-1.5 -ml-1 rounded-lg hover:bg-slate-50"
+                                >
+                                    <GripVertical size={20} />
+                                </div>
+                                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-500 font-black text-[10px] shrink-0">
+                                    {index + 1}
+                                </div>
+                                <div className="flex-1">
+                                    <input
+                                        id={`class-input-${index}`}
+                                        className="w-full px-0 bg-transparent border-none focus:ring-0 transition-all outline-none font-bold text-slate-700 text-sm"
+                                        value={c.name}
+                                        onClick={(e) => e.stopPropagation()}
+                                        placeholder="ক্লাসের নাম লিখুন..."
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === 'ArrowDown') {
+                                                if (e.key === 'ArrowDown' && index < managedClasses.length - 1) {
+                                                    document.getElementById(`class-input-${index + 1}`)?.focus();
+                                                    return;
+                                                }
+                                                if (e.key === 'ArrowDown') return;
+
+                                                e.preventDefault();
+                                                const newItems = [...managedClasses];
+                                                const newClass = { id: `new-${Date.now()}`, name: '', order: managedClasses.length };
+                                                newItems.splice(index + 1, 0, newClass);
+                                                setManagedClasses(newItems);
+                                                setTimeout(() => {
+                                                    document.getElementById(`class-input-${index + 1}`)?.focus();
+                                                }, 0);
+                                            } else if (e.key === 'ArrowUp' && index > 0) {
+                                                document.getElementById(`class-input-${index - 1}`)?.focus();
+                                            }
+                                        }}
+                                        onChange={(e) => {
+                                            const newItems = [...managedClasses];
+                                            newItems[index] = { ...newItems[index], name: e.target.value };
+                                            setManagedClasses(newItems);
+                                        }}
+                                    />
+                                </div>
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (e.shiftKey || !c.id.startsWith('new-')) {
+                                            const isConfirmed = window.confirm('আপনি কি এই ক্লাসটি মুছে ফেলতে চান?');
+                                            if (!isConfirmed) return;
+                                        }
+                                        const newItems = managedClasses.filter((_, i) => i !== index);
+                                        setManagedClasses(newItems);
+                                    }}
+                                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                        <button
+                            onClick={() => setIsClassManagementModalOpen(false)}
+                            className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all active:scale-[0.98]"
+                        >
+                            বাতিল
+                        </button>
+                        <button
+                            onClick={handleSaveClassManagement}
+                            disabled={actionLoading}
+                            className="flex-[2] py-4 bg-[#045c84] text-white rounded-2xl font-bold hover:bg-[#034a6b] shadow-lg shadow-blue-200 transition-all active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                            <span>পরিবর্তনগুলো সেভ করুন</span>
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+            {/* Subject Grading Modal */}
             <SubjectGradingModal
                 isOpen={isGradingModalOpen}
                 onClose={() => {
@@ -2374,6 +2700,132 @@ export default function StudentManagementPage() {
                 initialSubjectId={gradingSubjectId}
                 onSave={handleSaveGrading}
             />
-        </div >
+
+            {/* Student Selection Modal for Groups */}
+            <Modal
+                isOpen={isStudentSelectionModalOpen}
+                onClose={() => setIsStudentSelectionModalOpen(false)}
+                title="গ্রুপের জন্য শিক্ষার্থী নির্বাচন করুন"
+                maxWidth="max-w-2xl"
+            >
+                <div className="p-6 space-y-6">
+                    <div className="max-h-[400px] overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                        {allStudentsInClass.length === 0 ? (
+                            <div className="py-10 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">শিক্ষার্থী পাওয়া যায়নি</div>
+                        ) : allStudentsInClass.map(student => (
+                            <div
+                                key={student.id}
+                                onClick={() => {
+                                    setSelectedStudentsForGroup(prev =>
+                                        prev.includes(student.id)
+                                            ? prev.filter(id => id !== student.id)
+                                            : [...prev, student.id]
+                                    );
+                                }}
+                                className={`flex items-center gap-4 p-3 rounded-2xl border transition-all cursor-pointer ${selectedStudentsForGroup.includes(student.id)
+                                    ? 'bg-blue-50 border-blue-200'
+                                    : 'bg-white border-slate-100 hover:border-blue-100'
+                                    }`}
+                            >
+                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${selectedStudentsForGroup.includes(student.id)
+                                    ? 'bg-[#045c84] border-[#045c84]'
+                                    : 'border-slate-200'
+                                    }`}>
+                                    {selectedStudentsForGroup.includes(student.id) && <Plus size={12} className="text-white" />}
+                                </div>
+                                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 overflow-hidden">
+                                    {student.metadata?.studentPhoto ? (
+                                        <img src={student.metadata.studentPhoto} alt={student.name} className="w-full h-full object-cover" />
+                                    ) : student.name?.[0]}
+                                </div>
+                                <div className="flex-1">
+                                    <div className="font-bold text-slate-800">{student.name}</div>
+                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-left">
+                                        ID: {student.metadata?.studentId} | Roll: {student.metadata?.rollNumber}
+                                    </div>
+                                </div>
+                                {student.metadata?.groupId && (
+                                    <div className="px-2 py-0.5 bg-slate-100 rounded-lg text-[10px] font-bold text-slate-400">
+                                        {groups.find((g: any) => g.id === student.metadata?.groupId)?.name || 'অন্য গ্রুপে আছে'}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-4 border-t border-slate-100">
+                        <button
+                            onClick={() => setIsStudentSelectionModalOpen(false)}
+                            className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all"
+                        >
+                            বাতিল
+                        </button>
+                        <button
+                            onClick={handleBulkGroupAssign}
+                            disabled={actionLoading || selectedStudentsForGroup.length === 0}
+                            className="flex-[2] py-4 bg-[#045c84] text-white rounded-2xl font-bold hover:bg-[#034a6b] shadow-lg shadow-blue-200 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                            {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                            <span>গ্রুপে যুক্ত করুন ({selectedStudentsForGroup.length})</span>
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Dynamic FAB System */}
+            {mounted && (activeTab === 'students' || activeTab === 'books' || activeTab === 'applications') && createPortal(
+                <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-4 pointer-events-none">
+                    <button
+                        onClick={() => {
+                            if (activeTab === 'students') {
+                                if (selectedClassId !== 'all') {
+                                    setFormData({
+                                        name: '',
+                                        email: '',
+                                        password: '',
+                                        metadata: { classId: selectedClassId }
+                                    });
+                                } else {
+                                    setFormData({ name: '', email: '', password: '', metadata: {} });
+                                }
+                                setIsAddModalOpen(true);
+                            } else if (activeTab === 'books') {
+                                setBookData({ names: '', classId: selectedClassId !== 'all' ? selectedClassId : '', groupId: '', coverImage: '', author: '' });
+                                setIsBookModalOpen(true);
+                            } else if (activeTab === 'applications') {
+                                if (activeInstitute?.id) {
+                                    const link = `${window.location.origin}/admission/${activeInstitute.id}`;
+                                    navigator.clipboard.writeText(link);
+                                    setToast({ message: 'ভর্তি ফরমের লিঙ্ক কপি হয়েছে!', type: 'success' });
+                                }
+                            }
+                        }}
+                        className="pointer-events-auto flex items-center justify-center w-16 h-16 bg-[#045c84] text-white rounded-full shadow-2xl hover:shadow-[#045c84]/30 hover:-translate-y-1 transition-all duration-300 active:scale-95 border-b-4 border-[#034a6b] active:border-b-0 animate-in slide-in-from-bottom-6"
+                        title={activeTab === 'students' ? 'শিক্ষার্থী যোগ করুন' : activeTab === 'books' ? 'বই যোগ করুন' : 'ভর্তি লিঙ্ক কপি করুন'}
+                    >
+                        {activeTab === 'students' ? (
+                            <div className="relative">
+                                <UserPlus size={28} />
+                            </div>
+                        ) : activeTab === 'books' ? (
+                            <div className="relative">
+                                <BookOpen size={28} />
+                                <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#045c84] border-2 border-white rounded-full flex items-center justify-center -mr-0.5 -mt-0.5">
+                                    <Plus size={12} strokeWidth={4} />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="relative">
+                                <Link size={28} />
+                                <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#045c84] border-2 border-white rounded-full flex items-center justify-center -mr-0.5 -mt-0.5">
+                                    <Plus size={12} strokeWidth={4} />
+                                </div>
+                            </div>
+                        )}
+                    </button>
+                </div>,
+                document.body
+            )}
+        </div>
     );
 }

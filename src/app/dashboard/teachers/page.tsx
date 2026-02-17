@@ -12,6 +12,7 @@ export default function TeachersPage() {
     const { user, activeInstitute, activeRole } = useSession();
     const [teachers, setTeachers] = useState<any[]>([]);
     const [classes, setClasses] = useState<any[]>([]);
+    const [books, setBooks] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedClassId, setSelectedClassId] = useState('all');
@@ -58,9 +59,23 @@ export default function TeachersPage() {
         }
     };
 
+    const fetchBooks = async () => {
+        if (!activeInstitute?.id) return;
+        try {
+            const res = await fetch(`/api/admin/books?instituteId=${activeInstitute.id}`);
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                setBooks(data);
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
+
     useEffect(() => {
         fetchTeachers();
         fetchClasses();
+        fetchBooks();
     }, [activeInstitute?.id]);
 
     const handleAddTeacher = async (data: any) => {
@@ -226,6 +241,7 @@ export default function TeachersPage() {
                 onClose={() => setPermissionModalData(null)}
                 teacher={permissionModalData}
                 classes={classes}
+                allBooks={books}
                 onSave={handleUpdatePermissions}
                 isReadOnly={!canManageTeachers}
             />

@@ -83,6 +83,8 @@ model Group {
   class       Class    @relation(fields: [classId], references: [id])
   classId     String   @db.ObjectId
   
+  books       Book[]
+  
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -166,6 +168,9 @@ model Book {
   
   class       Class    @relation(fields: [classId], references: [id])
   classId     String   @db.ObjectId
+  
+  group       Group?   @relation(fields: [groupId], references: [id])
+  groupId     String?  @db.ObjectId
   
   institute   Institute @relation(fields: [instituteId], references: [id])
   instituteId String    @db.ObjectId

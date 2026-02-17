@@ -159,17 +159,17 @@ const BookDetailsModal: React.FC<BookDetailsModalProps> = ({ isOpen, onClose, bo
                         {/* Dynamic View/Edit render helper */}
                         {(() => {
                             const renderField = (label: string, field: keyof Book, value: string | null | undefined, placeholder: string = 'নির্ধারিত নয়') => (
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{label}</label>
+                                <div className="space-y-0.5">
+                                    <label className="text-[11px] font-black text-slate-400 ml-1">{label}</label>
                                     {isEditing ? (
                                         <input
-                                            className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white transition-all outline-none font-bold text-slate-800"
+                                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/5 transition-all outline-none font-bold text-slate-800"
                                             value={(formData as any)[field] || ''}
                                             onChange={(e) => setFormData({ ...formData, [field]: e.target.value })}
                                             placeholder={placeholder}
                                         />
                                     ) : (
-                                        <div className="px-4 py-2 bg-slate-50/50 rounded-xl font-bold text-slate-700">
+                                        <div className="text-sm font-black text-slate-700 ml-1">
                                             {value || placeholder}
                                         </div>
                                     )}
@@ -178,9 +178,8 @@ const BookDetailsModal: React.FC<BookDetailsModalProps> = ({ isOpen, onClose, bo
 
                             return (
                                 <>
-                                    <div className="space-y-4 p-4 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                                        <h3 className="text-[10px] font-black text-[#045c84] uppercase tracking-[0.2em] border-b border-slate-50 pb-2 mb-2">সাধারন তথ্য (info)</h3>
-                                        {renderField('বইয়ের নাম (Primary)', 'name', formData.name)}
+                                    <div className="space-y-4">
+                                        {renderField('বইয়ের নাম', 'name', formData.name)}
                                         {renderField('লেখক/ক্যাটাগরি', 'author', formData.author)}
                                     </div>
 
@@ -195,17 +194,17 @@ const BookDetailsModal: React.FC<BookDetailsModalProps> = ({ isOpen, onClose, bo
                                         </div>
                                     )}
 
-                                    <div className="space-y-1">
-                                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">বিবরণ (Description)</label>
+                                    <div className="space-y-1 pt-2">
+                                        <label className="text-[11px] font-black text-slate-400 ml-1">বিবরণ</label>
                                         {isEditing ? (
                                             <textarea
-                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white transition-all outline-none font-medium min-h-[100px] resize-none text-slate-800"
+                                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/5 transition-all outline-none font-medium min-h-[100px] resize-none text-slate-800"
                                                 value={formData.description || ''}
                                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                                 placeholder="বই সম্পর্কে কিছু লিখুন..."
                                             />
                                         ) : (
-                                            <div className="px-5 py-4 bg-slate-50/50 rounded-2xl font-medium text-slate-600 text-sm leading-relaxed">
+                                            <div className="px-1 py-1 font-medium text-slate-600 text-sm leading-relaxed">
                                                 {formData.description || 'বিবরণ দেওয়া হয়নি।'}
                                             </div>
                                         )}

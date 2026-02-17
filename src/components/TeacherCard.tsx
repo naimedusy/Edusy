@@ -86,7 +86,7 @@ export default function TeacherCard({
                                 menu.classList.toggle('hidden');
                             }
                         }}
-                        className="p-1.5 text-slate-300 hover:text-[#045c84] hover:bg-blue-50 rounded-lg transition-all"
+                        className="p-1.5 text-slate-500 hover:text-[#045c84] hover:bg-blue-50 rounded-lg transition-all"
                     >
                         <MoreVertical size={18} />
                     </button>
@@ -127,12 +127,12 @@ export default function TeacherCard({
                 </div>
 
                 {/* Info & Call Button */}
-                <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
+                <div className="flex-1 min-w-0 flex items-center justify-between gap-2 overflow-hidden">
+                    <div className="min-w-0 flex-1">
                         <h3 className="text-base font-black text-slate-800 truncate tracking-tight group-hover:text-[#045c84] transition-colors">
                             {name}
                         </h3>
-                        <p className="text-[11px] font-bold text-[#045c84]/70 bg-blue-50/50 px-2 py-0.5 rounded-md inline-block mt-0.5">
+                        <p className="text-[11px] font-bold text-[#045c84]/70 bg-blue-50/50 px-2 py-0.5 rounded-md inline-block mt-0.5 truncate max-w-full">
                             {designation}
                         </p>
                     </div>
@@ -141,7 +141,7 @@ export default function TeacherCard({
                     {phone && (
                         <button
                             onClick={handleCall}
-                            className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#045c84] to-[#067ab8] text-white flex items-center justify-center shadow-lg shadow-blue-900/20 hover:scale-110 active:scale-95 transition-all duration-300 group/call relative"
+                            className="w-11 h-11 shrink-0 rounded-2xl bg-gradient-to-br from-[#045c84] to-[#067ab8] text-white flex items-center justify-center shadow-lg shadow-blue-900/20 hover:scale-110 active:scale-95 transition-all duration-300 group/call relative"
                             title="Instant Call"
                         >
                             <Phone size={20} fill="currentColor" className="text-white" />

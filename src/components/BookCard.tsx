@@ -16,9 +16,14 @@ interface BookCardProps {
         class?: {
             name: string;
         };
+        groupId?: string | null;
+        group?: {
+            name: string;
+        } | null;
     };
     onDelete?: (id: string) => void;
     onClick?: (book: any) => void;
+    onRead?: (book: any) => void;
     isAdmin?: boolean;
     isReadOnly?: boolean;
     viewMode?: 'card' | 'cover';
@@ -29,6 +34,7 @@ const BookCard: React.FC<BookCardProps> = ({
     book,
     onDelete,
     onClick,
+    onRead,
     onMenuClick,
     isAdmin = false,
     isReadOnly = false,
@@ -58,9 +64,12 @@ const BookCard: React.FC<BookCardProps> = ({
                     )}
                     {hasReadOption && (
                         <div className="absolute bottom-2 right-2 z-10">
-                            <div className="bg-[#045c84] text-white p-1.5 rounded-lg shadow-lg">
-                                <BookOpen size={14} />
-                            </div>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onRead?.(book); }}
+                                className="bg-[#045c84] text-white p-2 rounded-xl shadow-lg hover:scale-110 active:scale-95 transition-all"
+                            >
+                                <BookOpen size={16} />
+                            </button>
                         </div>
                     )}
 
@@ -117,27 +126,39 @@ const BookCard: React.FC<BookCardProps> = ({
             </div>
 
             {/* Right: Info */}
-            <div className="flex-1 min-w-0 pr-6">
+            <div className="flex-1 min-w-0 pr-2 sm:pr-6">
                 <div className="flex items-center justify-between gap-2 mb-0.5">
                     <h3 className="text-sm font-bold text-slate-800 line-clamp-1 group-hover:text-[#045c84] transition-colors">
                         {book.name}
                     </h3>
-                    <span className="text-[10px] font-black text-[#045c84] bg-blue-50 px-2 py-0.5 rounded-lg shrink-0 border border-blue-100/50">
+                    <span className="text-[10px] font-black text-[#045c84] bg-blue-50 px-2 py-0.5 rounded-lg shrink-0 border border-blue-100/50 hidden xs:inline">
                         {totalMarks} Marks
                     </span>
                 </div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-0.5">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-1">
                     {book.author || 'নির্ধারিত নয়'}
                 </p>
                 <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-0.5 text-yellow-500">
-                        <Star size={10} fill="currentColor" />
-                        <span className="text-[10px] font-black text-slate-600">4.0</span>
-                    </div>
-                    {book.class?.name && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded uppercase tracking-tighter">
-                            {book.class.name}
-                        </span>
+                    {hasReadOption ? (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onRead?.(book); }}
+                            className="flex items-center gap-1.5 px-3 py-1 bg-[#045c84] text-white text-[10px] font-black rounded-lg hover:scale-105 active:scale-95 transition-all shadow-md shadow-blue-900/10"
+                        >
+                            <BookOpen size={12} />
+                            <span>বইটি পড়ুন</span>
+                        </button>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-0.5 text-yellow-500">
+                                <Star size={10} fill="currentColor" />
+                                <span className="text-[10px] font-black text-slate-600">4.0</span>
+                            </div>
+                            {book.class?.name && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded uppercase tracking-tighter">
+                                    {book.class.name}
+                                </span>
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
@@ -146,7 +167,7 @@ const BookCard: React.FC<BookCardProps> = ({
             {showMenu && onMenuClick && (
                 <button
                     onClick={(e) => { e.stopPropagation(); onMenuClick(e, book); }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-300 hover:text-[#045c84] hover:bg-slate-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                    className="p-2 text-slate-300 hover:text-[#045c84] hover:bg-slate-50 rounded-xl transition-all"
                 >
                     <MoreVertical size={18} />
                 </button>
