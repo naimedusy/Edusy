@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/utils/db';
 
-export async function POST(request: Request, props: { params: Promise<{ id: string }> }) {
-    const params = await props.params;
-    const invitationId = params.id;
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const invitationId = id;
     const body = await request.json();
     const { action } = body; // 'ACCEPT' or 'REJECT'
 

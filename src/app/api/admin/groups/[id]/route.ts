@@ -3,14 +3,15 @@ import prisma from '@/utils/db';
 
 export async function PATCH(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const body = await req.json();
         const { name, order } = body;
 
         const updatedGroup = await prisma.group.update({
-            where: { id: params.id },
+            where: { id },
             data: {
                 ...(name && { name }),
                 ...(order !== undefined && { order })
@@ -26,11 +27,12 @@ export async function PATCH(
 
 export async function DELETE(
     req: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         await prisma.group.delete({
-            where: { id: params.id }
+            where: { id }
         });
         return NextResponse.json({ message: 'Group deleted' });
     } catch (error) {

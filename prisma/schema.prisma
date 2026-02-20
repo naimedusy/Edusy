@@ -30,6 +30,8 @@ model User {
   metadata    Json?
 
   teacherProfiles TeacherProfile[]
+  assignments     Assignment[] @relation("TeacherAssignments")
+  submissions     Submission[] @relation("StudentSubmissions")
 }
 
 model Institute {
@@ -58,6 +60,8 @@ model Institute {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  assignments Assignment[]
 }
 
 model Class {
@@ -73,6 +77,8 @@ model Class {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  assignments Assignment[]
 }
 
 model Group {
@@ -87,6 +93,8 @@ model Group {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  assignments Assignment[]
 }
 
 
@@ -183,4 +191,87 @@ model Book {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  assignments Assignment[]
+}
+
+model Assignment {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  type        AssignmentType @default(HOMEWORK)
+  status      AssignmentStatus @default(PUBLISHED)
+  deadline    DateTime?
+  
+  // Relations
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  instituteId String    @db.ObjectId
+  
+  teacher     User      @relation("TeacherAssignments", fields: [teacherId], references: [id])
+  teacherId   String    @db.ObjectId
+  
+  class       Class?    @relation(fields: [classId], references: [id])
+  classId     String?   @db.ObjectId
+  
+  group       Group?    @relation(fields: [groupId], references: [id])
+  groupId     String?   @db.ObjectId
+  
+  book        Book?     @relation(fields: [bookId], references: [id])
+  bookId      String?   @db.ObjectId
+  
+  submissions Submission[]
+  
+  // Resource references (PDFs, Notes, Suggestions)
+  resources   Json?     // Array of { name: string, url: string, type: string }
+  
+  createdAt   DateTime @default(now())
+  scheduledDate DateTime @default(now())
+  releaseAt   DateTime?
+  updatedAt   DateTime @updatedAt
+}
+
+model Submission {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  assignment    Assignment @relation(fields: [assignmentId], references: [id])
+  assignmentId  String     @db.ObjectId
+  
+  student       User       @relation("StudentSubmissions", fields: [studentId], references: [id])
+  studentId     String     @db.ObjectId
+  
+  content       String?    // Text answer
+  attachments   Json?      // Array of { name: string, url: string, type: string }
+  
+  // New: Track progress for individual tasks within structured assignments
+  // Format: { [taskId]: { status: 'DONE' | 'PENDING', attachments: [], submittedAt: Date, feedback: string } }
+  taskProgress  Json?      
+
+  status        SubmissionStatus @default(SUBMITTED)
+  grade         String?
+  feedback      String?
+  
+  submittedAt   DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([assignmentId, studentId])
+}
+
+enum AssignmentType {
+  HOMEWORK
+  CLASSWORK
+  REVISION
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+  RELEASED
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  GRADED
+  APPROVED
+  RETRY
+  REJECTED
 }

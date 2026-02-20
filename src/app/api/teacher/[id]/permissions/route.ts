@@ -2,12 +2,12 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/utils/db';
 
-export async function PATCH(request: Request, props: { params: Promise<{ id: string }> }) {
-    const params = await props.params;
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
+    const teacherProfileId = id;
     try {
         const body = await request.json();
         const { permissions, assignedClassIds, isAdmin, adminId, instituteId } = body;
-        const teacherProfileId = params.id;
 
         console.log('Update Permissions Request:', { teacherProfileId, adminId, instituteId, permissions });
 

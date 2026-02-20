@@ -1,7 +1,8 @@
-import { Bell, X, Building2 } from 'lucide-react';
+import { Bell, X, Building2, ClipboardList, PenTool } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from '@/components/SessionProvider';
 import { useRouter } from 'next/navigation';
+import { useUI } from '@/components/UIProvider';
 
 interface NotificationDropdownProps {
     isOpen: boolean;
@@ -17,6 +18,8 @@ export default function NotificationDropdown({ isOpen, onClose, onRead }: Notifi
     const [invitations, setInvitations] = useState<any[]>([]);
     const [notifications, setNotifications] = useState<any[]>([]);
     const router = useRouter();
+    const { openAssignmentDetails } = useUI();
+    const [isNavigating, setIsNavigating] = useState<string | null>(null);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -124,12 +127,34 @@ export default function NotificationDropdown({ isOpen, onClose, onRead }: Notifi
                                             );
                                             if (onRead) onRead();
                                         }
+
+                                        // Handle TASK_COMPLETED navigation
+                                        if (notif.type === 'TASK_COMPLETED' && notif.metadata?.assignmentId) {
+                                            setIsNavigating(notif.id);
+                                            try {
+                                                const res = await fetch(`/api/assignments/${notif.metadata.assignmentId}?instituteId=${notif.metadata.instituteId}`);
+                                                if (res.ok) {
+                                                    const assignment = await res.json();
+                                                    openAssignmentDetails(assignment);
+                                                    onClose();
+                                                }
+                                            } catch (error) {
+                                                console.error('Failed to navigate to assignment:', error);
+                                            } finally {
+                                                setIsNavigating(null);
+                                            }
+                                        }
                                     }}
-                                    className={`mx-2 p-3 rounded-xl cursor-pointer transition-colors flex items-start gap-3 ${notif.read
+                                    className={`relative mx-2 p-3 rounded-xl cursor-pointer transition-colors flex items-start gap-3 ${notif.read
                                         ? 'bg-slate-50 hover:bg-slate-100 border border-slate-100'
                                         : 'bg-blue-50 hover:bg-blue-100 border border-blue-200'
-                                        }`}
+                                        } ${isNavigating === notif.id ? 'opacity-70 pointer-events-none' : ''}`}
                                 >
+                                    {isNavigating === notif.id && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-white/20 rounded-xl">
+                                            <div className="w-4 h-4 border-2 border-[#045c84] border-t-transparent rounded-full animate-spin"></div>
+                                        </div>
+                                    )}
                                     {!notif.read && (
                                         <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 shrink-0"></div>
                                     )}

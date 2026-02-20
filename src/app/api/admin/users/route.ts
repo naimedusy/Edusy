@@ -5,12 +5,43 @@ import { getNextStudentId, getNextRollNumber } from '@/utils/student-utils';
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
+        const id = searchParams.get('id');
         const role = searchParams.get('role');
         const search = searchParams.get('search');
         const classId = searchParams.get('classId');
         const groupId = searchParams.get('groupId');
         const instituteId = searchParams.get('instituteId');
         const admissionStatus = searchParams.get('admissionStatus');
+
+        // Support fetching a single user by ID
+        if (id) {
+            const user = await prisma.user.findUnique({
+                where: { id },
+                include: {
+                    institutes: {
+                        select: { name: true }
+                    }
+                }
+            });
+
+            if (!user) {
+                return NextResponse.json({ message: 'User not found' }, { status: 404 });
+            }
+
+            const formattedUser = {
+                id: user.id,
+                name: user.name || '',
+                email: user.email || '',
+                phone: user.phone || '',
+                password: user.password || '',
+                role: user.role || 'USER',
+                createdAt: user.createdAt,
+                institute: user.institutes?.[0] ? { name: user.institutes[0].name } : null,
+                metadata: user.metadata || {}
+            };
+
+            return NextResponse.json(formattedUser);
+        }
 
         const pipeline: any[] = [];
 

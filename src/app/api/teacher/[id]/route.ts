@@ -4,11 +4,11 @@ import prisma from '@/utils/db';
 // DELETE - Admin removes a teacher from institute
 export async function DELETE(
     req: Request,
-    props: { params: Promise<{ id: string }> }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const params = await props.params;
-        const teacherId = params.id;
+        const { id } = await params;
+        const teacherId = id;
         const { searchParams } = new URL(req.url);
         const instituteId = searchParams.get('instituteId');
         const adminId = searchParams.get('adminId');

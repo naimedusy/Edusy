@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 import localFont from "next/font/local";
 import { SessionProvider } from "@/components/SessionProvider";
+import { UIProvider } from "@/components/UIProvider";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -31,11 +32,12 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${outfit.variable} ${solaimanLipi.variable} font-sans antialiased`}>
         <SessionProvider>
-          {children}
+          <UIProvider>
+            {children}
+          </UIProvider>
         </SessionProvider>
       </body>
     </html>
 
   );
 }
-

@@ -12,6 +12,10 @@ interface User {
     defaultInstituteId?: string;
     institutes?: any[];
     teacherProfiles?: any[];
+    metadata?: {
+        classId?: string;
+        [key: string]: any;
+    };
 }
 
 interface SessionContextType {

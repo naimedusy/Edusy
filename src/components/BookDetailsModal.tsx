@@ -25,12 +25,21 @@ interface BookDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
     book: Book | null;
-    isAdmin: boolean;
-    onUpdate: () => void;
-    setToast: (toast: { message: string, type: 'success' | 'error' } | null) => void;
+    isAdmin?: boolean;
+    onUpdate?: () => void;
+    onRead?: () => void;
+    setToast?: (toast: { message: string, type: 'success' | 'error' } | null) => void;
 }
 
-const BookDetailsModal: React.FC<BookDetailsModalProps> = ({ isOpen, onClose, book, isAdmin, onUpdate, setToast }) => {
+const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
+    isOpen,
+    onClose,
+    book,
+    isAdmin = false,
+    onUpdate = () => { },
+    onRead,
+    setToast = () => { }
+}) => {
     const [formData, setFormData] = useState<Partial<Book>>({});
     const [loading, setLoading] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -134,7 +143,13 @@ const BookDetailsModal: React.FC<BookDetailsModalProps> = ({ isOpen, onClose, bo
 
                     {!isEditing && (formData.pdfUrl || formData.readLink) && (
                         <button
-                            onClick={() => window.open(formData.pdfUrl || formData.readLink || '', '_blank')}
+                            onClick={() => {
+                                if (onRead) {
+                                    onRead();
+                                } else {
+                                    window.open(formData.pdfUrl || formData.readLink || '', '_blank');
+                                }
+                            }}
                             className="w-full py-3 bg-[#045c84] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-blue-100 hover:scale-105 transition-all mb-4"
                         >
                             <BookOpen size={18} />

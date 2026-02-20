@@ -92,12 +92,38 @@ export default function StudentManagementPage() {
         metadata: {}
     });
 
+    // Auto-sync fields between Profile and Account Setup
+    useEffect(() => {
+        if (!isAddModalOpen) return;
+
+        const metadata = formData.metadata || {};
+        const updates: any = {};
+
+        // Sync student phone to studentPhone if studentPhone is not manually set
+        if (formData.phone && !metadata.studentPhone) {
+            updates.studentPhone = formData.phone;
+        }
+
+        // Sync fathersPhone or mothersPhone to guardianPhone if guardianPhone is empty
+        if ((metadata.fathersPhone || metadata.mothersPhone) && !metadata.guardianPhone) {
+            updates.guardianPhone = metadata.fathersPhone || metadata.mothersPhone;
+        }
+
+        if (Object.keys(updates).length > 0) {
+            setFormData((prev: any) => ({
+                ...prev,
+                metadata: { ...prev.metadata, ...updates }
+            }));
+        }
+    }, [formData.phone, formData.metadata?.fathersPhone, formData.metadata?.mothersPhone, isAddModalOpen]);
+
     const [formConfig, setFormConfig] = useState<FieldDefinition[]>([]);
     const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
     const [classes, setClasses] = useState<any[]>([]);
     const [groups, setGroups] = useState<any[]>([]);
     const [activeTab, setActiveTab] = useState<'students' | 'applications' | 'books' | 'teachers'>('students');
+    const [activeFormTab, setActiveFormTab] = useState<'profile' | 'account'>('profile');
 
     const [teachers, setTeachers] = useState<any[]>([]);
     const [permissionModalData, setPermissionModalData] = useState<any>(null);
@@ -1502,13 +1528,34 @@ export default function StudentManagementPage() {
                     setIsAddModalOpen(false);
                     setEditingStudent(null);
                     setFormData({ name: '', email: '', password: '', metadata: {} });
+                    setActiveFormTab('profile');
                 }}
                 title={editingStudent ? "শিক্ষার্থীর তথ্য আপডেট করুন" : "নতুন শিক্ষার্থী যুক্ত করুন"}
                 maxWidth="max-w-3xl"
             >
+                <div className="flex border-b border-slate-100 bg-slate-50/50">
+                    <button
+                        onClick={() => setActiveFormTab('profile')}
+                        className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${activeFormTab === 'profile'
+                            ? 'border-[#045c84] text-[#045c84] bg-white'
+                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                            }`}
+                    >
+                        প্রোফাইল তথ্য (Profile)
+                    </button>
+                    <button
+                        onClick={() => setActiveFormTab('account')}
+                        className={`flex-1 py-4 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${activeFormTab === 'account'
+                            ? 'border-[#045c84] text-[#045c84] bg-white'
+                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                            }`}
+                    >
+                        অ্যাকাউন্ট সেটআপ (Account)
+                    </button>
+                </div>
                 <form onSubmit={handleFormSubmit} className="p-5 md:p-8 space-y-6">
                     {/* Quick Action Toolbar */}
-                    {!editingStudent && (
+                    {activeFormTab === 'profile' && !editingStudent && (
                         <div className="flex items-center gap-2 pb-4 border-b border-slate-100">
                             {activeInstitute?.id && (
                                 <button
@@ -1573,7 +1620,7 @@ export default function StudentManagementPage() {
                                     Excel থেকে ডাটা Paste করুন
                                 </label>
                                 <textarea
-                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-4 focus:ring-[#045c84]/10 focus:border-[#045c84] resize-none font-mono text-sm text-slate-900 placeholder:text-slate-600"
+                                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-4 focus:ring-[#045c84]/10 focus:border-[#045c84] resize-none font-mono text-sm text-slate-900 placeholder:text-slate-300"
                                     rows={6}
                                     placeholder="Excel থেকে কপি করে এখানে Paste করুন (Ctrl+V)..."
                                     onPaste={(e) => {
@@ -1803,8 +1850,9 @@ export default function StudentManagementPage() {
                         <>
                             <div className="space-y-4">
                                 {(() => {
+                                    const LOGIN_FIELD_IDS = ['studentId', 'rollNumber', 'email', 'password', 'studentPhone', 'guardianPhone', 'guardianPassword', 'guardianName', 'guardianRelation'];
                                     const alwaysShowFields = ['studentId', 'rollNumber'];
-                                    const effectiveFields = editingStudent
+                                    const effectiveFields = (editingStudent
                                         ? [
                                             ...formConfig,
                                             ...POSSIBLE_FIELDS.filter(f =>
@@ -1816,72 +1864,29 @@ export default function StudentManagementPage() {
                                                 f.id !== 'password'
                                             )
                                         ]
-                                        : formConfig;
+                                        : formConfig).filter(f => !LOGIN_FIELD_IDS.includes(f.id) && f.id !== 'name');
 
-                                    return effectiveFields.map((field) => {
-                                        const isTopLevel = ['name', 'email', 'password'].includes(field.id);
+                                    const renderField = (fieldId: string, forceRequired?: boolean) => {
+                                        const field = POSSIBLE_FIELDS.find(f => f.id === fieldId);
+                                        if (!field) return null;
+
+                                        const isTopLevel = ['name', 'email', 'password', 'phone'].includes(field.id);
                                         const fieldValue = isTopLevel ? (formData as any)[field.id] : formData.metadata[field.id];
+                                        const isRequired = forceRequired || field.required;
 
                                         return (
-                                            <div key={field.id} className="space-y-2 group/field">
-                                                {!formConfig.some(cf => cf.id === field.id) && (
+                                            <div key={field.id} className={`space-y-2 group/field ${field.type === 'attachment' ? 'md:col-span-2' : ''}`}>
+                                                {!formConfig.some(cf => cf.id === field.id) && !LOGIN_FIELD_IDS.includes(field.id) && field.id !== 'name' && field.id !== 'phone' && (
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <span className="px-2 py-0.5 bg-amber-100 text-amber-900 text-[10px] font-black rounded uppercase tracking-wider border border-amber-200 italic">
                                                             Config Missing
                                                         </span>
-                                                        <span className="text-[10px] text-slate-600 font-bold">This field has data or is required but is not in current form config</span>
-                                                    </div>
-                                                )}
-
-                                                {field.id === 'guardianName' && (
-                                                    <div className="flex gap-2 mb-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                if (formData.metadata.fathersName || formData.metadata.fathersPhone) {
-                                                                    setFormData({
-                                                                        ...formData,
-                                                                        metadata: {
-                                                                            ...formData.metadata,
-                                                                            guardianName: formData.metadata.fathersName || formData.metadata.guardianName,
-                                                                            guardianPhone: formData.metadata.fathersPhone || formData.metadata.guardianPhone,
-                                                                            guardianRelation: 'বাবা'
-                                                                        }
-                                                                    });
-                                                                } else {
-                                                                    setToast({ message: 'পিতার তথ্য আগে পূরণ করুন।', type: 'error' });
-                                                                }
-                                                            }}
-                                                            className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
-                                                        >
-                                                            অভিভাবক হিসেবে পিতা
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                if (formData.metadata.mothersName || formData.metadata.mothersPhone) {
-                                                                    setFormData({
-                                                                        ...formData,
-                                                                        metadata: {
-                                                                            ...formData.metadata,
-                                                                            guardianName: formData.metadata.mothersName || formData.metadata.guardianName,
-                                                                            guardianPhone: formData.metadata.mothersPhone || formData.metadata.guardianPhone,
-                                                                            guardianRelation: 'মা'
-                                                                        }
-                                                                    });
-                                                                } else {
-                                                                    setToast({ message: 'মাতার তথ্য আগে পূরণ করুন।', type: 'error' });
-                                                                }
-                                                            }}
-                                                            className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-xs font-bold hover:bg-pink-100 transition-colors"
-                                                        >
-                                                            অভিভাবক হিসেবে মাতা
-                                                        </button>
+                                                        <span className="text-[10px] text-slate-600 font-bold">This field is not in current form config but is used for account</span>
                                                     </div>
                                                 )}
 
                                                 <label className="text-xs font-black text-slate-900 uppercase tracking-wider flex justify-between">
-                                                    <span>{field.label} {field.required && <span className="text-red-600 font-black">*</span>}</span>
+                                                    <span>{field.label} {isRequired && <span className="text-red-600 font-black">*</span>}</span>
                                                     {field.id === 'password' && !editingStudent && (
                                                         <button
                                                             type="button"
@@ -1896,45 +1901,49 @@ export default function StudentManagementPage() {
                                                 {field.type === 'select' ? (
                                                     <div className="relative">
                                                         <select
-                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-slate-900 appearance-none"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-bold text-slate-900 appearance-none"
                                                             value={fieldValue || ''}
                                                             onChange={(e) => {
                                                                 const val = e.target.value;
-                                                                if (isTopLevel) {
-                                                                    setFormData({ ...formData, [field.id]: val });
-                                                                } else {
-                                                                    setFormData({
-                                                                        ...formData,
-                                                                        metadata: { ...formData.metadata, [field.id]: val }
-                                                                    });
-                                                                }
+                                                                if (isTopLevel) setFormData({ ...formData, [field!.id]: val });
+                                                                else setFormData({ ...formData, metadata: { ...formData.metadata, [field!.id]: val } });
                                                             }}
-                                                            required={field.required}
+                                                            required={isRequired}
                                                         >
                                                             <option value="">নির্বাচন করুন</option>
-                                                            {field.options?.map(opt => (
+                                                            {field.options?.map((opt: string) => (
                                                                 <option key={opt} value={opt}>{opt}</option>
                                                             ))}
                                                         </select>
+                                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                                            <ChevronDown size={18} />
+                                                        </div>
                                                     </div>
                                                 ) : field.type === 'attachment' ? (
                                                     <div className="relative">
                                                         <div className={`w-full px-4 py-3 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-between transition-all ${fieldValue ? 'border-green-200 bg-green-50/30' : 'hover:border-[#045c84]'}`}>
                                                             <div className="flex items-center gap-3 overflow-hidden">
-                                                                <CloudUpload className={fieldValue ? 'text-green-700' : 'text-slate-800'} size={20} />
-                                                                <span className="text-sm font-black text-slate-950 truncate">
+                                                                <CloudUpload className={fieldValue ? 'text-green-500' : 'text-slate-400'} size={20} />
+                                                                <span className="text-sm font-medium text-slate-600 truncate">
                                                                     {fieldValue ? 'ফাইল আপলোড হয়েছে' : 'ফাইল নির্বাচন করুন'}
                                                                 </span>
                                                             </div>
                                                             <input
                                                                 type="file"
                                                                 className="absolute inset-0 opacity-0 cursor-pointer"
-                                                                onChange={(e) => handleFileUpload(e, field.id)}
-                                                                required={field.required && !fieldValue}
+                                                                onChange={(e) => handleFileUpload(e, field!.id)}
+                                                                required={isRequired && !fieldValue}
                                                             />
                                                             {fieldValue && (
-                                                                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                                                                    <Save size={16} />
+                                                                <div className="flex items-center gap-2">
+                                                                    {field.id === 'studentPhoto' && (
+                                                                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-green-500">
+                                                                            <img src={fieldValue} alt="Preview" className="w-full h-full object-cover" />
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
+                                                                        <CheckCircle size={16} />
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </div>
@@ -1942,39 +1951,40 @@ export default function StudentManagementPage() {
                                                 ) : field.type === 'class-lookup' ? (
                                                     <div className="relative">
                                                         <select
-                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-slate-900 appearance-none"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-bold text-slate-900 appearance-none"
                                                             value={fieldValue || ''}
                                                             onChange={(e) => {
                                                                 const classId = e.target.value;
                                                                 setFormData({
                                                                     ...formData,
-                                                                    metadata: { ...formData.metadata, [field.id]: classId, groupId: '' }
+                                                                    metadata: { ...formData.metadata, [field!.id]: classId, groupId: '' }
                                                                 });
                                                                 if (classId) {
                                                                     fetchGroups(classId);
                                                                     handleAutoGenerate('rollNumber', classId, true);
-                                                                }
-                                                                else setGroups([]);
+                                                                } else setGroups([]);
                                                             }}
-                                                            required={field.required}
+                                                            required={isRequired}
                                                         >
                                                             <option value="">শ্রেণী নির্বাচন করুন</option>
-                                                            <option value="">শ্রেণী নির্বাচন করুন</option>
-                                                            {allowedClasses.map(c => (
+                                                            {classes.map(c => (
                                                                 <option key={c.id} value={c.id}>{c.name}</option>
                                                             ))}
                                                         </select>
+                                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                                            <ChevronDown size={18} />
+                                                        </div>
                                                     </div>
                                                 ) : field.type === 'group-lookup' ? (
                                                     <div className="relative">
                                                         <select
-                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-slate-900 appearance-none"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-bold text-slate-900 appearance-none"
                                                             value={fieldValue || ''}
                                                             onChange={(e) => setFormData({
                                                                 ...formData,
-                                                                metadata: { ...formData.metadata, [field.id]: e.target.value }
+                                                                metadata: { ...formData.metadata, [field!.id]: e.target.value }
                                                             })}
-                                                            required={field.required}
+                                                            required={isRequired}
                                                             disabled={!formData.metadata.classId}
                                                         >
                                                             <option value="">গ্রুপ নির্বাচন করুন</option>
@@ -1982,15 +1992,15 @@ export default function StudentManagementPage() {
                                                                 <option key={g.id} value={g.id}>{g.name}</option>
                                                             ))}
                                                         </select>
-                                                        {!formData.metadata.classId && (
-                                                            <p className="text-[10px] text-amber-600 font-bold mt-1">প্রথমে শ্রেণী নির্বাচন করুন</p>
-                                                        )}
+                                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                                            <ChevronDown size={18} />
+                                                        </div>
                                                     </div>
                                                 ) : (
                                                     <div className="relative group/field">
                                                         <input
                                                             type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-bold text-slate-900 placeholder:text-slate-600"
+                                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-bold text-slate-900 placeholder:text-slate-300"
                                                             placeholder={field.placeholder || `${field.label} দিন`}
                                                             value={fieldValue || ''}
                                                             onChange={(e) => {
@@ -2004,7 +2014,7 @@ export default function StudentManagementPage() {
                                                                     });
                                                                 }
                                                             }}
-                                                            required={field.required}
+                                                            required={isRequired}
                                                         />
                                                         {(field.id === 'rollNumber' || field.id === 'studentId') && (
                                                             <button
@@ -2019,40 +2029,139 @@ export default function StudentManagementPage() {
                                                 )}
                                             </div>
                                         );
-                                    });
+                                    };
+
+                                    return (
+                                        <div className="space-y-8">
+                                            {activeFormTab === 'profile' ? (
+                                                <div className="space-y-8">
+                                                    {/* Name (Fixed at top) */}
+                                                    {renderField('name')}
+
+                                                    {/* Dynamic Profile Fields Section */}
+                                                    {effectiveFields.length > 0 && (
+                                                        <div className="space-y-6">
+                                                            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                                                                <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400">
+                                                                    <User size={18} />
+                                                                </div>
+                                                                <h4 className="text-sm font-black text-slate-400 uppercase tracking-widest">প্রোফাইল তথ্য (Profile Data)</h4>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 gap-4">
+                                                                {effectiveFields.map((field) => (
+                                                                    <React.Fragment key={field.id}>
+                                                                        {field.id === 'guardianName' && (
+                                                                            <div className="md:col-span-2 flex gap-2 mb-2">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        if (formData.metadata.fathersName || formData.metadata.fathersPhone) {
+                                                                                            setFormData({
+                                                                                                ...formData,
+                                                                                                metadata: {
+                                                                                                    ...formData.metadata,
+                                                                                                    guardianName: formData.metadata.fathersName || formData.metadata.guardianName,
+                                                                                                    guardianPhone: formData.metadata.fathersPhone || formData.metadata.guardianPhone,
+                                                                                                    guardianRelation: 'বাবা'
+                                                                                                }
+                                                                                            });
+                                                                                        } else {
+                                                                                            setToast({ message: 'পিতার তথ্য আগে পূরণ করুন।', type: 'error' });
+                                                                                        }
+                                                                                    }}
+                                                                                    className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
+                                                                                >
+                                                                                    অভিভাবক হিসেবে পিতা
+                                                                                </button>
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => {
+                                                                                        if (formData.metadata.mothersName || formData.metadata.mothersPhone) {
+                                                                                            setFormData({
+                                                                                                ...formData,
+                                                                                                metadata: {
+                                                                                                    ...formData.metadata,
+                                                                                                    guardianName: formData.metadata.mothersName || formData.metadata.guardianName,
+                                                                                                    guardianPhone: formData.metadata.mothersPhone || formData.metadata.guardianPhone,
+                                                                                                    guardianRelation: 'মা'
+                                                                                                }
+                                                                                            });
+                                                                                        } else {
+                                                                                            setToast({ message: 'মাতার তথ্য আগে পূরণ করুন।', type: 'error' });
+                                                                                        }
+                                                                                    }}
+                                                                                    className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-xs font-bold hover:bg-pink-100 transition-colors"
+                                                                                >
+                                                                                    অভিভাবক হিসেবে মাতা
+                                                                                </button>
+                                                                            </div>
+                                                                        )}
+                                                                        {renderField(field.id)}
+                                                                    </React.Fragment>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-8">
+                                                    {/* Login Credentials Section */}
+                                                    <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-100 space-y-6">
+                                                        <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                                                            <div className="w-8 h-8 rounded-xl bg-[#045c84] flex items-center justify-center text-white">
+                                                                <Key size={18} />
+                                                            </div>
+                                                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">লগইন তথ্য (Login Credentials)</h4>
+                                                        </div>
+
+                                                        <div className="grid grid-cols-1 gap-4">
+                                                            {renderField('studentId', true)}
+                                                            {renderField('rollNumber', true)}
+                                                            {renderField('email')}
+                                                            {renderField('password')}
+                                                            {renderField('studentPhone', true)}
+                                                        </div>
+
+                                                        <div className="pt-4 space-y-4">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">অভিভাবকের লগইন</p>
+                                                            </div>
+                                                            <div className="grid grid-cols-1 gap-4">
+                                                                {renderField('guardianName', true)}
+                                                                {renderField('guardianRelation', true)}
+                                                                {renderField('guardianPhone', true)}
+                                                                {renderField('guardianPassword')}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
                                 })()}
                             </div>
 
                             <div className="pt-6 border-t border-slate-100 flex justify-between items-center">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        const studentPhone = formData.metadata?.guardianPhone || formData.metadata?.studentPhone || formData.phone || 'N/A';
-                                        const studentPassword = formData.password || formData.metadata?.studentId || 'Student ID will be auto-generated';
-                                        const guardianPhone = formData.metadata?.guardianPhone || 'N/A';
-                                        const guardianPassword = guardianPhone !== 'N/A' ? guardianPhone : 'N/A';
-
-                                        const message = `📱 লগইন তথ্য (Login Info):\n\n` +
-                                            `👨‍🎓 শিক্ষার্থী (Student):\n` +
-                                            `   📞 ইউজারনেম: ${studentPhone}\n` +
-                                            `   🔑 পাসওয়ার্ড: ${studentPassword}\n\n` +
-                                            `👨‍👩‍👧 অভিভাবক (Guardian):\n` +
-                                            `   📞 ইউজারনেম: ${guardianPhone}\n` +
-                                            `   🔑 পাসওয়ার্ড: ${guardianPassword}`;
-
-                                        setCredentialsData({
-                                            studentPhone,
-                                            studentPassword,
-                                            guardianPhone,
-                                            guardianPassword
-                                        });
-                                        setIsCredentialsModalOpen(true);
-                                    }}
-                                    className="px-6 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all active:scale-95 flex items-center gap-2"
-                                >
-                                    <User size={20} />
-                                    <span>লগইন তথ্য দেখুন</span>
-                                </button>
+                                {activeFormTab === 'profile' ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveFormTab('account')}
+                                        className="px-8 py-4 bg-slate-900 hover:bg-black text-white font-bold rounded-2xl shadow-lg transition-all active:scale-95 flex items-center gap-2"
+                                    >
+                                        <span>পরবর্তী (Next)</span>
+                                        <ChevronRight size={20} />
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveFormTab('profile')}
+                                        className="px-6 py-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all active:scale-95 flex items-center gap-2"
+                                    >
+                                        <ChevronLeft size={20} />
+                                        <span>পূর্ববর্তী (Back)</span>
+                                    </button>
+                                )}
 
                                 <button
                                     type="submit"
@@ -2240,14 +2349,27 @@ export default function StudentManagementPage() {
                 isOpen={isProfileModalOpen}
                 onClose={() => setIsProfileModalOpen(false)}
                 student={selectedStudent}
-                onEdit={(s) => {
+                onUpdate={fetchStudents}
+                onEdit={(s, context) => {
                     setIsProfileModalOpen(false);
                     setEditingStudent(s);
+
+                    let updatedMetadata = { ...(s.metadata || {}) };
+
+                    if (context?.linkGuardian) {
+                        // Auto-populate from father/mother if guardian info is missing
+                        if (!updatedMetadata.guardianName) {
+                            updatedMetadata.guardianName = updatedMetadata.fathersName || updatedMetadata.mothersName || '';
+                            updatedMetadata.guardianPhone = updatedMetadata.fathersPhone || updatedMetadata.mothersPhone || '';
+                            updatedMetadata.guardianRelation = updatedMetadata.fathersName ? 'বাবা' : (updatedMetadata.mothersName ? 'মা' : '');
+                        }
+                    }
+
                     setFormData({
                         name: s.name || '',
                         email: s.email || '',
                         password: s.password || '',
-                        metadata: s.metadata || {}
+                        metadata: updatedMetadata
                     });
                     if (s.metadata?.classId) fetchGroups(s.metadata.classId);
                     setIsAddModalOpen(true);
@@ -2265,33 +2387,35 @@ export default function StudentManagementPage() {
                 setToast={setToast}
             />
 
-            {selectedBook && selectedBook.pdfUrl && (
-                <PdfReaderModal
-                    isOpen={isReaderOpen}
-                    onClose={() => setIsReaderOpen(false)}
-                    pdfUrl={selectedBook.pdfUrl || ''}
-                    title={selectedBook.name || 'বই'}
-                    bookmarks={selectedBook.bookmarks || []}
-                    onUpdateBookmarks={async (newBookmarks) => {
-                        try {
-                            const updatedBook = { ...selectedBook, bookmarks: newBookmarks };
-                            setSelectedBook(updatedBook);
+            {
+                selectedBook && selectedBook.pdfUrl && (
+                    <PdfReaderModal
+                        isOpen={isReaderOpen}
+                        onClose={() => setIsReaderOpen(false)}
+                        pdfUrl={selectedBook.pdfUrl || ''}
+                        title={selectedBook.name || 'বই'}
+                        bookmarks={selectedBook.bookmarks || []}
+                        onUpdateBookmarks={async (newBookmarks) => {
+                            try {
+                                const updatedBook = { ...selectedBook, bookmarks: newBookmarks };
+                                setSelectedBook(updatedBook);
 
-                            // Persist to database
-                            await fetch(`/api/admin/books/${selectedBook.id}`, {
-                                method: 'PATCH',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ bookmarks: newBookmarks })
-                            });
+                                // Persist to database
+                                await fetch(`/api/admin/books/${selectedBook.id}`, {
+                                    method: 'PATCH',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ bookmarks: newBookmarks })
+                                });
 
-                            // Refresh context if needed
-                            fetchBooks();
-                        } catch (error) {
-                            console.error('Failed to update bookmarks:', error);
-                        }
-                    }}
-                />
-            )}
+                                // Refresh context if needed
+                                fetchBooks();
+                            } catch (error) {
+                                console.error('Failed to update bookmarks:', error);
+                            }
+                        }}
+                    />
+                )
+            }
 
             {/* Action Menu Portal */}
             {
@@ -2311,10 +2435,11 @@ export default function StudentManagementPage() {
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
-                                                const studentPhone = s.metadata?.studentId || s.metadata?.studentPhone || s.phone || 'N/A';
-                                                const studentPassword = s.password || s.metadata?.studentId || 'generated';
-                                                const guardianPhone = s.metadata?.guardianPhone || s.phone || 'N/A';
-                                                const guardianPassword = s.metadata?.guardianPassword || guardianPhone;
+                                                const hasGuardian = !!s.metadata?.guardianId;
+                                                const studentPhone = s.email || s.phone || s.metadata?.studentId || 'N/A';
+                                                const studentPassword = s.password || 'N/A';
+                                                const guardianPhone = hasGuardian ? (s.metadata?.guardianPhone || 'N/A') : 'N/A';
+                                                const guardianPassword = hasGuardian ? (s.metadata?.guardianPassword || 'N/A') : 'N/A';
 
                                                 setCredentialsData({
                                                     studentPhone,
@@ -2854,59 +2979,61 @@ export default function StudentManagementPage() {
             </Modal>
 
             {/* Dynamic FAB System */}
-            {mounted && (activeTab === 'students' || activeTab === 'books' || activeTab === 'applications') && createPortal(
-                <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-4 pointer-events-none">
-                    <button
-                        onClick={() => {
-                            if (activeTab === 'students') {
-                                if (selectedClassId !== 'all') {
-                                    setFormData({
-                                        name: '',
-                                        email: '',
-                                        password: '',
-                                        metadata: { classId: selectedClassId }
-                                    });
-                                } else {
-                                    setFormData({ name: '', email: '', password: '', metadata: {} });
+            {
+                mounted && (activeTab === 'students' || activeTab === 'books' || activeTab === 'applications') && createPortal(
+                    <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-4 pointer-events-none">
+                        <button
+                            onClick={() => {
+                                if (activeTab === 'students') {
+                                    if (selectedClassId !== 'all') {
+                                        setFormData({
+                                            name: '',
+                                            email: '',
+                                            password: '',
+                                            metadata: { classId: selectedClassId }
+                                        });
+                                    } else {
+                                        setFormData({ name: '', email: '', password: '', metadata: {} });
+                                    }
+                                    setIsAddModalOpen(true);
+                                } else if (activeTab === 'books') {
+                                    setBookData({ names: '', classId: selectedClassId !== 'all' ? selectedClassId : '', groupId: '', coverImage: '', author: '' });
+                                    setIsBookModalOpen(true);
+                                } else if (activeTab === 'applications') {
+                                    if (activeInstitute?.id) {
+                                        const link = `${window.location.origin}/admission/${activeInstitute.id}`;
+                                        navigator.clipboard.writeText(link);
+                                        setToast({ message: 'ভর্তি ফরমের লিঙ্ক কপি হয়েছে!', type: 'success' });
+                                    }
                                 }
-                                setIsAddModalOpen(true);
-                            } else if (activeTab === 'books') {
-                                setBookData({ names: '', classId: selectedClassId !== 'all' ? selectedClassId : '', groupId: '', coverImage: '', author: '' });
-                                setIsBookModalOpen(true);
-                            } else if (activeTab === 'applications') {
-                                if (activeInstitute?.id) {
-                                    const link = `${window.location.origin}/admission/${activeInstitute.id}`;
-                                    navigator.clipboard.writeText(link);
-                                    setToast({ message: 'ভর্তি ফরমের লিঙ্ক কপি হয়েছে!', type: 'success' });
-                                }
-                            }
-                        }}
-                        className="pointer-events-auto flex items-center justify-center w-16 h-16 bg-[#045c84] text-white rounded-full shadow-2xl hover:shadow-[#045c84]/30 hover:-translate-y-1 transition-all duration-300 active:scale-95 border-b-4 border-[#034a6b] active:border-b-0 animate-in slide-in-from-bottom-6"
-                        title={activeTab === 'students' ? 'শিক্ষার্থী যোগ করুন' : activeTab === 'books' ? 'বই যোগ করুন' : 'ভর্তি লিঙ্ক কপি করুন'}
-                    >
-                        {activeTab === 'students' ? (
-                            <div className="relative">
-                                <UserPlus size={28} />
-                            </div>
-                        ) : activeTab === 'books' ? (
-                            <div className="relative">
-                                <BookOpen size={28} />
-                                <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#045c84] border-2 border-white rounded-full flex items-center justify-center -mr-0.5 -mt-0.5">
-                                    <Plus size={12} strokeWidth={4} />
+                            }}
+                            className="pointer-events-auto flex items-center justify-center w-16 h-16 bg-[#045c84] text-white rounded-full shadow-2xl hover:shadow-[#045c84]/30 hover:-translate-y-1 transition-all duration-300 active:scale-95 border-b-4 border-[#034a6b] active:border-b-0 animate-in slide-in-from-bottom-6"
+                            title={activeTab === 'students' ? 'শিক্ষার্থী যোগ করুন' : activeTab === 'books' ? 'বই যোগ করুন' : 'ভর্তি লিঙ্ক কপি করুন'}
+                        >
+                            {activeTab === 'students' ? (
+                                <div className="relative">
+                                    <UserPlus size={28} />
                                 </div>
-                            </div>
-                        ) : (
-                            <div className="relative">
-                                <Link size={28} />
-                                <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#045c84] border-2 border-white rounded-full flex items-center justify-center -mr-0.5 -mt-0.5">
-                                    <Plus size={12} strokeWidth={4} />
+                            ) : activeTab === 'books' ? (
+                                <div className="relative">
+                                    <BookOpen size={28} />
+                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#045c84] border-2 border-white rounded-full flex items-center justify-center -mr-0.5 -mt-0.5">
+                                        <Plus size={12} strokeWidth={4} />
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </button>
-                </div>,
-                document.body
-            )}
+                            ) : (
+                                <div className="relative">
+                                    <Link size={28} />
+                                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#045c84] border-2 border-white rounded-full flex items-center justify-center -mr-0.5 -mt-0.5">
+                                        <Plus size={12} strokeWidth={4} />
+                                    </div>
+                                </div>
+                            )}
+                        </button>
+                    </div>,
+                    document.body
+                )
+            }
 
             {/* Login Credentials Modal */}
             <Modal
@@ -2942,28 +3069,30 @@ export default function StudentManagementPage() {
                         </div>
 
                         {/* Guardian Login Info */}
-                        <div className="bg-purple-50 rounded-2xl p-5 border-2 border-purple-100">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center text-white">
-                                    <Users size={24} />
+                        {credentialsData.guardianPhone !== 'N/A' && (
+                            <div className="bg-purple-50 rounded-2xl p-5 border-2 border-purple-100">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="w-12 h-12 rounded-xl bg-purple-600 flex items-center justify-center text-white">
+                                        <Users size={24} />
+                                    </div>
+                                    <h3 className="text-lg font-black text-slate-900">অভিভাবক লগইন</h3>
                                 </div>
-                                <h3 className="text-lg font-black text-slate-900">অভিভাবক লগইন</h3>
-                            </div>
-                            <div className="space-y-3">
-                                <div>
-                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">ইউজারনেম (মোবাইল নম্বর)</label>
-                                    <div className="mt-1 px-4 py-3 bg-white rounded-xl border border-purple-200 font-mono text-lg font-bold text-slate-900 select-all">
-                                        {credentialsData.guardianPhone}
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">ইউজারনেম (মোবাইল নম্বর)</label>
+                                        <div className="mt-1 px-4 py-3 bg-white rounded-xl border border-purple-200 font-mono text-lg font-bold text-slate-900 select-all">
+                                            {credentialsData.guardianPhone}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">পাসওয়ার্ড</label>
+                                        <div className="mt-1 px-4 py-3 bg-white rounded-xl border border-purple-200 font-mono text-lg font-bold text-slate-900 select-all">
+                                            {credentialsData.guardianPassword}
+                                        </div>
                                     </div>
                                 </div>
-                                <div>
-                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">পাসওয়ার্ড</label>
-                                    <div className="mt-1 px-4 py-3 bg-white rounded-xl border border-purple-200 font-mono text-lg font-bold text-slate-900 select-all">
-                                        {credentialsData.guardianPassword}
-                                    </div>
-                                </div>
                             </div>
-                        </div>
+                        )}
 
                         <div className="flex gap-3">
                             <button
@@ -2997,6 +3126,6 @@ export default function StudentManagementPage() {
                     </div>
                 )}
             </Modal>
-        </div>
+        </div >
     );
 }

@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Save, CloudUpload, CheckCircle2, Building2, Printer, LogIn } from 'lucide-react';
-import { FieldDefinition } from '@/components/FieldLibrary';
+import { Loader2, Save, CloudUpload, CheckCircle2, Building2, Printer, LogIn, Search } from 'lucide-react';
+import { FieldDefinition, POSSIBLE_FIELDS } from '@/components/FieldLibrary';
 import Toast from '@/components/Toast';
 import PrintLayout from '@/components/PrintLayout';
 
@@ -15,10 +15,19 @@ export default function PublicAdmissionPage() {
     const [loading, setLoading] = useState(true);
     const [institute, setInstitute] = useState<any>(null);
     const [formConfig, setFormConfig] = useState<FieldDefinition[]>([]);
+    const [credentials, setCredentials] = useState<{ studentId: string; password: string } | null>(null);
+    const [draftStatus, setDraftStatus] = useState<'saved' | 'saving' | 'recovered' | null>(null);
+    const [activeTab, setActiveTab] = useState<'profile' | 'account'>('profile');
+
     const [formData, setFormData] = useState<any>({
         name: '',
         phone: '',
+        studentPhone: '',
         email: '',
+        studentEmail: '',
+        guardianName: '',
+        guardianPhone: '',
+        guardianPassword: '',
         metadata: {}
     });
     const [actionLoading, setActionLoading] = useState(false);
@@ -28,8 +37,6 @@ export default function PublicAdmissionPage() {
     const [groups, setGroups] = useState<any[]>([]);
     const [isPrinting, setIsPrinting] = useState(false);
     const [printMode, setPrintMode] = useState<'receipt' | 'form'>('receipt');
-    const [credentials, setCredentials] = useState<{ studentId: string; password: string } | null>(null);
-    const [draftStatus, setDraftStatus] = useState<'saved' | 'saving' | 'recovered' | null>(null);
 
     const draftKey = `edusy_admission_draft_${instituteId}`;
 
@@ -94,6 +101,30 @@ export default function PublicAdmissionPage() {
 
         return () => clearTimeout(timer);
     }, [formData, instituteId, submitted]);
+
+    // Auto-fill logic from Tab 1 to Tab 2
+    useEffect(() => {
+        if (activeTab === 'account') {
+            const updates: any = {};
+
+            // Auto-fill Name and Phone if Tab 2 is empty
+            if (!formData.name && formData.metadata.name) updates.name = formData.metadata.name;
+            if (!formData.phone && formData.metadata.studentPhone) updates.phone = formData.metadata.studentPhone;
+            if (!formData.email && formData.metadata.studentEmail) updates.email = formData.metadata.studentEmail;
+
+            // Auto-fill Guardian info
+            if (!formData.guardianName) {
+                updates.guardianName = formData.metadata.guardianName || formData.metadata.fathersName || formData.metadata.mothersName || '';
+            }
+            if (!formData.guardianPhone) {
+                updates.guardianPhone = formData.metadata.guardianPhone || formData.metadata.fathersPhone || formData.metadata.mothersPhone || '';
+            }
+
+            if (Object.keys(updates).length > 0) {
+                setFormData((prev: any) => ({ ...prev, ...updates }));
+            }
+        }
+    }, [activeTab]);
 
     const fetchGroups = async (classId: string) => {
         try {
@@ -213,6 +244,140 @@ export default function PublicAdmissionPage() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
+    const renderField = (fieldId: string) => {
+        let field = formConfig.find(f => f.id === fieldId) || POSSIBLE_FIELDS.find(f => f.id === fieldId);
+        if (!field) return null;
+
+        const isTopLevel = ['name', 'email', 'phone'].includes(field.id);
+        const fieldValue = isTopLevel ? (formData as any)[field.id] : formData.metadata[field.id];
+
+        return (
+            <div key={field.id} className="space-y-2 group/field">
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">
+                    {field.label} {field.required && <span className="text-red-500">*</span>}
+                </label>
+
+                {field.type === 'select' ? (
+                    <div className="relative">
+                        <select
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
+                            value={fieldValue || ''}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (isTopLevel) setFormData({ ...formData, [field!.id]: val });
+                                else setFormData({ ...formData, metadata: { ...formData.metadata, [field!.id]: val } });
+                            }}
+                            required={field.required}
+                        >
+                            <option value="">নির্বাচন করুন</option>
+                            {field.options?.map((opt: string) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                        </select>
+                    </div>
+                ) : field.type === 'attachment' ? (
+                    <div className="relative">
+                        <div className={`w-full px-4 py-3 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-between transition-all ${fieldValue ? 'border-green-200 bg-green-50/30' : 'hover:border-[#045c84]'}`}>
+                            <div className="flex items-center gap-3 overflow-hidden">
+                                <CloudUpload className={fieldValue ? 'text-green-500' : 'text-slate-400'} size={20} />
+                                <span className="text-sm font-medium text-slate-600 truncate">
+                                    {fieldValue ? 'ফাইল আপলোড হয়েছে' : 'ফাইল নির্বাচন করুন'}
+                                </span>
+                            </div>
+                            <input
+                                type="file"
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                onChange={(e) => handleFileUpload(e, field!.id)}
+                                required={field.required && !fieldValue}
+                            />
+                            {fieldValue && (
+                                <div className="flex flex-col items-center gap-2">
+                                    {field.id === 'studentPhoto' && (
+                                        <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-green-500 shadow-lg">
+                                            <img src={fieldValue} alt="Preview" className="w-full h-full object-cover" />
+                                        </div>
+                                    )}
+                                    <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
+                                        <Save size={16} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                ) : field.type === 'class-lookup' ? (
+                    <div className="relative">
+                        <select
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
+                            value={fieldValue || ''}
+                            onChange={(e) => {
+                                const classId = e.target.value;
+                                setFormData({
+                                    ...formData,
+                                    metadata: { ...formData.metadata, [field!.id]: classId, groupId: '' }
+                                });
+                                if (classId) {
+                                    fetchGroups(classId);
+                                    handleAutoGenerate('rollNumber', classId, true);
+                                } else setGroups([]);
+                            }}
+                            required={field.required}
+                        >
+                            <option value="">শ্রেণী নির্বাচন করুন</option>
+                            {classes.map(c => (
+                                <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                ) : field.type === 'group-lookup' ? (
+                    <div className="relative">
+                        <select
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
+                            value={fieldValue || ''}
+                            onChange={(e) => setFormData({
+                                ...formData,
+                                metadata: { ...formData.metadata, [field!.id]: e.target.value }
+                            })}
+                            required={field.required}
+                            disabled={!formData.metadata.classId}
+                        >
+                            <option value="">গ্রুপ নির্বাচন করুন</option>
+                            {groups.map(g => (
+                                <option key={g.id} value={g.id}>{g.name}</option>
+                            ))}
+                        </select>
+                        {!formData.metadata.classId && (
+                            <p className="text-[10px] text-amber-600 font-bold mt-1">প্রথমে শ্রেণী নির্বাচন করুন</p>
+                        )}
+                    </div>
+                ) : (
+                    <div className="relative group/field">
+                        <input
+                            type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal"
+                            placeholder={field.placeholder || `${field.label}`}
+                            value={fieldValue || ''}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (isTopLevel) setFormData({ ...formData, [field!.id]: val });
+                                else setFormData({ ...formData, metadata: { ...formData.metadata, [field!.id]: val } });
+                            }}
+                            required={field.required}
+                        />
+                        {(field.id === 'rollNumber' || field.id === 'studentId') && (
+                            <button
+                                type="button"
+                                onClick={() => handleAutoGenerate(field!.id, undefined, true)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-white border border-slate-200 text-[#045c84] text-[10px] font-bold rounded-xl shadow-sm hover:bg-[#045c84] hover:text-white transition-all md:opacity-0 md:group-hover/field:opacity-100 opacity-60"
+                            >
+                                AUTO
+                            </button>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-slate-50 font-bengali">
@@ -240,11 +405,11 @@ export default function PublicAdmissionPage() {
 
                     <div className="grid grid-cols-1 gap-3 pt-4">
                         <Link
-                            href="/entrance"
+                            href="/admission/status"
                             className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-[#045c84] to-[#047cac] text-white font-black rounded-2xl shadow-lg shadow-blue-100 hover:shadow-xl transition-all active:scale-95"
                         >
-                            <LogIn size={20} />
-                            <span>লগইন করে স্ট্যাটাস চেক করুন</span>
+                            <Search size={20} />
+                            <span>ভর্তি স্ট্যাটাস চেক করুন</span>
                         </Link>
 
                         <div className="grid grid-cols-2 gap-3">
@@ -270,10 +435,8 @@ export default function PublicAdmissionPage() {
                             পূনরায় আবেদন করুন
                         </button>
                     </div>
-                    <p className="text-xs text-slate-400 font-medium">রশিদ বা ফর্মটি প্রিন্ট করে অথবা স্ক্রিনশট নিয়ে সংরক্ষণ করুন।</p>
                 </div>
 
-                {/* Formal Receipt for Print */}
                 {isPrinting && (
                     <div className="hidden">
                         <PrintLayout title={printMode === 'receipt' ? "ভর্তি আবেদন রশিদ (Admission Receipt)" : "ভর্তি আবেদন ফর্ম (Admission Application)"} institute={institute}>
@@ -303,33 +466,15 @@ export default function PublicAdmissionPage() {
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="space-y-4">
-                                        <h3 className="text-lg font-black text-slate-800 border-b-2 border-slate-800 pb-2 uppercase tracking-wide">আবেদনের বিবরণ (Application Details)</h3>
-                                        <div className="grid grid-cols-2 gap-6">
-                                            <div className="flex justify-between border-b border-slate-100 py-2">
-                                                <span className="text-slate-500 font-bold">আবেদনকৃত শ্রেণী:</span>
-                                                <span className="text-slate-900 font-black">{classes.find(c => c.id === formData.metadata.classId)?.name || 'N/A'}</span>
-                                            </div>
-                                            <div className="flex justify-between border-b border-slate-100 py-2">
-                                                <span className="text-slate-500 font-bold">আবেদনকৃত গ্রুপ:</span>
-                                                <span className="text-slate-900 font-black">{groups.find(g => g.id === formData.metadata.groupId)?.name || 'N/A'}</span>
-                                            </div>
-                                            <div className="flex justify-between border-b border-slate-100 py-2">
-                                                <span className="text-slate-500 font-bold">পিতার নাম:</span>
-                                                <span className="text-slate-900 font-black">{formData.metadata.fathersName || 'N/A'}</span>
-                                            </div>
-                                            <div className="flex justify-between border-b border-slate-100 py-2">
-                                                <span className="text-slate-500 font-bold">মাতার নাম:</span>
-                                                <span className="text-slate-900 font-black">{formData.metadata.mothersName || 'N/A'}</span>
-                                            </div>
+                                    <div className="grid grid-cols-2 gap-6">
+                                        <div className="flex justify-between border-b border-slate-100 py-2">
+                                            <span className="text-slate-500 font-bold">শ্রেণী:</span>
+                                            <span className="text-slate-900 font-black">{classes.find(c => c.id === formData.metadata.classId)?.name || 'N/A'}</span>
                                         </div>
-                                    </div>
-
-                                    <div className="p-6 bg-blue-50/50 border border-blue-100 rounded-2xl">
-                                        <p className="text-xs text-blue-800 font-bold leading-relaxed">
-                                            প্রতিষ্ঠানে ভর্তির সময় এই রশিদের একটি কপি এবং প্রয়োজনীয় কাগজপত্র (জন্ম নিবন্ধন, ছবি ইত্যাদি) সাথে নিয়ে আসার জন্য বলা হলো।
-                                        </p>
+                                        <div className="flex justify-between border-b border-slate-100 py-2">
+                                            <span className="text-slate-500 font-bold">গ্রুপ:</span>
+                                            <span className="text-slate-900 font-black">{groups.find(g => g.id === formData.metadata.groupId)?.name || 'N/A'}</span>
+                                        </div>
                                     </div>
                                 </div>
                             ) : (
@@ -344,56 +489,22 @@ export default function PublicAdmissionPage() {
                                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">মোবাইল (Mobile)</p>
                                                 <p className="text-lg font-bold text-slate-800">{formData.phone}</p>
                                             </div>
-                                            <div className="space-y-1">
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ইমেইল (Email)</p>
-                                                <p className="text-lg font-bold text-slate-800">{formData.email}</p>
-                                            </div>
                                         </div>
                                         <div className="flex flex-col items-end">
                                             <div className="w-32 h-40 border-2 border-slate-200 rounded-xl flex items-center justify-center bg-slate-50 overflow-hidden">
-                                                {formData.metadata.studentPhoto ? (
-                                                    <img src={formData.metadata.studentPhoto} alt="Student" className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <span className="text-[10px] font-bold text-slate-300 text-center px-4 uppercase">Passport Size Photo</span>
-                                                )}
+                                                {formData.metadata.studentPhoto && <img src={formData.metadata.studentPhoto} alt="Student" className="w-full h-full object-cover" />}
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="space-y-6">
-                                        <h3 className="text-sm font-black text-slate-800 border-b-2 border-slate-800 pb-1 uppercase tracking-widest">বিস্তারিত তথ্য (Detailed Information)</h3>
-                                        <div className="grid grid-cols-2 gap-y-4 gap-x-10">
-                                            {formConfig
-                                                .filter(f => !['name', 'email', 'password', 'studentPhoto'].includes(f.id))
-                                                .map(field => {
-                                                    let value = formData.metadata[field.id];
-                                                    if (field.type === 'class-lookup') {
-                                                        value = classes.find(c => c.id === value)?.name;
-                                                    } else if (field.type === 'group-lookup') {
-                                                        value = groups.find(g => g.id === value)?.name;
-                                                    }
-
-                                                    return (
-                                                        <div key={field.id} className="border-b border-slate-100 pb-1 flex justify-between gap-4">
-                                                            <span className="text-[11px] font-bold text-slate-500 uppercase">{field.label}:</span>
-                                                            <span className="text-[11px] font-black text-slate-900 text-right">{value || '-'}</span>
-                                                        </div>
-                                                    );
-                                                })}
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-20 flex justify-between items-end">
-                                        <div className="text-center space-y-2">
-                                            <div className="w-40 border-t border-slate-900 pt-1">
-                                                <p className="text-[10px] font-bold text-slate-900">অভিভাবকের স্বাক্ষর</p>
-                                            </div>
-                                        </div>
-                                        <div className="text-center space-y-2">
-                                            <div className="w-40 border-t border-slate-900 pt-1">
-                                                <p className="text-[10px] font-bold text-slate-900">অধ্যক্ষের স্বাক্ষর</p>
-                                            </div>
-                                        </div>
+                                    <div className="grid grid-cols-2 gap-y-4 gap-x-10">
+                                        {formConfig
+                                            .filter(f => !['name', 'email', 'password', 'studentPhoto'].includes(f.id))
+                                            .map(field => (
+                                                <div key={field.id} className="border-b border-slate-100 pb-1 flex justify-between gap-4">
+                                                    <span className="text-[11px] font-bold text-slate-500 uppercase">{field.label}:</span>
+                                                    <span className="text-[11px] font-black text-slate-900 text-right">{formData.metadata[field.id] || '-'}</span>
+                                                </div>
+                                            ))}
                                     </div>
                                 </div>
                             )}
@@ -404,45 +515,31 @@ export default function PublicAdmissionPage() {
         );
     }
 
+    const LOGIN_FIELD_IDS = ['studentId', 'rollNumber', 'email', 'phone', 'studentPhone', 'guardianPhone', 'guardianPassword', 'password'];
+    const effectiveFields = formConfig.filter((f: FieldDefinition) => !LOGIN_FIELD_IDS.includes(f.id) && f.id !== 'name');
+
     return (
         <div className="min-h-screen bg-slate-50 py-10 px-4 font-bengali">
             <div className="max-w-3xl mx-auto space-y-8">
                 <div className="text-center space-y-6">
                     <div className="relative inline-block">
                         <div className="w-28 h-28 bg-white rounded-[2rem] shadow-xl flex items-center justify-center mx-auto text-[#045c84] overflow-hidden border-4 border-white ring-8 ring-slate-100/50">
-                            {institute?.logo ? (
-                                <img src={institute.logo} alt={institute.name} className="w-full h-full object-cover" />
-                            ) : (
-                                <Building2 size={48} className="opacity-20" />
-                            )}
+                            {institute?.logo ? <img src={institute.logo} alt={institute.name} className="w-full h-full object-cover" /> : <Building2 size={48} className="opacity-20" />}
                         </div>
                     </div>
-
                     <div className="space-y-2">
-                        <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">
-                            {institute?.name || 'ভর্তি ফর্ম'}
-                        </h1>
-                        {institute?.address && (
-                            <p className="text-slate-500 font-medium max-w-xl mx-auto leading-relaxed text-lg">
-                                {institute.address}
-                            </p>
-                        )}
+                        <h1 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-tight">{institute?.name || 'ভর্তি ফর্ম'}</h1>
+                        {institute?.address && <p className="text-slate-500 font-medium max-w-xl mx-auto leading-relaxed text-lg">{institute.address}</p>}
                     </div>
-
                     <div className="inline-flex items-center gap-3 px-6 py-2 bg-[#045c84] text-white rounded-full text-sm font-bold uppercase tracking-widest shadow-lg shadow-blue-100 italic relative">
                         <span className="w-2 h-2 bg-blue-300 rounded-full animate-pulse" />
                         ভর্তি আবেদনপত্র
-
                         {draftStatus && (
                             <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 bg-white border border-blue-100 text-[#045c84] text-[10px] font-black rounded-xl shadow-sm animate-fade-in whitespace-nowrap not-italic">
                                 {draftStatus === 'saving' && <Loader2 size={12} className="animate-spin" />}
                                 {draftStatus === 'saved' && <Save size={12} />}
                                 {draftStatus === 'recovered' && <CheckCircle2 size={12} />}
-                                <span>
-                                    {draftStatus === 'saving' && 'ড্রাফট সেভ হচ্ছে...'}
-                                    {draftStatus === 'saved' && 'ড্রাফট সেভ হয়েছে'}
-                                    {draftStatus === 'recovered' && 'আগের ড্রাফট লোড হয়েছে'}
-                                </span>
+                                <span>{draftStatus === 'saving' ? 'ড্রাফট সেভ হচ্ছে...' : draftStatus === 'saved' ? 'ড্রাফট সেভ হয়েছে' : 'আগের ড্রাফট লোড হয়েছে'}</span>
                             </div>
                         )}
                     </div>
@@ -450,232 +547,107 @@ export default function PublicAdmissionPage() {
 
                 <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
                     <div className="h-2 bg-[#045c84] w-full" />
-                    <form onSubmit={handleSubmit} className="p-6 md:p-10 space-y-8">
+                    <div className="flex border-b border-slate-100 bg-slate-50/50">
+                        <button type="button" onClick={() => setActiveTab('profile')} className={`flex-1 py-6 text-sm font-black transition-all flex items-center justify-center gap-2 ${activeTab === 'profile' ? 'bg-white text-[#045c84] border-b-4 border-[#045c84]' : 'text-slate-400 hover:text-slate-600'}`}>
+                            <span className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold">০১</span>ব্যক্তিগত তথ্যাদি (Profile Info)
+                        </button>
+                        <button type="button" onClick={() => setActiveTab('account')} className={`flex-1 py-6 text-sm font-black transition-all flex items-center justify-center gap-2 ${activeTab === 'account' ? 'bg-white text-[#045c84] border-b-4 border-[#045c84]' : 'text-slate-400 hover:text-slate-600'}`}>
+                            <span className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center text-[10px] font-bold">০২</span>অ্যাকাউন্ট সেটআপ (Account Setup)
+                        </button>
+                    </div>
 
-                        {/* Basic Fields */}
-                        <div className="space-y-6">
-                            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest border-b pb-2">মৌলিক তথ্য</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">পুরো নাম <span className="text-red-500">*</span></label>
-                                    <input
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                        placeholder="আপনার নাম"
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        required
-                                    />
+                    <form onSubmit={handleSubmit} className="p-6 md:p-10 space-y-10">
+                        {activeTab === 'profile' ? (
+                            <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="space-y-6">
+                                    <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest border-b pb-2 cursor-default">শিক্ষার্থীর তথ্যাদি</h3>
+                                    {renderField('name')}
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">মোবাইল নম্বর (লগইন আইডি) <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                        placeholder="017xxxxxxxx"
-                                        value={formData.phone}
-                                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                        required
-                                    />
-                                </div>
-                                <div className="space-y-2 md:col-span-2">
-                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ইমেইল অ্যাড্রেস <span className="text-red-500">*</span></label>
-                                    <input
-                                        type="text"
-                                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                        placeholder="example@mail.com"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                        required
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Dynamic Fields */}
-                        <div className="space-y-6">
-                            <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest border-b pb-2">বিস্তারিত তথ্য</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {formConfig.map((field) => (
-                                    <div key={field.id} className={`space-y-2 group/field ${field.type === 'attachment' ? 'md:col-span-2' : ''}`}>
-                                        {field.id === 'guardianName' && (
-                                            <div className="flex gap-2 mb-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        if (formData.metadata.fathersName || formData.metadata.fathersPhone) {
-                                                            setFormData({
-                                                                ...formData,
-                                                                metadata: {
-                                                                    ...formData.metadata,
-                                                                    guardianName: formData.metadata.fathersName || formData.metadata.guardianName,
-                                                                    guardianPhone: formData.metadata.fathersPhone || formData.metadata.guardianPhone,
-                                                                    guardianRelation: 'বাবা'
-                                                                }
-                                                            });
-                                                        } else {
-                                                            setToast({ message: 'পিতার তথ্য আগে পূরণ করুন।', type: 'error' });
-                                                        }
-                                                    }}
-                                                    className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors"
-                                                >
-                                                    অভিভাবক হিসেবে পিতা
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        if (formData.metadata.mothersName || formData.metadata.mothersPhone) {
-                                                            setFormData({
-                                                                ...formData,
-                                                                metadata: {
-                                                                    ...formData.metadata,
-                                                                    guardianName: formData.metadata.mothersName || formData.metadata.guardianName,
-                                                                    guardianPhone: formData.metadata.mothersPhone || formData.metadata.guardianPhone,
-                                                                    guardianRelation: 'মা'
-                                                                }
-                                                            });
-                                                        } else {
-                                                            setToast({ message: 'মাতার তথ্য আগে পূরণ করুন।', type: 'error' });
-                                                        }
-                                                    }}
-                                                    className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-xs font-bold hover:bg-pink-100 transition-colors"
-                                                >
-                                                    অভিভাবক হিসেবে মাতা
-                                                </button>
-                                            </div>
-                                        )}
-                                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider">
-                                            {field.label} {field.required && <span className="text-red-500">*</span>}
-                                        </label>
-
-                                        {field.type === 'select' ? (
-                                            <div className="relative">
-                                                <select
-                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
-                                                    value={formData.metadata[field.id] || ''}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        metadata: { ...formData.metadata, [field.id]: e.target.value }
-                                                    })}
-                                                    required={field.required}
-                                                >
-                                                    <option value="">নির্বাচন করুন</option>
-                                                    {field.options?.map(opt => (
-                                                        <option key={opt} value={opt}>{opt}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        ) : field.type === 'attachment' ? (
-                                            <div className="relative">
-                                                <div className={`w-full px-4 py-3 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-between transition-all ${formData.metadata[field.id] ? 'border-green-200 bg-green-50/30' : 'hover:border-[#045c84]'}`}>
-                                                    <div className="flex items-center gap-3 overflow-hidden">
-                                                        <CloudUpload className={formData.metadata[field.id] ? 'text-green-500' : 'text-slate-400'} size={20} />
-                                                        <span className="text-sm font-medium text-slate-600 truncate">
-                                                            {formData.metadata[field.id] ? 'ফাইল আপলোড হয়েছে' : 'ফাইল নির্বাচন করুন'}
-                                                        </span>
-                                                    </div>
-                                                    <input
-                                                        type="file"
-                                                        className="absolute inset-0 opacity-0 cursor-pointer"
-                                                        onChange={(e) => handleFileUpload(e, field.id)}
-                                                        required={field.required && !formData.metadata[field.id]}
-                                                    />
-                                                    {formData.metadata[field.id] && (
-                                                        <div className="flex flex-col items-center gap-2">
-                                                            {field.id === 'studentPhoto' && (
-                                                                <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-green-500 shadow-lg">
-                                                                    <img src={formData.metadata[field.id]} alt="Preview" className="w-full h-full object-cover" />
-                                                                </div>
-                                                            )}
-                                                            <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                                                                <Save size={16} />
+                                {effectiveFields.length > 0 && (
+                                    <div className="space-y-6">
+                                        <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest border-b pb-2">বিস্তারিত তথ্য (Profile Data)</h3>
+                                        <div className="grid grid-cols-1 gap-6">
+                                            {effectiveFields.map(field => {
+                                                if (field.id === 'guardianName') {
+                                                    return (
+                                                        <div key={field.id} className="space-y-4">
+                                                            <div className="flex gap-2">
+                                                                <button type="button" onClick={() => {
+                                                                    const m = formData.metadata;
+                                                                    if (m.fathersName || m.fathersPhone) {
+                                                                        setFormData({ ...formData, metadata: { ...m, guardianName: m.fathersName || m.guardianName, guardianPhone: m.fathersPhone || m.guardianPhone, guardianRelation: 'বাবা' } });
+                                                                    } else setToast({ message: 'পিতার তথ্য আগে পূরণ করুন।', type: 'error' });
+                                                                }} className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors">অভিভাবক হিসেবে পিতা</button>
+                                                                <button type="button" onClick={() => {
+                                                                    const m = formData.metadata;
+                                                                    if (m.mothersName || m.mothersPhone) {
+                                                                        setFormData({ ...formData, metadata: { ...m, guardianName: m.mothersName || m.guardianName, guardianPhone: m.mothersPhone || m.guardianPhone, guardianRelation: 'মা' } });
+                                                                    } else setToast({ message: 'মাতার তথ্য আগে পূরণ করুন।', type: 'error' });
+                                                                }} className="px-3 py-1 bg-pink-50 text-pink-600 rounded-lg text-xs font-bold hover:bg-pink-100 transition-colors">অভিভাবক হিসেবে মাতা</button>
                                                             </div>
+                                                            {renderField(field.id)}
                                                         </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        ) : field.type === 'class-lookup' ? (
-                                            <div className="relative">
-                                                <select
-                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
-                                                    value={formData.metadata[field.id] || ''}
-                                                    onChange={(e) => {
-                                                        const classId = e.target.value;
-                                                        setFormData({
-                                                            ...formData,
-                                                            metadata: { ...formData.metadata, [field.id]: classId, groupId: '' }
-                                                        });
-                                                        if (classId) {
-                                                            fetchGroups(classId);
-                                                            handleAutoGenerate('rollNumber', classId, true);
-                                                        }
-                                                        else setGroups([]);
-                                                    }}
-                                                    required={field.required}
-                                                >
-                                                    <option value="">শ্রেণী নির্বাচন করুন</option>
-                                                    {classes.map(c => (
-                                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        ) : field.type === 'group-lookup' ? (
-                                            <div className="relative">
-                                                <select
-                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black appearance-none"
-                                                    value={formData.metadata[field.id] || ''}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        metadata: { ...formData.metadata, [field.id]: e.target.value }
-                                                    })}
-                                                    required={field.required}
-                                                    disabled={!formData.metadata.classId}
-                                                >
-                                                    <option value="">গ্রুপ নির্বাচন করুন</option>
-                                                    {groups.map(g => (
-                                                        <option key={g.id} value={g.id}>{g.name}</option>
-                                                    ))}
-                                                </select>
-                                                {!formData.metadata.classId && (
-                                                    <p className="text-[10px] text-amber-600 font-bold mt-1">প্রথমে শ্রেণী নির্বাচন করুন</p>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <div className="relative group/field">
-                                                <input
-                                                    type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
-                                                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black"
-                                                    placeholder={field.placeholder || `${field.label}`}
-                                                    value={formData.metadata[field.id] || ''}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        metadata: { ...formData.metadata, [field.id]: e.target.value }
-                                                    })}
-                                                    required={field.required}
-                                                />
-                                                {(field.id === 'rollNumber' || field.id === 'studentId') && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleAutoGenerate(field.id, undefined, true)}
-                                                        className="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-white border border-slate-200 text-[#045c84] text-[10px] font-bold rounded-xl shadow-sm hover:bg-[#045c84] hover:text-white transition-all md:opacity-0 md:group-hover/field:opacity-100 opacity-60"
-                                                    >
-                                                        AUTO
-                                                    </button>
-                                                )}
-                                            </div>
-                                        )}
+                                                    );
+                                                }
+                                                return renderField(field.id);
+                                            })}
+                                        </div>
                                     </div>
-                                ))}
+                                )}
                             </div>
-                        </div>
-
-                        <div className="pt-6 border-t border-slate-100 flex justify-end">
-                            <button
-                                type="submit"
-                                disabled={actionLoading}
-                                className="w-full md:w-auto px-8 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
-                            >
+                        ) : (
+                            <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="bg-slate-50 p-6 md:p-8 rounded-[32px] border border-slate-100 space-y-8 shadow-inner">
+                                    <div className="space-y-6">
+                                        <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                                            <div className="w-8 h-8 rounded-xl bg-[#045c84] flex items-center justify-center text-white"><LogIn size={18} /></div>
+                                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">শিক্ষার্থীর লগইন তথ্য</h4>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">মোবাইল নম্বর <span className="text-red-500">*</span></label>
+                                                <input type="text" required placeholder="শিক্ষার্থীর মোবাইল বা আইডি" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.phone || ''} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ইমেইল (ঐচ্ছিক)</label>
+                                                <input type="email" placeholder="শিক্ষার্থীর ইমেইল" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">শিক্ষার্থীর পাসওয়ার্ড <span className="text-red-500">*</span></label>
+                                                <input type="password" required placeholder="পাসওয়ার্ড সেট করুন" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.password || ''} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="pt-4 space-y-6">
+                                        <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                                            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white"><CheckCircle2 size={18} /></div>
+                                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">অভিভাবকের অ্যাকাউন্ট (বাধ্যতামূলক)</h4>
+                                        </div>
+                                        <div className="grid grid-cols-1 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">অভিভাবকের নাম <span className="text-red-500">*</span></label>
+                                                <input type="text" required placeholder="অভিভাবকের নাম লিখুন" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.guardianName || ''} onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">অভিভাবকের মোবাইল <span className="text-red-500">*</span></label>
+                                                <input type="text" required placeholder="অভিভাবকের মোবাইল নম্বর" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.guardianPhone || ''} onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">লগইন পাসওয়ার্ড <span className="text-red-500">*</span></label>
+                                                <input type="password" required placeholder="পাসওয়ার্ড সেট করুন" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.guardianPassword || ''} onChange={(e) => setFormData({ ...formData, guardianPassword: e.target.value })} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <div className="pt-8 border-t border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                            {activeTab === 'account' && (
+                                <button type="button" onClick={() => setActiveTab('profile')} className="w-full md:w-auto px-10 py-4 bg-slate-100 text-slate-600 font-black rounded-2xl hover:bg-slate-200 transition-all active:scale-95">আগের ধাপে ফিরে যান</button>
+                            )}
+                            <button type={activeTab === 'profile' ? 'button' : 'submit'} onClick={() => activeTab === 'profile' && setActiveTab('account')} disabled={actionLoading} className="w-full md:w-auto px-10 py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-lg shadow-blue-100 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50">
                                 {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                                <span>জমা দিন</span>
+                                <span>{activeTab === 'profile' ? 'পরবর্তী ধাপ' : 'ভর্তি আবেদন জমা দিন'}</span>
                             </button>
                         </div>
                     </form>

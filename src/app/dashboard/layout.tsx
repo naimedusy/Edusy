@@ -30,11 +30,15 @@ import RoleSwitcher from '@/components/RoleSwitcher';
 import ProfileModal from '@/components/ProfileModal';
 import NotificationBell from '@/components/NotificationBell';
 import GlobalSearch from '@/components/GlobalSearch';
+import GlobalAssignmentModal from '@/components/GlobalAssignmentModal';
+import { useUI } from '@/components/UIProvider';
+import { PenTool } from 'lucide-react';
 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const { openAssignmentModal } = useUI();
     const { user, activeRole, logout, isLoading } = useSession();
     const pathname = usePathname();
 
@@ -220,7 +224,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                                 pathname?.includes('/dashboard/settings') ? 'সেটিংস' :
                                                     pathname?.includes('/dashboard/guardians') ? 'অভিভাবক' :
                                                         pathname?.includes('/dashboard/calendar') ? 'ক্যালেন্ডার' :
-                                                            pathname?.includes('/dashboard') ? 'ড্যাশবোর্ড' : ''}
+                                                            pathname?.includes('/dashboard/assignments') ? 'অ্যাসাইনমেন্ট' :
+                                                                pathname?.includes('/dashboard') ? 'ড্যাশবোর্ড' : ''}
                             </h2>
                         </div>
                     </div>
@@ -260,6 +265,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     onClose={() => setIsProfileModalOpen(false)}
                     user={user}
                 />
+                {/* Global Assignment Modal */}
+                <GlobalAssignmentModal />
             </div>
         </div>
     );

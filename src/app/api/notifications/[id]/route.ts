@@ -4,11 +4,11 @@ import prisma from '@/utils/db';
 // PATCH - Mark notification as read
 export async function PATCH(
     req: Request,
-    props: { params: Promise<{ id: string }> }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const params = await props.params;
-        const notificationId = params.id;
+        const { id } = await params;
+        const notificationId = id;
 
         if (!notificationId) {
             return NextResponse.json({ error: 'Notification ID is required' }, { status: 400 });
