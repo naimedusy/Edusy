@@ -125,6 +125,17 @@ export default function GuardianDetailsModal({
         return matchesSearch && matchesClass;
     });
 
+    React.useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen]);
+
     const initials = name[0]?.toUpperCase() || 'G';
 
     return (
@@ -132,9 +143,12 @@ export default function GuardianDetailsModal({
             isOpen={isOpen}
             onClose={onClose}
             title="অভিভাবকের বিস্তারিত তথ্য"
-            maxWidth="max-w-md"
+            maxWidth="max-w-3xl"
         >
-            <div className={`p-6 space-y-8 ${isLinking ? 'hidden' : 'block'}`}>
+            <div
+                className={`max-h-[80vh] overflow-y-auto custom-scrollbar p-6 space-y-8 ${isLinking ? 'hidden' : 'block'}`}
+                data-lenis-prevent
+            >
                 {/* Profile Header */}
                 <div className="flex flex-col items-center text-center gap-3">
                     <div className="w-24 h-24 rounded-[32px] bg-gradient-to-br from-[#045c84] via-[#067ab8] to-[#045c84] text-white flex items-center justify-center text-4xl font-black shadow-xl shadow-blue-900/20 ring-4 ring-white">

@@ -11,9 +11,10 @@ interface ModalProps {
     children: React.ReactNode;
     maxWidth?: string;
     headerActions?: React.ReactNode;
+    noScroll?: boolean;
 }
 
-export default function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-xl', headerActions }: ModalProps) {
+export default function Modal({ isOpen, onClose, title, children, maxWidth = 'max-w-xl', headerActions, noScroll = false }: ModalProps) {
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -51,7 +52,10 @@ export default function Modal({ isOpen, onClose, title, children, maxWidth = 'ma
                         </button>
                     </div>
                 </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                <div
+                    className={`flex-1 flex flex-col min-h-0 ${!noScroll ? 'overflow-y-auto custom-scrollbar' : ''}`}
+                    data-lenis-prevent
+                >
                     {children}
                 </div>
             </div>

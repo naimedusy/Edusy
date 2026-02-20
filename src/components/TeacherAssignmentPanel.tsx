@@ -16,13 +16,20 @@ import {
     TrendingUp,
     History as HistoryIcon,
     LayoutGrid,
-    Calendar as CalendarIcon
+    Calendar as CalendarIcon,
+    ChevronDown,
+    ChevronUp,
+    MessageSquare,
+    BookOpen,
+    FileText,
+    Home
 } from 'lucide-react';
 import { useSession } from '@/components/SessionProvider';
 import { useUI } from './UIProvider';
 import AssignmentDetailsModal from './AssignmentDetailsModal';
 import AssignmentEditorPanel from './AssignmentEditorPanel';
 import Toast from './Toast';
+import ClassScheduleSettingsModal from './ClassScheduleSettingsModal';
 
 interface ClassData {
     id: string;
@@ -47,8 +54,37 @@ interface SubjectStatus {
     assignedTo?: string; // Added to show who is responsible (teacher name)
     status?: string; // Added to track DRAFT/RELEASED
     pendingCount?: number; // Added to show pending submissions
+    submittedCount?: number; // Added to show total submissions
+    totalStudents?: number; // Added to show total students in class
+    canEdit?: boolean; // Added to restrict editing
     assignment?: any; // Store full assignment object for details view
 }
+
+const ALL_TAGS = [
+    { id: 'read', label: 'পড়া', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+    { id: 'write', label: 'লেখা', color: 'bg-blue-50 text-[#045c84] border-blue-100' },
+    { id: 'memo', label: 'মুখস্থ', color: 'bg-purple-50 text-purple-600 border-purple-100' },
+    { id: 'notes', label: 'নোট', color: 'bg-slate-50 text-slate-600 border-slate-200' },
+    { id: 'exercise', label: 'অনুশীলনী', color: 'bg-cyan-50 text-cyan-600 border-cyan-100' },
+    { id: 'chapter', label: 'অধ্যায়', color: 'bg-amber-50 text-amber-600 border-amber-100' },
+    { id: 'lesson', label: 'পাঠ', color: 'bg-orange-50 text-orange-600 border-orange-100' },
+    { id: 'meaning', label: 'শব্দার্থ', color: 'bg-lime-50 text-lime-600 border-lime-100' },
+    { id: 'qa', label: 'প্রশ্ন-উত্তর', color: 'bg-violet-50 text-violet-600 border-violet-100' },
+    { id: 'grammar', label: 'ব্যাকরণ', color: 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100' },
+    { id: 'test', label: 'পরীক্ষা', color: 'bg-red-50 text-red-600 border-red-100' },
+    { id: 'correction', label: 'সংশোধন', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+    { id: 'drawing', label: 'ছবি/চিত্র', color: 'bg-pink-50 text-pink-600 border-pink-100' },
+    { id: 'map', label: 'মানচিত্র', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    { id: 'mcq', label: 'MCQ', color: 'bg-rose-50 text-rose-600 border-rose-100' },
+    { id: 'creative', label: 'সৃজনশীল', color: 'bg-teal-50 text-teal-600 border-teal-100' },
+    { id: 'excellent', label: 'চমৎকার', color: 'bg-blue-50 text-[#045c84] border-blue-100' },
+    { id: 'attentive', label: 'মনোযোগী', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+    { id: 'improving', label: 'উন্নতি করছে', color: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
+    { id: 'incomplete', label: 'অসম্পূর্ণ', color: 'bg-amber-50 text-amber-600 border-amber-100' },
+    { id: 'late', label: 'দেরি', color: 'bg-slate-50 text-slate-600 border-slate-200' },
+    { id: 'parent-call', label: 'অভিভাবক সাক্ষাত', color: 'bg-rose-50 text-rose-600 border-rose-100' },
+    { id: 'behavior', label: 'আচরণ ভালো', color: 'bg-cyan-50 text-cyan-600 border-cyan-100' }
+];
 
 interface TeacherAssignmentPanelProps {
     onClose?: () => void;
@@ -85,6 +121,7 @@ export default function TeacherAssignmentPanel({
     const [teachers, setTeachers] = useState<any[]>([]);
     const [allClasses, setAllClasses] = useState<ClassData[]>([]);
     const [allBooks, setAllBooks] = useState<BookData[]>([]);
+    const [allStudents, setAllStudents] = useState<any[]>([]);
 
     // View State: LIST or EDITOR
     const [viewState, setViewState] = useState<'LIST' | 'EDITOR'>(initialView);
@@ -102,6 +139,8 @@ export default function TeacherAssignmentPanel({
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
     const [releasingId, setReleasingId] = useState<string | null>(null);
     const [isBulkReleasing, setIsBulkReleasing] = useState(false);
+    const [expandedSubject, setExpandedSubject] = useState<string | null>(null);
+    const [scheduleModalClass, setScheduleModalClass] = useState<{ id: string; name: string; schedule?: any } | null>(null);
 
     const showToast = (message: string, type: 'success' | 'error') => {
         setToast({ message, type });
@@ -141,6 +180,29 @@ export default function TeacherAssignmentPanel({
         await handleBulkRelease([assignmentId]);
     };
 
+    const getBengaliDate = (dateString: string) => {
+        const date = new Date(dateString);
+        const months = [
+            'জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন',
+            'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
+        ];
+        const days = [
+            'রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'
+        ];
+
+        const day = date.getDate();
+        const month = months[date.getMonth()];
+        const year = date.getFullYear();
+        const dayName = days[date.getDay()];
+
+        const bnDigits: any = {
+            '0': '০', '1': '১', '2': '২', '3': '৩', '4': '৪', '5': '৫', '6': '৬', '7': '৭', '8': '৮', '9': '৯'
+        };
+        const toBn = (n: number | string) => n.toString().split('').map(d => bnDigits[d] || d).join('');
+
+        return `${toBn(day)} ${month} ${toBn(year)}, ${dayName}`;
+    };
+
     const fetchData = async () => {
         if (!activeInstitute?.id || !user?.id) return;
         setLoading(true);
@@ -148,29 +210,40 @@ export default function TeacherAssignmentPanel({
             const isMINE = viewMode === 'MINE';
 
             // 1. Fetch data
-            const [classesRes, booksRes, teachersRes, assignmentsRes] = await Promise.all([
+            const [classesRes, booksRes, teachersRes, assignmentsRes, studentsRes] = await Promise.all([
                 fetch(`/api/admin/classes?instituteId=${activeInstitute.id}`),
                 fetch(`/api/admin/books?instituteId=${activeInstitute.id}`),
                 fetch(`/api/teacher?instituteId=${activeInstitute.id}`),
-                fetch(`/api/assignments?instituteId=${activeInstitute.id}&role=TEACHER&userId=${user.id}&date=${selectedDate}${isMINE ? '&ownOnly=true' : ''}`)
+                fetch(`/api/assignments?instituteId=${activeInstitute.id}&role=TEACHER&userId=${user.id}&date=${selectedDate}${isMINE ? '&ownOnly=true' : ''}`),
+                fetch(`/api/admin/users?instituteId=${activeInstitute.id}&role=STUDENT`)
             ]);
 
-            const [classes, books, teachers, dateAssignments] = await Promise.all([
+            const [classes, books, teachers, dateAssignments, students] = await Promise.all([
                 classesRes.json(),
                 booksRes.json(),
                 teachersRes.json(),
-                assignmentsRes.json()
+                assignmentsRes.json(),
+                studentsRes.json()
             ]);
 
             setAllClasses(classes);
             setAllBooks(books);
             setTeachers(teachers);
+            setAllStudents(students);
+
+            // Calculate student counts per class
+            const counts: Record<string, number> = {};
+            if (Array.isArray(students)) {
+                students.forEach((s: any) => {
+                    const cId = s.metadata?.classId;
+                    if (cId) counts[cId] = (counts[cId] || 0) + 1;
+                });
+            }
 
             const subjectList: SubjectStatus[] = [];
             const processedPairs = new Set<string>();
 
             if (viewMode === 'ALL') {
-                // "ALL" mode: Show ALL Class-Book combinations in the institute
                 classes.forEach((cls: any) => {
                     const classBooks = books.filter((b: any) => b.classId === cls.id);
                     classBooks.forEach((book: any) => {
@@ -180,27 +253,13 @@ export default function TeacherAssignmentPanel({
 
                         const assignment = dateAssignments.find((a: any) => a.classId === cls.id && a.bookId === book.id);
 
-                        // Extract task types from description if structured
-                        let taskTypes: string[] = [];
-                        if (assignment?.description) {
-                            try {
-                                const parsed = JSON.parse(assignment.description);
-                                if (parsed.version === '2.0' && parsed.sections) {
-                                    taskTypes = parsed.sections.map((s: any) => {
-                                        if (s.title.includes('Classwork')) return 'ক্লাসের কাজ';
-                                        if (s.title.includes('Preparation')) return 'প্রস্তুতি';
-                                        if (s.title.includes('Homework')) return 'বাড়ির কাজ';
-                                        if (s.title.includes('Comments')) return 'মন্তব্য';
-                                        return null;
-                                    }).filter(Boolean);
-                                }
-                            } catch (e) { /* Not structured */ }
-                        }
-
                         // Find assigned teacher(s)
                         const assignedTeacher = teachers.find((t: any) =>
                             t.permissions?.classWise?.[cls.id]?.bookIds?.includes(book.id)
                         );
+
+                        const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
+                        const isAssigned = assignedTeacher?.userId === user?.id;
 
                         subjectList.push({
                             classId: cls.id,
@@ -213,14 +272,15 @@ export default function TeacherAssignmentPanel({
                             assignmentId: assignment?.id,
                             submittedBy: assignment?.teacher?.name,
                             assignedTo: assignedTeacher?.user?.name,
-                            pendingCount: assignment?.pendingCount || 0,
-                            assignment: { ...assignment, taskTypes }
+                            submittedCount: assignment?.submissions?.length || 0,
+                            totalStudents: counts[cls.id] || 0,
+                            pendingCount: assignment?.submissions?.filter((s: any) => s.status === 'SUBMITTED').length || 0,
+                            canEdit: isAdmin || isAssigned,
+                            assignment
                         });
                     });
                 });
             } else {
-                // "MINE" mode: Only show subjects assigned to the current user
-                // relevantProfiles is already filtered to just the user in 'MINE' mode
                 const currentUserProfile = teachers.find((t: any) => t.userId === user.id);
                 if (currentUserProfile?.permissions?.classWise) {
                     Object.keys(currentUserProfile.permissions.classWise).forEach(classId => {
@@ -238,36 +298,24 @@ export default function TeacherAssignmentPanel({
 
                             const assignment = dateAssignments.find((a: any) => a.classId === classId && a.bookId === bookId);
 
-                            // Extract task types from description if structured
-                            let taskTypes: string[] = [];
-                            if (assignment?.description) {
-                                try {
-                                    const parsed = JSON.parse(assignment.description);
-                                    if (parsed.version === '2.0' && parsed.sections) {
-                                        taskTypes = parsed.sections.map((s: any) => {
-                                            if (s.title.includes('Classwork')) return 'ক্লাসের কাজ';
-                                            if (s.title.includes('Preparation')) return 'প্রস্তুতি';
-                                            if (s.title.includes('Homework')) return 'বাড়ির কাজ';
-                                            if (s.title.includes('Comments')) return 'মন্তব্য';
-                                            return null;
-                                        }).filter(Boolean);
-                                    }
-                                } catch (e) { /* Not structured */ }
-                            }
+                            const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
                             subjectList.push({
-                                classId,
+                                classId: classId,
                                 className: classInfo.name,
-                                bookId,
+                                bookId: bookId,
                                 bookName: bookInfo.name,
                                 coverImage: bookInfo.coverImage,
                                 isDone: !!assignment,
                                 status: assignment?.status,
                                 assignmentId: assignment?.id,
                                 submittedBy: assignment?.teacher?.name,
-                                assignedTo: currentUserProfile?.user?.name,
-                                pendingCount: assignment?.pendingCount || 0,
-                                assignment: { ...assignment, taskTypes }
+                                assignedTo: user.name || 'আপনি',
+                                submittedCount: assignment?.submissions?.length || 0,
+                                totalStudents: counts[classId] || 0,
+                                pendingCount: assignment?.submissions?.filter((s: any) => s.status === 'SUBMITTED').length || 0,
+                                canEdit: true, // In MINE mode, it's already filtered to their subjects, or they are Admin
+                                assignment
                             });
                         });
                     });
@@ -464,22 +512,6 @@ export default function TeacherAssignmentPanel({
                                 </button>
                             ))}
                         </div>
-
-                        {/* Mode Toggles (Mine/All) moved here to save space */}
-                        <div className="hidden md:flex bg-slate-100/80 p-1 rounded-2xl border border-slate-200 shadow-inner shrink-0">
-                            <button
-                                onClick={() => setViewMode('MINE')}
-                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'MINE' ? 'bg-white text-[#045c84] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                            >
-                                আমার বিষয়
-                            </button>
-                            <button
-                                onClick={() => setViewMode('ALL')}
-                                className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${viewMode === 'ALL' ? 'bg-white text-[#045c84] shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                            >
-                                সম্পূর্ণ প্রতিষ্ঠান
-                            </button>
-                        </div>
                     </div>
                 )}
 
@@ -503,7 +535,7 @@ export default function TeacherAssignmentPanel({
 
                         <div className="h-6 w-px bg-slate-200 mx-1 hidden md:block" />
 
-                        {/* Date Picker Integrated beside tabs */}
+                        {/* Date Picker */}
                         <div className="relative group flex-1 md:flex-none">
                             <input
                                 type="date"
@@ -513,6 +545,19 @@ export default function TeacherAssignmentPanel({
                                 className="w-full md:w-auto bg-white border border-slate-200 px-4 py-2 rounded-xl text-[10px] font-black text-[#045c84] outline-none hover:border-[#045c84]/50 transition-all cursor-pointer shadow-sm uppercase tracking-widest"
                             />
                         </div>
+
+                        {/* Mine / All compact toggle */}
+                        <button
+                            onClick={() => setViewMode(viewMode === 'MINE' ? 'ALL' : 'MINE')}
+                            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${viewMode === 'MINE'
+                                ? 'bg-[#045c84] text-white border-[#045c84] shadow-sm'
+                                : 'bg-white text-slate-400 border-slate-200 hover:border-[#045c84]/30 hover:text-slate-600'
+                                }`}
+                            title={viewMode === 'MINE' ? 'সব বিষয় দেখুন' : 'শুধু আমার বিষয়'}
+                        >
+                            <BookOpen size={10} />
+                            {viewMode === 'MINE' ? 'আমার' : 'সব'}
+                        </button>
                     </div>
 
                     {/* View Controls (History only) and Close Button */}
@@ -636,166 +681,196 @@ export default function TeacherAssignmentPanel({
                         </div>
                     ) : null}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {displaySubjects.map((s, idx) => {
-                            const isPending = !s.isDone;
-
-                            if (isPending) {
-                                return (
-                                    <div
-                                        key={`${s.classId}-${s.bookId}`}
-                                        onClick={() => handleEntry(s.classId, s.bookId)}
-                                        className="group bg-white p-4 rounded-[20px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-[#045c84]/30 transition-all cursor-pointer relative overflow-hidden flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300"
-                                        style={{ animationDelay: `${idx * 50}ms` }}
-                                    >
-                                        <div className="w-12 h-12 bg-slate-50 rounded-xl overflow-hidden shrink-0 border border-slate-100 group-hover:scale-105 transition-transform">
-                                            {s.coverImage ? (
-                                                <img src={s.coverImage} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                                    <GraduationCap size={20} />
-                                                </div>
-                                            )}
+                    <div className="flex flex-col gap-6">
+                        {Object.entries(
+                            displaySubjects.reduce((acc: any, s: any) => {
+                                if (!acc[s.className]) acc[s.className] = [];
+                                acc[s.className].push(s);
+                                return acc;
+                            }, {})
+                        ).map(([className, classSubjects]: [string, any]) => (
+                            <div key={className} className="bg-white rounded-[32px] border border-slate-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                                {/* Class Header */}
+                                <div className="bg-slate-50/80 px-6 py-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-1.5 h-6 bg-[#045c84] rounded-full" />
+                                        <h3 className="text-lg font-black text-slate-800">{className}</h3>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 text-slate-500 font-bold text-[10px] uppercase tracking-widest bg-white/50 px-3 py-1 rounded-full border border-slate-100">
+                                            <CalendarIcon size={12} />
+                                            {getBengaliDate(selectedDate)}
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex justify-between items-start gap-2">
-                                                <h3 className="font-bold text-slate-800 text-sm truncate group-hover:text-[#045c84] transition-colors">{s.bookName}</h3>
-                                                {viewMode === 'ALL' && s.assignedTo && (
-                                                    <span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 shrink-0 whitespace-nowrap">
-                                                        {s.assignedTo}
-                                                    </span>
+                                        {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (() => {
+                                            const cls = allClasses.find(c => c.name === className);
+                                            return cls ? (
+                                                <button
+                                                    onClick={() => setScheduleModalClass({ id: cls.id, name: cls.name, schedule: (cls as any).schedule })}
+                                                    className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-[#045c84] hover:border-[#045c84]/30 rounded-xl transition-all shadow-sm"
+                                                    title="ক্লাস সময়সূচী সেটিংস"
+                                                >
+                                                    <Settings size={14} />
+                                                </button>
+                                            ) : null;
+                                        })()}
+                                    </div>
+                                </div>
+
+                                {/* Subjects List */}
+                                <div className="divide-y divide-slate-100">
+                                    {classSubjects.map((s: any, idx: number) => {
+                                        const isExpanded = expandedSubject === `${s.classId}-${s.bookId}`;
+                                        const progress = s.totalStudents > 0 ? (s.submittedCount / s.totalStudents) * 100 : 0;
+
+                                        // Parse assignment description for details
+                                        let details: any = { homework: '', classwork: '', nextWork: '', comments: '' };
+                                        if (s.assignment?.description) {
+                                            try {
+                                                const parsed = JSON.parse(s.assignment.description);
+                                                if (parsed.sections) {
+                                                    parsed.sections.forEach((sec: any) => {
+                                                        const tasks = sec.tasks || [];
+                                                        if (sec.title.includes('Homework')) details.homework = tasks;
+                                                        if (sec.title.includes('Classwork')) details.classwork = tasks;
+                                                        if (sec.title.includes('Preparation')) details.nextWork = tasks;
+                                                        if (sec.title.includes('Comments')) details.comments = tasks;
+                                                    });
+                                                }
+                                            } catch (e) {
+                                                details.homework = s.assignment.description;
+                                            }
+                                        }
+
+                                        return (
+                                            <div key={`${s.classId}-${s.bookId}`} className="group transition-all">
+                                                {/* Thin Sub-card */}
+                                                <div
+                                                    onClick={() => !s.isDone ? (s.canEdit ? handleEntry(s.classId, s.bookId) : setToast({ message: 'আপনার এই বিষয়ের জন্য পারমিশন নেই', type: 'error' })) : setExpandedSubject(isExpanded ? null : `${s.classId}-${s.bookId}`)}
+                                                    className={`px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/50 transition-colors ${!s.isDone ? (s.canEdit ? 'bg-amber-50/30' : 'bg-slate-100/30 grayscale-sm opacity-60') : ''}`}
+                                                >
+                                                    <div className="flex items-center gap-4 flex-1">
+                                                        <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                                                            {s.coverImage ? <img src={s.coverImage} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-slate-300"><BookOpen size={16} /></div>}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <h4 className="font-bold text-slate-800 text-sm truncate">{s.bookName}</h4>
+                                                            <p className="text-[10px] font-bold text-slate-400 mt-0.5">{s.assignedTo || 'Teacher'}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {!s.isDone ? (
+                                                        <div className="flex items-center gap-3">
+                                                            <span className="px-3 py-1 bg-amber-100 text-amber-700 text-[9px] font-black rounded-full border border-amber-200 uppercase tracking-widest">পেন্ডিং</span>
+                                                            <ArrowRight size={16} className="text-amber-400 group-hover:translate-x-1 transition-transform" />
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex items-center gap-6 flex-1 max-w-md">
+                                                            {/* Progress Bar Container */}
+                                                            <div className="flex-1 space-y-1.5">
+                                                                <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                                                                    <span className="text-slate-400">সাবমিশন প্রগ্রেস</span>
+                                                                    <span className={progress === 100 ? 'text-emerald-600' : 'text-[#045c84]'}>{Math.round(progress)}% ({s.submittedCount}/{s.totalStudents})</span>
+                                                                </div>
+                                                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                                                                    <div
+                                                                        className={`h-full transition-all duration-1000 ${progress === 100 ? 'bg-emerald-500' : 'bg-[#045c84]'}`}
+                                                                        style={{ width: `${progress}%` }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            <button
+                                                                className={`p-2 rounded-lg transition-all ${isExpanded ? 'bg-[#045c84] text-white' : 'bg-slate-100 text-slate-400 hover:text-slate-600'}`}
+                                                            >
+                                                                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Expanded Content */}
+                                                {isExpanded && (
+                                                    <div className="px-6 py-6 bg-slate-50/50 border-t border-slate-100 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                            {[
+                                                                { title: 'বাড়ির কাজ (HW)', icon: <Home size={14} />, tasks: details.homework, color: 'text-[#045c84]' },
+                                                                { title: 'ক্লাসের কাজ (CW)', icon: <FileText size={14} />, tasks: details.classwork, color: 'text-blue-600' },
+                                                                { title: 'পরবর্তী ক্লাসের প্রস্তুতি', icon: <TrendingUp size={14} />, tasks: details.nextWork, color: 'text-purple-600' },
+                                                                { title: 'মন্তব্য', icon: <MessageSquare size={14} />, tasks: details.comments, color: 'text-emerald-600' }
+                                                            ].map((section, sIdx) => {
+                                                                if (!section.tasks || section.tasks.length === 0) return null;
+
+                                                                return (
+                                                                    <div key={sIdx} className="bg-white p-4 rounded-2xl border border-slate-200/50 shadow-sm space-y-3">
+                                                                        <div className={`flex items-center justify-between ${section.color}`}>
+                                                                            <div className="flex items-center gap-2">
+                                                                                {section.icon}
+                                                                                <span className="text-[10px] font-black uppercase tracking-widest">{section.title}</span>
+                                                                            </div>
+                                                                            <span className="text-[9px] font-black bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 text-slate-400">
+                                                                                {s.submittedCount}/{s.totalStudents}
+                                                                            </span>
+                                                                        </div>
+                                                                        <div className="space-y-2">
+                                                                            {section.tasks.map((task: any, tIdx: number) => {
+                                                                                const targetedNames = task.targetStudents?.map((sid: string) => allStudents.find(st => st.id === sid)?.name).filter(Boolean);
+
+                                                                                return (
+                                                                                    <div key={tIdx} className="flex flex-col gap-1">
+                                                                                        <div className="flex gap-2">
+                                                                                            <span className="text-[#045c84] mt-0.5 font-black shrink-0">→</span>
+                                                                                            <div className="flex flex-wrap gap-1 items-center">
+                                                                                                {task.segments ? task.segments.map((seg: any, segIdx: number) => {
+                                                                                                    if (seg.type === 'tag') {
+                                                                                                        const tag = ALL_TAGS.find(at => at.id === seg.value);
+                                                                                                        return (
+                                                                                                            <span key={segIdx} className={`px-1.5 py-0 text-[8px] font-black rounded ${tag?.color || 'bg-slate-100 text-slate-500'} border border-current/10 uppercase`}>
+                                                                                                                {tag?.label || seg.value}
+                                                                                                            </span>
+                                                                                                        );
+                                                                                                    }
+                                                                                                    return <span key={segIdx} className="text-[11px] font-bold text-slate-600">{seg.value}</span>;
+                                                                                                }) : <span className="text-[11px] font-bold text-slate-600">{task.text}</span>}
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        {targetedNames && targetedNames.length > 0 && (
+                                                                                            <p className="ml-5 text-[8px] font-black text-blue-500 uppercase tracking-tight">
+                                                                                                🎯 Only for: {targetedNames.join(', ')}
+                                                                                            </p>
+                                                                                        )}
+                                                                                    </div>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+
+                                                        <div className="mt-6 flex justify-end gap-3">
+                                                            <button
+                                                                onClick={() => setSelectedAssignment(s.assignment)}
+                                                                className="px-6 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-600 uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+                                                            >
+                                                                বিস্তারিত দেখুন
+                                                            </button>
+                                                            {s.status === 'DRAFT' && s.canEdit && (
+                                                                <button
+                                                                    onClick={(e) => handleSingleRelease(s.assignmentId, e)}
+                                                                    className="px-6 py-2.5 bg-[#045c84] text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#034a6b] transition-all shadow-lg shadow-[#045c84]/20"
+                                                                >
+                                                                    রিলিজ করুন
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </div>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{s.className}</p>
-                                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                                <span className="flex items-center gap-1 text-[9px] font-black text-amber-600 uppercase tracking-tighter">
-                                                    পেন্ডিং
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div className="w-8 h-8 bg-[#045c84] text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all absolute right-2 top-1/2 -translate-y-1/2 translate-x-10 group-hover:translate-x-0 shadow-lg">
-                                            <ArrowRight size={16} />
-                                        </div>
-                                    </div>
-                                );
-                            }
-
-                            return (
-                                <div
-                                    key={`${s.classId}-${s.bookId}`}
-                                    onClick={() => setSelectedAssignment(s.assignment)}
-                                    className={`bg-slate-50/50 p-4 rounded-[24px] border border-slate-100 opacity-90 flex items-center gap-4 group hover:grayscale-0 transition-all cursor-pointer hover:bg-white hover:opacity-100 hover:shadow-xl relative overflow-hidden h-[200px] ${selectedIds.includes(s.assignmentId!) ? 'ring-2 ring-blue-500 border-blue-200 bg-white opacity-100' : ''}`}
-                                >
-                                    {s.status === 'DRAFT' && s.assignmentId && (
-                                        <div
-                                            className="absolute top-4 left-4 z-10"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedIds(prev =>
-                                                    prev.includes(s.assignmentId!)
-                                                        ? prev.filter(id => id !== s.assignmentId)
-                                                        : [...prev, s.assignmentId!]
-                                                );
-                                            }}
-                                        >
-                                            <div className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${selectedIds.includes(s.assignmentId) ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300 group-hover:border-blue-400'}`}>
-                                                {selectedIds.includes(s.assignmentId) && <CheckCircle2 size={12} className="text-white" />}
-                                            </div>
-                                        </div>
-                                    )}
-                                    <div className="w-14 h-14 bg-white rounded-2xl overflow-hidden shrink-0 border border-slate-200 relative shadow-sm group-hover:scale-105 transition-transform ml-2">
-                                        {s.coverImage ? (
-                                            <img src={s.coverImage} className="w-full h-full object-cover grayscale-[0.3] group-hover:grayscale-0 transition-all" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-slate-300">
-                                                <GraduationCap size={24} />
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-start gap-2 mb-1">
-                                            <h3 className="font-black text-slate-700 text-base truncate group-hover:text-[#045c84] transition-colors">
-                                                {s.bookName}
-                                            </h3>
-                                            {s.status === 'RELEASED' ? (
-                                                s.pendingCount && s.pendingCount > 0 ? (
-                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-black rounded-full border border-blue-100 uppercase tracking-tighter">
-                                                        <Clock size={10} /> SUBMITTED
-                                                    </div>
-                                                ) : (
-                                                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-black rounded-full border border-emerald-100 uppercase tracking-tighter">
-                                                        <CheckCircle2 size={10} /> APPROVED
-                                                    </div>
-                                                )
-                                            ) : (
-                                                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded-full border border-amber-100 uppercase tracking-tighter">
-                                                    <Clock size={10} /> DRAFT
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{s.className}</p>
-                                            <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                                            <p className="text-[10px] font-bold text-slate-500 truncate italic">by {s.submittedBy || 'Teacher'}</p>
-                                        </div>
-
-                                        {s.pendingCount ? (
-                                            <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-100 rounded-xl flex items-center justify-between">
-                                                <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest flex items-center gap-1.5">
-                                                    <Clock size={12} />
-                                                    {s.pendingCount}টি পেন্ডিং সাবমিশন
-                                                </span>
-                                                <span className="text-[10px] font-black text-amber-600 group-hover:translate-x-1 transition-transform">&rarr;</span>
-                                            </div>
-                                        ) : s.status === 'RELEASED' && (
-                                            <div className="mb-3 px-3 py-2 bg-emerald-50/50 border border-emerald-100/50 rounded-xl flex items-center justify-between">
-                                                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-1.5">
-                                                    <CheckCircle2 size={12} />
-                                                    সব ঠিক আছে
-                                                </span>
-                                            </div>
-                                        )}
-
-                                        {/* Task Type Indicators */}
-                                        {s.assignment?.taskTypes && s.assignment.taskTypes.length > 0 && (
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {s.assignment.taskTypes.map((type: string) => {
-                                                    let color = 'bg-slate-100 text-slate-500 border-slate-200';
-                                                    if (type === 'ক্লাসের কাজ') color = 'bg-blue-50 text-blue-600 border-blue-100';
-                                                    if (type === 'প্রস্তুতি') color = 'bg-purple-50 text-purple-600 border-purple-100';
-                                                    if (type === 'বাড়ির কাজ') color = 'bg-orange-50 text-orange-600 border-orange-100';
-                                                    if (type === 'মন্তব্য') color = 'bg-emerald-50 text-emerald-600 border-emerald-100';
-
-                                                    return (
-                                                        <span key={type} className={`px-2 py-0.5 ${color} text-[8px] font-black rounded border uppercase tracking-tighter`}>
-                                                            {type}
-                                                        </span>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Individual Release Button for DRAFT assignments */}
-                                    {s.status === 'DRAFT' && s.assignmentId && (
-                                        <button
-                                            onClick={(e) => handleSingleRelease(s.assignmentId as string, e)}
-                                            disabled={releasingId === s.assignmentId}
-                                            className="ml-2 h-10 px-4 bg-[#045c84] text-white text-[10px] font-black rounded-xl shadow-lg shadow-[#045c84]/20 hover:bg-[#034a6b] hover:-translate-y-0.5 active:scale-95 transition-all flex items-center gap-2 shrink-0 disabled:opacity-50 disabled:hover:translate-y-0"
-                                        >
-                                            {releasingId === s.assignmentId ? (
-                                                <Loader2 className="animate-spin" size={12} />
-                                            ) : (
-                                                <ArrowRight size={12} />
-                                            )}
-                                            রিলিজ
-                                        </button>
-                                    )}
+                                        );
+                                    })}
                                 </div>
-                            );
-                        })}
+                            </div>
+                        ))}
                     </div>
 
                     {displaySubjects.length === 0 && (
@@ -828,7 +903,19 @@ export default function TeacherAssignmentPanel({
                 onRelease={handleSingleRelease}
                 onEdit={handleEditAssignment}
                 isReleasing={releasingId === selectedAssignment?.id}
+                canEdit={displaySubjects.find(s => s.assignmentId === selectedAssignment?.id)?.canEdit}
             />
+
+            {/* Class Schedule Settings Modal */}
+            {scheduleModalClass && (
+                <ClassScheduleSettingsModal
+                    isOpen={!!scheduleModalClass}
+                    onClose={() => setScheduleModalClass(null)}
+                    classId={scheduleModalClass.id}
+                    className={scheduleModalClass.name}
+                    existingSchedule={scheduleModalClass.schedule}
+                />
+            )}
 
             {toast && (
                 <Toast

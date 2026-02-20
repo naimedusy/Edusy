@@ -3,6 +3,7 @@ import { Outfit } from "next/font/google";
 import localFont from "next/font/local";
 import { SessionProvider } from "@/components/SessionProvider";
 import { UIProvider } from "@/components/UIProvider";
+import SmoothScroll from "@/components/SmoothScroll";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -33,7 +34,9 @@ export default function RootLayout({
       <body className={`${outfit.variable} ${solaimanLipi.variable} font-sans antialiased`}>
         <SessionProvider>
           <UIProvider>
-            {children}
+            <SmoothScroll>
+              {children}
+            </SmoothScroll>
           </UIProvider>
         </SessionProvider>
       </body>

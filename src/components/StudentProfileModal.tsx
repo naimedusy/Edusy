@@ -328,7 +328,10 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
                 </div>
 
                 {/* Content Area */}
-                <div className="flex-1 overflow-y-auto p-6 scrollbar-hide font-bengali">
+                <div
+                    className="flex-1 overflow-y-auto p-6 scrollbar-hide font-bengali"
+                    data-lenis-prevent
+                >
                     {activeTab === 'fees' && (
                         <div className="space-y-6 animate-fade-in">
                             {/* Total Due Card */}

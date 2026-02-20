@@ -412,7 +412,10 @@ export default function TeacherPermissionModal({
                                 </div>
 
                                 {/* Tab Content Area */}
-                                <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6">
+                                <div
+                                    className="flex-1 overflow-y-auto p-4 md:p-8 space-y-8 custom-scrollbar relative"
+                                    data-lenis-prevent
+                                >
                                     {!isClassActive(activeClass.id) ? (
                                         <div className="flex flex-col items-center justify-center py-10 sm:py-16 text-center opacity-60">
                                             <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-4">

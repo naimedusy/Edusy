@@ -154,7 +154,7 @@ export async function POST(req: Request) {
             releaseAt
         } = body;
 
-        if (!title || !instituteId || !teacherId) {
+        if (!instituteId || !teacherId) {
             return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
         }
 
@@ -174,13 +174,36 @@ export async function POST(req: Request) {
             }, { status: 400 });
         }
 
+        // Auto-compute deadline from the class's startTime if not explicitly provided
+        let computedDeadline: Date | null = deadline ? new Date(deadline) : null;
+        if (!computedDeadline && finalClassId) {
+            const classData = await (prisma as any).class.findUnique({
+                where: { id: finalClassId },
+                select: { startTime: true, name: true }
+            });
+            if (classData?.startTime) {
+                const [hours, minutes] = classData.startTime.split(':').map(Number);
+                const now = new Date();
+                const todayDeadline = new Date();
+                todayDeadline.setHours(hours, minutes, 0, 0);
+                // If class already started today, set deadline to tomorrow
+                if (todayDeadline <= now) {
+                    todayDeadline.setDate(todayDeadline.getDate() + 1);
+                }
+                computedDeadline = todayDeadline;
+            }
+        }
+
+        // Auto-generate title from book/class if not provided
+        let finalTitle = title || null;
+
         const assignment = await (prisma as any).assignment.create({
             data: {
-                title,
+                title: finalTitle,
                 description,
                 type,
                 status: 'DRAFT',
-                deadline: deadline ? new Date(deadline) : null,
+                deadline: computedDeadline,
                 scheduledDate: scheduledDate ? (() => {
                     if (typeof scheduledDate !== 'string') return new Date();
                     const parts = scheduledDate.split('-');
@@ -194,7 +217,7 @@ export async function POST(req: Request) {
                 groupId: finalGroupId,
                 bookId: finalBookId,
                 resources: resources || [],
-                releaseAt: releaseAt ? new Date(releaseAt) : null
+                releaseAt: null // Set by release API from institute global setting
             }
         });
 

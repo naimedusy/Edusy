@@ -21,6 +21,7 @@ import {
     ArrowLeft,
     Save
 } from 'lucide-react';
+import Modal from './Modal';
 
 interface AssignmentEditorPanelProps {
     onBack: () => void;
@@ -37,29 +38,29 @@ interface AssignmentEditorPanelProps {
 
 // Comprehensive Tag Library
 const ALL_TAGS = [
-    { id: 'read', label: 'পড়া', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-    { id: 'write', label: 'লেখা', color: 'bg-blue-50 text-[#045c84] border-blue-100' },
-    { id: 'memo', label: 'মুখস্থ', color: 'bg-purple-50 text-purple-600 border-purple-100' },
-    { id: 'notes', label: 'নোট', color: 'bg-slate-50 text-slate-600 border-slate-200' },
-    { id: 'exercise', label: 'অনুশীলনী', color: 'bg-cyan-50 text-cyan-600 border-cyan-100' },
-    { id: 'chapter', label: 'অধ্যায়', color: 'bg-amber-50 text-amber-600 border-amber-100' },
-    { id: 'lesson', label: 'পাঠ', color: 'bg-orange-50 text-orange-600 border-orange-100' },
-    { id: 'meaning', label: 'শব্দার্থ', color: 'bg-lime-50 text-lime-600 border-lime-100' },
-    { id: 'qa', label: 'প্রশ্ন-উত্তর', color: 'bg-violet-50 text-violet-600 border-violet-100' },
-    { id: 'grammar', label: 'ব্যাকরণ', color: 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100' },
-    { id: 'test', label: 'পরীক্ষা', color: 'bg-red-50 text-red-600 border-red-100' },
-    { id: 'correction', label: 'সংশোধন', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-    { id: 'drawing', label: 'ছবি/চিত্র', color: 'bg-pink-50 text-pink-600 border-pink-100' },
-    { id: 'map', label: 'মানচিত্র', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    { id: 'mcq', label: 'MCQ', color: 'bg-rose-50 text-rose-600 border-rose-100' },
-    { id: 'creative', label: 'সৃজনশীল', color: 'bg-teal-50 text-teal-600 border-teal-100' },
-    { id: 'excellent', label: 'চমৎকার', color: 'bg-blue-50 text-[#045c84] border-blue-100' },
-    { id: 'attentive', label: 'মনোযোগী', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-    { id: 'improving', label: 'উন্নতি করছে', color: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
-    { id: 'incomplete', label: 'অসম্পূর্ণ', color: 'bg-amber-50 text-amber-600 border-amber-100' },
-    { id: 'late', label: 'দেরি', color: 'bg-slate-50 text-slate-600 border-slate-200' },
-    { id: 'parent-call', label: 'অভিভাবক সাক্ষাত', color: 'bg-rose-50 text-rose-600 border-rose-100' },
-    { id: 'behavior', label: 'আচরণ ভালো', color: 'bg-cyan-50 text-cyan-600 border-cyan-100' }
+    { id: 'read', label: 'পড়া', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    { id: 'write', label: 'লেখা', color: 'bg-blue-50 text-[#045c84] border-blue-200' },
+    { id: 'memo', label: 'মুখস্থ', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+    { id: 'notes', label: 'নোট', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+    { id: 'exercise', label: 'অনুশীলনী', color: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
+    { id: 'chapter', label: 'অধ্যায়', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+    { id: 'lesson', label: 'পাঠ', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+    { id: 'meaning', label: 'শব্দার্থ', color: 'bg-lime-50 text-lime-700 border-lime-200' },
+    { id: 'qa', label: 'প্রশ্ন-উত্তর', color: 'bg-violet-50 text-violet-700 border-violet-200' },
+    { id: 'grammar', label: 'ব্যাকরণ', color: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200' },
+    { id: 'test', label: 'পরীক্ষা', color: 'bg-red-50 text-red-700 border-red-200' },
+    { id: 'correction', label: 'সংশোধন', color: 'bg-yellow-50 text-yellow-800 border-yellow-300' },
+    { id: 'drawing', label: 'ছবি/চিত্র', color: 'bg-pink-50 text-pink-700 border-pink-200' },
+    { id: 'map', label: 'মানচিত্র', color: 'bg-emerald-50 text-emerald-800 border-emerald-300' },
+    { id: 'mcq', label: 'MCQ', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+    { id: 'creative', label: 'সৃজনশীল', color: 'bg-teal-50 text-teal-700 border-teal-200' },
+    { id: 'excellent', label: 'চমৎকার', color: 'bg-blue-50 text-[#045c84] border-blue-200' },
+    { id: 'attentive', label: 'মনোযোগী', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    { id: 'improving', label: 'উন্নতি করছে', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    { id: 'incomplete', label: 'অসম্পূর্ণ', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+    { id: 'late', label: 'দেরি', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+    { id: 'parent-call', label: 'অভিভাবক সাক্ষাত', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+    { id: 'behavior', label: 'আচরণ ভালো', color: 'bg-cyan-50 text-cyan-700 border-cyan-200' }
 ];
 
 const DEFAULT_PINNED_TAG_IDS = {
@@ -667,10 +668,10 @@ export default function AssignmentEditorPanel({
     const selectedBookName = books.find(b => b.id === formData.bookId)?.name || 'Unknown Subject';
 
     const TABS = [
-        { id: 'CW', label: 'ক্লাসের পড়া (CW)', icon: <Check size={14} />, color: 'text-[#045c84]', bg: 'bg-[#045c84]/5' },
-        { id: 'PR', label: 'আগামীকালের পড়া (PR)', icon: <List size={14} />, color: 'text-purple-600', bg: 'bg-purple-50' },
-        { id: 'HW', label: 'বাড়ির কাজ (HW)', icon: <FileText size={14} />, color: 'text-orange-600', bg: 'bg-orange-50' },
-        { id: 'CM', label: 'মন্তব্য (CM)', icon: <MessageSquare size={14} />, color: 'text-slate-600', bg: 'bg-slate-50' }
+        { id: 'CW', label: 'ক্লাসের পড়া (CW)', icon: <Check size={14} />, color: 'text-[#018571]', bg: 'bg-[#018571]/5' },
+        { id: 'PR', label: 'আগামীকালের পড়া (PR)', icon: <List size={14} />, color: 'text-[#5B3A57]', bg: 'bg-[#5B3A57]/5' },
+        { id: 'HW', label: 'বাড়ির কাজ (HW)', icon: <FileText size={14} />, color: 'text-[#A6611A]', bg: 'bg-[#A6611A]/5' },
+        { id: 'CM', label: 'মন্তব্য (CM)', icon: <MessageSquare size={14} />, color: 'text-[#473B06]', bg: 'bg-[#473B06]/5' }
     ];
 
     return (
@@ -692,9 +693,9 @@ export default function AssignmentEditorPanel({
                                 <span className="text-slate-400 font-medium">| {selectedClassName}</span>
                             </h3>
                             <div className="flex items-center gap-2 mt-0.5">
-                                <p className="text-[10px] text-[#045c84] font-black uppercase tracking-widest">
+                                <p className="text-xs text-[#045c84] font-black uppercase tracking-widest">
                                     {scheduledDate && scheduledDate !== new Date().toISOString().split('T')[0]
-                                        ? <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">⚠️ {scheduledDate} (অতীত রেকর্ড)</span>
+                                        ? <span className="text-amber-700 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200 shadow-sm">⚠️ {scheduledDate} (অতীত রেকর্ড)</span>
                                         : 'শিক্ষার্থীদের জন্য আজকের কাজ'
                                     }
                                 </p>
@@ -743,71 +744,31 @@ export default function AssignmentEditorPanel({
 
             {/* Body */}
             <div className="p-4 md:p-6 pb-12">
-                {/* General Settings Section */}
-                <div className="mb-8 bg-slate-50/50 p-6 rounded-[32px] border border-slate-100 shadow-inner space-y-6">
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">কাজের শিরোনাম (Title)</label>
-                        <input
-                            value={formData.title}
-                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                            className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 focus:border-[#045c84]/30 outline-none font-black text-xl text-slate-800 placeholder:text-slate-300 transition-all shadow-sm"
-                            placeholder="অ্যাসাইনমেন্টের শিরোনাম লিখুন (ঐচ্ছিক)"
-                        />
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
-                                <Calendar size={12} />
-                                রিলিজ টাইম (Release Time)
-                            </label>
-                            <input
-                                type="datetime-local"
-                                value={formData.releaseAt}
-                                onChange={(e) => setFormData({ ...formData, releaseAt: e.target.value })}
-                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 focus:border-[#045c84]/30 outline-none font-bold text-sm text-slate-700 transition-all shadow-sm"
-                            />
-                            <p className="text-[10px] text-slate-400 font-medium ml-1">ঐচ্ছিক: এই সময়ের আগে শিক্ষার্থীরা এটি দেখতে পাবে না।</p>
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1.5">
-                                <Calendar size={12} />
-                                ডেডলাইন (Deadline)
-                            </label>
-                            <input
-                                type="datetime-local"
-                                value={formData.deadline}
-                                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 focus:border-[#045c84]/30 outline-none font-bold text-sm text-slate-700 transition-all shadow-sm"
-                            />
-                            <p className="text-[10px] text-slate-400 font-medium ml-1">ঐচ্ছিক: এই সময়ের পর শিক্ষার্থীরা কাজ জমা দিতে পারবে না।</p>
-                        </div>
-                    </div>
-                </div>
 
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                     {/* Classwork */}
                     {activeTab === 'CW' && (
-                        <div className="bg-slate-50/50 p-5 md:p-6 rounded-[32px] border border-slate-100 shadow-inner">
+                        <div className="bg-[#018571]/5 p-5 md:p-6 rounded-[32px] border border-[#018571]/10 shadow-inner">
                             <div className="mb-6 flex items-center justify-between">
-                                <label className="text-sm font-black text-[#045c84] uppercase tracking-widest flex items-center gap-2">
-                                    <span className="w-3 h-3 rounded-full bg-[#045c84] shadow-sm"></span>
-                                    ক্লাসের পড়া (Classwork)
+                                <label className="text-sm md:text-base font-black text-[#018571] uppercase tracking-widest flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#018571] shadow-sm"></span>
+                                    আজ ক্লাসের পড়া
                                 </label>
                                 <button
                                     type="button"
                                     onClick={syncCWToPR}
-                                    className="text-[10px] font-black text-[#045c84] bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-xl flex items-center gap-2 transition-all border border-blue-100 shadow-sm"
+                                    className="h-9 px-3 text-xs font-black text-[#018571] bg-white hover:bg-[#018571]/10 rounded-xl flex items-center gap-2 transition-all border border-[#018571]/20 shadow-sm"
                                 >
-                                    <LinkIcon size={12} />
+                                    <LinkIcon size={14} />
                                     আগামীকালের পড়ায় যোগ করুন
                                 </button>
                             </div>
 
                             <div className="flex items-center gap-1.5 mb-4 overflow-visible">
-                                <div className="flex flex-wrap gap-1.5 justify-end">
+                                <div className="flex flex-wrap gap-2 justify-end">
                                     {ALL_TAGS.filter(t => pinnedTagIds.cw.includes(t.id)).map(tag => (
-                                        <button key={tag.id} type="button" onClick={() => appendTagToTask('cw', tag.id)} className={`text-[10px] px-3 py-1.5 rounded-xl font-black ${tag.color} border border-white/50 hover:shadow-sm transition-all shadow-white/50 animate-in fade-in zoom-in-50`}>{tag.label}</button>
+                                        <button key={tag.id} type="button" onClick={() => appendTagToTask('cw', tag.id)} className={`text-[11px] md:text-xs px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg md:rounded-xl font-black ${tag.color} border border-white/50 hover:shadow-md transition-all shadow-white/50 animate-in fade-in zoom-in-50`}>{tag.label}</button>
                                     ))}
                                 </div>
 
@@ -816,15 +777,15 @@ export default function AssignmentEditorPanel({
                                     <button
                                         type="button"
                                         onClick={() => setShowTagLibrary(!showTagLibrary)}
-                                        className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-[#045c84] hover:text-white transition-all shadow-sm"
+                                        className="p-1.5 bg-white text-[#018571] border border-[#018571]/20 rounded-lg hover:bg-[#018571] hover:text-white transition-all shadow-sm"
                                     >
-                                        <Plus size={14} />
+                                        <Plus size={18} />
                                     </button>
 
                                     {showTagLibrary && (
-                                        <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 z-[60] animate-in fade-in slide-in-from-top-2">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">ট্যাগ লাইব্রেরি (Shortcut Picker)</p>
-                                            <div className="flex flex-wrap gap-2">
+                                        <div className="absolute top-full right-0 mt-3 w-72 bg-white rounded-3xl shadow-2xl border border-slate-200 p-5 z-[60] animate-in fade-in slide-in-from-top-2">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">ট্যাগ লাইব্রেরি (Shortcut Picker)</p>
+                                            <div className="flex flex-wrap gap-2.5">
                                                 {ALL_TAGS.map(tag => {
                                                     const currentSection = activeTab === 'CW' ? 'cw' : activeTab === 'PR' ? 'pr' : 'hw';
                                                     const isPinned = pinnedTagIds[currentSection as keyof typeof pinnedTagIds].includes(tag.id);
@@ -833,12 +794,12 @@ export default function AssignmentEditorPanel({
                                                             key={tag.id}
                                                             type="button"
                                                             onClick={() => toggleTagPin(tag.id)}
-                                                            className={`text-[9px] px-2.5 py-1.5 rounded-lg font-black border transition-all flex items-center gap-1.5 ${isPinned
-                                                                ? `${tag.color} border-current opacity-100`
-                                                                : 'bg-white text-slate-400 border-slate-100 opacity-60'
+                                                            className={`text-[11px] px-3 py-2 rounded-xl font-black border transition-all flex items-center gap-2 ${isPinned
+                                                                ? `${tag.color} border-current opacity-100 shadow-sm`
+                                                                : 'bg-white text-slate-500 border-slate-100 opacity-60'
                                                                 }`}
                                                         >
-                                                            {isPinned && <Check size={8} />}
+                                                            {isPinned && <Check size={10} />}
                                                             {tag.label}
                                                         </button>
                                                     );
@@ -855,123 +816,29 @@ export default function AssignmentEditorPanel({
                                         <div className="relative flex-shrink-0">
                                             <button
                                                 type="button"
-                                                onClick={() => setOpenStudentPickerTask(
-                                                    openStudentPickerTask?.id === task.id ? null : { section: 'cw', id: task.id }
-                                                )}
-                                                className={`px-2 py-1.5 rounded-lg transition-all flex items-center gap-1.5 border shadow-sm ${task.targetStudents && task.targetStudents.length > 0
-                                                    ? 'bg-blue-50 text-blue-600 border-blue-200'
+                                                onClick={() => setOpenStudentPickerTask({ section: 'cw', id: task.id })}
+                                                className={`h-12 px-3 rounded-xl transition-all flex items-center gap-2 border shadow-sm ${task.targetStudents && task.targetStudents.length > 0
+                                                    ? 'bg-[#018571] text-white border-[#018571]'
                                                     : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
                                                     }`}
                                             >
-                                                <Users size={14} />
-                                                <span className="text-[10px] font-black uppercase tracking-tighter shrink-0">
+                                                <Users size={16} />
+                                                <span className="text-xs font-black uppercase tracking-tight shrink-0">
                                                     {task.targetStudents && task.targetStudents.length > 0
                                                         ? task.targetStudents.length
                                                         : 'All'}
                                                 </span>
                                             </button>
-
-                                            {/* Student Picker Dropdown */}
-                                            {openStudentPickerTask?.id === task.id && (
-                                                <div className="absolute top-full left-0 mt-2 w-80 md:w-96 bg-white rounded-3xl shadow-2xl border border-slate-200 z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden">
-                                                    <div className="p-4 border-b border-slate-100 bg-slate-50/80 backdrop-blur-sm">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                                                <Users size={12} />
-                                                                Select Students
-                                                            </p>
-                                                            <div className="flex flex-wrap gap-1.5 mt-2 md:mt-0">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => toggleAllStudentsForTask('cw', task.id, true)}
-                                                                    className="text-[10px] px-2.5 py-1 bg-blue-600 text-white rounded-lg font-black hover:bg-blue-700 transition-colors"
-                                                                >
-                                                                    All
-                                                                </button>
-                                                                {classGroups.map(group => {
-                                                                    const studentsInGroup = classStudents.filter(s => s.metadata?.groupId === group.id).map(s => s.id);
-                                                                    const allInGroupSelected = studentsInGroup.length > 0 && studentsInGroup.every(id => task.targetStudents?.includes(id));
-                                                                    return (
-                                                                        <button
-                                                                            key={group.id}
-                                                                            type="button"
-                                                                            onClick={() => toggleGroupStudentsForTask('cw', task.id, group.id)}
-                                                                            className={`text-[10px] px-2.5 py-1 rounded-lg font-black transition-all border ${allInGroupSelected
-                                                                                ? 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm'
-                                                                                : 'bg-white text-blue-600 border-blue-100 hover:bg-blue-50'
-                                                                                }`}
-                                                                        >
-                                                                            {group.name}
-                                                                        </button>
-                                                                    );
-                                                                })}
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => toggleAllStudentsForTask('cw', task.id, false)}
-                                                                    className="text-[10px] px-2.5 py-1 bg-slate-200 text-slate-600 rounded-lg font-black hover:bg-slate-300 transition-colors"
-                                                                >
-                                                                    Clear
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <div className="relative">
-                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                                                            <input
-                                                                type="text"
-                                                                value={studentSearch}
-                                                                onChange={(e) => setStudentSearch(e.target.value)}
-                                                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 transition-all"
-                                                                placeholder="Search by name or roll..."
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="max-h-80 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                                                        {filteredStudents.length > 0 ? (
-                                                            filteredStudents.map(student => {
-                                                                const isSelected = task.targetStudents?.includes(student.id) || false;
-                                                                return (
-                                                                    <button
-                                                                        key={student.id}
-                                                                        type="button"
-                                                                        onClick={() => toggleStudentForTask('cw', task.id, student.id)}
-                                                                        className={`w-full text-left px-3 py-2 rounded-xl flex items-center gap-3 transition-all ${isSelected
-                                                                            ? 'bg-blue-50 border border-blue-200'
-                                                                            : 'hover:bg-slate-50 border border-transparent'
-                                                                            }`}
-                                                                    >
-                                                                        <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center overflow-hidden shrink-0 ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-slate-100 border-slate-200'
-                                                                            }`}>
-                                                                            {student.metadata?.studentPhoto ? (
-                                                                                <img src={student.metadata.studentPhoto} alt={student.name} className="w-full h-full object-cover" />
-                                                                            ) : isSelected ? (
-                                                                                <Check size={14} className="text-white" />
-                                                                            ) : (
-                                                                                <span className="text-[10px] font-bold text-slate-500">{student.name.charAt(0)}</span>
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="flex-1 min-w-0">
-                                                                            <p className="text-xs font-bold text-slate-700 truncate">{student.name}</p>
-                                                                            <p className="text-[10px] text-slate-400 truncate">Roll: {student.studentId || 'N/A'}</p>
-                                                                        </div>
-                                                                    </button>
-                                                                );
-                                                            })
-                                                        ) : (
-                                                            <p className="text-center py-6 text-xs text-slate-400 font-bold">No students found</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
 
-                                        <div className="flex-1 flex flex-wrap items-center gap-1.5 p-2 bg-white border border-slate-200 rounded-xl focus-within:ring-4 focus-within:ring-[#045c84]/10 focus-within:border-[#045c84]/30 transition-all shadow-sm min-h-[48px]">
+                                        <div className="flex-1 flex flex-wrap items-center gap-1.5 p-2 bg-white border border-[#018571]/20 rounded-xl focus-within:ring-4 focus-within:ring-[#018571]/10 focus-within:border-[#018571]/40 transition-all shadow-sm min-h-[48px]">
                                             {task.segments.map((seg, sIdx) => (
                                                 <React.Fragment key={seg.id}>
                                                     {seg.type === 'tag' ? (
-                                                        <span className={`inline-flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg border border-white/40 shadow-sm animate-in zoom-in-50 ${ALL_TAGS.find(t => t.id === seg.value)?.color}`}>
+                                                        <span className={`inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-1.5 rounded-lg border border-white/40 shadow-sm animate-in zoom-in-50 ${ALL_TAGS.find(t => t.id === seg.value)?.color}`}>
                                                             {ALL_TAGS.find(t => t.id === seg.value)?.label}
-                                                            <button type="button" onClick={() => removeTagFromTask('cw', task.id, seg.id)} className="hover:scale-110 transition-transform p-0.5">
-                                                                <X size={10} />
+                                                            <button type="button" onClick={() => removeTagFromTask('cw', task.id, seg.id)} className="hover:scale-110 transition-transform p-0.5 ml-0.5">
+                                                                <X size={12} />
                                                             </button>
                                                         </span>
                                                     ) : (
@@ -988,8 +855,8 @@ export default function AssignmentEditorPanel({
                                                                 onKeyDown={(e) => handleKeyDown('cw', task, seg.id, e)}
                                                                 onKeyUp={(e: any) => setFocusedTaskInfo(prev => prev?.segmentId === seg.id ? { ...prev, cursorOffset: e.target.selectionStart || 0 } : prev)}
                                                                 onClick={(e: any) => setFocusedTaskInfo(prev => prev?.segmentId === seg.id ? { ...prev, cursorOffset: e.target.selectionStart || 0 } : prev)}
-                                                                className="w-full bg-transparent outline-none text-sm font-bold text-slate-900 placeholder:text-slate-400 py-1"
-                                                                placeholder={sIdx === 0 && task.segments.length === 1 ? "আজ ক্লাসে কি পড়ানো হয়েছে..." : ""}
+                                                                className="w-full bg-transparent outline-none text-[15px] font-bold text-slate-900 placeholder:text-slate-400 py-1"
+                                                                placeholder={sIdx === 0 && task.segments.length === 1 ? "আজ ক্লাসে যা পড়ানো হয়েছে..." : ""}
                                                             />
                                                         </div>
                                                     )}
@@ -998,13 +865,13 @@ export default function AssignmentEditorPanel({
                                         </div>
                                         {
                                             classworkTasks.length > 1 && (
-                                                <button type="button" onClick={() => removeTaskLine('cw', task.id)} className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0"><Trash2 size={18} /></button>
+                                                <button type="button" onClick={() => removeTaskLine('cw', task.id)} className="h-12 w-12 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 border border-transparent hover:border-red-100"><Trash2 size={18} /></button>
                                             )
                                         }
                                     </div>
                                 ))}
-                                <button type="button" onClick={() => addTaskLine('cw')} className="px-4 md:px-5 py-2.5 border-2 border-dashed border-slate-200 text-slate-400 text-[10px] font-black rounded-xl md:rounded-xl hover:border-[#045c84]/50 hover:text-[#045c84] hover:bg-white transition-all flex items-center gap-2 bg-white/50 w-full md:w-fit justify-center md:justify-start">
-                                    <Plus size={16} /> নতুন লাইন যোগ করুন
+                                <button type="button" onClick={() => addTaskLine('cw')} className="h-12 px-6 border-2 border-dashed border-[#018571]/20 text-[#018571] text-xs font-black rounded-2xl hover:border-[#018571]/50 hover:bg-[#018571]/5 transition-all flex items-center gap-2 bg-white/50 w-full md:w-fit justify-center md:justify-start shadow-sm">
+                                    <Plus size={18} /> নতুন লাইন যোগ করুন
                                 </button>
                             </div>
                         </div>
@@ -1012,16 +879,16 @@ export default function AssignmentEditorPanel({
 
                     {/* Preparation (Tomorrow) */}
                     {activeTab === 'PR' && (
-                        <div className="bg-purple-50/30 p-5 md:p-6 rounded-[24px] md:rounded-[32px] border border-purple-100 shadow-inner">
+                        <div className="bg-[#5B3A57]/5 p-5 md:p-6 rounded-[32px] border border-[#5B3A57]/10 shadow-inner">
                             <div className="mb-6 flex items-center justify-between">
-                                <label className="text-xs md:text-sm font-black text-purple-600 uppercase tracking-widest flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-purple-600 shadow-sm"></span>
+                                <label className="text-sm md:text-base font-black text-[#5B3A57] uppercase tracking-widest flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#5B3A57] shadow-sm"></span>
                                     আগামীকাল ক্লাসের পড়া
                                 </label>
                                 <button
                                     type="button"
                                     onClick={syncCWToPR}
-                                    className="text-[10px] font-black text-purple-600 bg-purple-100 hover:bg-purple-200 px-3 py-1.5 rounded-xl flex items-center gap-2 transition-all border border-purple-200 shadow-sm"
+                                    className="h-9 px-3 text-xs font-black text-[#5B3A57] bg-white hover:bg-[#5B3A57]/10 rounded-xl flex items-center gap-2 transition-all border border-[#5B3A57]/20 shadow-sm"
                                 >
                                     <LinkIcon size={12} />
                                     আজকের পড়া থেকে কপি করুন
@@ -1030,7 +897,7 @@ export default function AssignmentEditorPanel({
 
                             <div className="flex flex-wrap items-center gap-1.5 mb-4">
                                 {ALL_TAGS.filter(t => pinnedTagIds.pr.includes(t.id)).map(tag => (
-                                    <button key={tag.id} type="button" onClick={() => appendTagToTask('pr', tag.id)} className={`text-[9px] md:text-[10px] px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg md:rounded-xl font-black ${tag.color} border border-white/50 hover:shadow-sm transition-all shadow-white/50 animate-in fade-in zoom-in-50`}>{tag.label}</button>
+                                    <button key={tag.id} type="button" onClick={() => appendTagToTask('pr', tag.id)} className={`text-[11px] md:text-xs px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg md:rounded-xl font-black ${tag.color} border border-white/50 hover:shadow-sm transition-all shadow-white/50 animate-in fade-in zoom-in-50`}>{tag.label}</button>
                                 ))}
 
                                 {/* Tag Library Button */}
@@ -1038,14 +905,14 @@ export default function AssignmentEditorPanel({
                                     <button
                                         type="button"
                                         onClick={() => setShowTagLibrary(!showTagLibrary)}
-                                        className="p-1 px-2 bg-purple-100 text-purple-400 rounded-lg hover:bg-purple-600 hover:text-white transition-all shadow-sm"
+                                        className="p-1 px-2 bg-white text-[#5B3A57] border border-[#5B3A57]/20 rounded-lg hover:bg-[#5B3A57] hover:text-white transition-all shadow-sm"
                                     >
-                                        <Plus size={12} />
+                                        <Plus size={18} />
                                     </button>
 
                                     {showTagLibrary && (
                                         <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 z-[60] animate-in fade-in slide-in-from-top-2">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">ট্যাগ লাইব্রেরি (Shortcut Picker)</p>
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">ট্যাগ লাইব্রেরি (Shortcut Picker)</p>
                                             <div className="flex flex-wrap gap-2">
                                                 {ALL_TAGS.map(tag => {
                                                     const isPinned = pinnedTagIds.pr.includes(tag.id);
@@ -1054,12 +921,12 @@ export default function AssignmentEditorPanel({
                                                             key={tag.id}
                                                             type="button"
                                                             onClick={() => toggleTagPin(tag.id)}
-                                                            className={`text-[9px] px-2.5 py-1.5 rounded-lg font-black border transition-all flex items-center gap-1.5 ${isPinned
-                                                                ? `${tag.color} border-current opacity-100`
-                                                                : 'bg-white text-slate-400 border-slate-100 opacity-60'
+                                                            className={`text-[11px] px-3 py-2 rounded-xl font-black border transition-all flex items-center gap-2 ${isPinned
+                                                                ? `${tag.color} border-current opacity-100 shadow-sm`
+                                                                : 'bg-white text-slate-500 border-slate-100 opacity-60'
                                                                 }`}
                                                         >
-                                                            {isPinned && <Check size={8} />}
+                                                            {isPinned && <Check size={10} />}
                                                             {tag.label}
                                                         </button>
                                                     );
@@ -1076,123 +943,29 @@ export default function AssignmentEditorPanel({
                                         <div className="relative flex-shrink-0">
                                             <button
                                                 type="button"
-                                                onClick={() => setOpenStudentPickerTask(
-                                                    openStudentPickerTask?.id === task.id ? null : { section: 'pr', id: task.id }
-                                                )}
-                                                className={`px-2 py-1.5 rounded-lg transition-all flex items-center gap-1.5 border shadow-sm ${task.targetStudents && task.targetStudents.length > 0
-                                                    ? 'bg-purple-50 text-purple-600 border-purple-200'
+                                                onClick={() => setOpenStudentPickerTask({ section: 'pr', id: task.id })}
+                                                className={`h-12 px-3 rounded-xl transition-all flex items-center gap-2 border shadow-sm ${task.targetStudents && task.targetStudents.length > 0
+                                                    ? 'bg-[#5B3A57] text-white border-[#5B3A57]'
                                                     : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
                                                     }`}
                                             >
-                                                <Users size={14} />
-                                                <span className="text-[10px] font-black uppercase tracking-tighter shrink-0">
+                                                <Users size={16} />
+                                                <span className="text-xs font-black uppercase tracking-tight shrink-0">
                                                     {task.targetStudents && task.targetStudents.length > 0
                                                         ? task.targetStudents.length
                                                         : 'All'}
                                                 </span>
                                             </button>
-
-                                            {/* Student Picker Dropdown */}
-                                            {openStudentPickerTask?.id === task.id && (
-                                                <div className="absolute top-full left-0 mt-2 w-80 md:w-96 bg-white rounded-3xl shadow-2xl border border-slate-200 z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden">
-                                                    <div className="p-4 border-b border-slate-100 bg-slate-50/80 backdrop-blur-sm">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                                                <Users size={12} />
-                                                                Select Students
-                                                            </p>
-                                                            <div className="flex flex-wrap gap-1.5 mt-2 md:mt-0">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => toggleAllStudentsForTask('pr', task.id, true)}
-                                                                    className="text-[10px] px-2.5 py-1 bg-purple-600 text-white rounded-lg font-black hover:bg-purple-700 transition-colors"
-                                                                >
-                                                                    All
-                                                                </button>
-                                                                {classGroups.map(group => {
-                                                                    const studentsInGroup = classStudents.filter(s => s.metadata?.groupId === group.id).map(s => s.id);
-                                                                    const allInGroupSelected = studentsInGroup.length > 0 && studentsInGroup.every(id => task.targetStudents?.includes(id));
-                                                                    return (
-                                                                        <button
-                                                                            key={group.id}
-                                                                            type="button"
-                                                                            onClick={() => toggleGroupStudentsForTask('pr', task.id, group.id)}
-                                                                            className={`text-[10px] px-2.5 py-1 rounded-lg font-black transition-all border ${allInGroupSelected
-                                                                                ? 'bg-purple-100 text-purple-700 border-purple-200 shadow-sm'
-                                                                                : 'bg-white text-purple-600 border-purple-100 hover:bg-purple-50'
-                                                                                }`}
-                                                                        >
-                                                                            {group.name}
-                                                                        </button>
-                                                                    );
-                                                                })}
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => toggleAllStudentsForTask('pr', task.id, false)}
-                                                                    className="text-[10px] px-2.5 py-1 bg-slate-200 text-slate-600 rounded-lg font-black hover:bg-slate-300 transition-colors"
-                                                                >
-                                                                    Clear
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <div className="relative">
-                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                                                            <input
-                                                                type="text"
-                                                                value={studentSearch}
-                                                                onChange={(e) => setStudentSearch(e.target.value)}
-                                                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-purple-500/10 focus:border-purple-400 transition-all"
-                                                                placeholder="Search by name or roll..."
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="max-h-80 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                                                        {filteredStudents.length > 0 ? (
-                                                            filteredStudents.map(student => {
-                                                                const isSelected = task.targetStudents?.includes(student.id) || false;
-                                                                return (
-                                                                    <button
-                                                                        key={student.id}
-                                                                        type="button"
-                                                                        onClick={() => toggleStudentForTask('pr', task.id, student.id)}
-                                                                        className={`w-full text-left px-3 py-2 rounded-xl flex items-center gap-3 transition-all ${isSelected
-                                                                            ? 'bg-purple-50 border border-purple-200'
-                                                                            : 'hover:bg-slate-50 border border-transparent'
-                                                                            }`}
-                                                                    >
-                                                                        <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center overflow-hidden shrink-0 ${isSelected ? 'bg-purple-600 border-purple-600' : 'bg-slate-100 border-slate-200'
-                                                                            }`}>
-                                                                            {student.metadata?.studentPhoto ? (
-                                                                                <img src={student.metadata.studentPhoto} alt={student.name} className="w-full h-full object-cover" />
-                                                                            ) : isSelected ? (
-                                                                                <Check size={14} className="text-white" />
-                                                                            ) : (
-                                                                                <span className="text-[10px] font-bold text-slate-500">{student.name.charAt(0)}</span>
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="flex-1 min-w-0">
-                                                                            <p className="text-xs font-bold text-slate-700 truncate">{student.name}</p>
-                                                                            <p className="text-[10px] text-slate-400 truncate">Roll: {student.studentId || 'N/A'}</p>
-                                                                        </div>
-                                                                    </button>
-                                                                );
-                                                            })
-                                                        ) : (
-                                                            <p className="text-center py-6 text-xs text-slate-400 font-bold">No students found</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
 
-                                        <div className="flex-1 flex flex-wrap items-center gap-1.5 p-2 bg-white border border-purple-100 rounded-xl focus-within:ring-4 focus-within:ring-purple-500/10 focus-within:border-purple-300 transition-all shadow-sm min-h-[48px]">
+                                        <div className="flex-1 flex flex-wrap items-center gap-1.5 p-2 bg-white border border-[#5B3A57]/20 rounded-xl focus-within:ring-4 focus-within:ring-[#5B3A57]/10 focus-within:border-[#5B3A57]/40 transition-all shadow-sm min-h-[48px]">
                                             {task.segments.map((seg, sIdx) => (
                                                 <React.Fragment key={seg.id}>
                                                     {seg.type === 'tag' ? (
-                                                        <span className={`inline-flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg border border-white/40 shadow-sm animate-in zoom-in-50 ${ALL_TAGS.find(t => t.id === seg.value)?.color}`}>
+                                                        <span className={`inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-1.5 rounded-lg border border-white/40 shadow-sm animate-in zoom-in-50 ${ALL_TAGS.find(t => t.id === seg.value)?.color}`}>
                                                             {ALL_TAGS.find(t => t.id === seg.value)?.label}
-                                                            <button type="button" onClick={() => removeTagFromTask('pr', task.id, seg.id)} className="hover:scale-110 transition-transform p-0.5">
-                                                                <X size={10} />
+                                                            <button type="button" onClick={() => removeTagFromTask('pr', task.id, seg.id)} className="hover:scale-110 transition-transform p-0.5 ml-0.5">
+                                                                <X size={12} />
                                                             </button>
                                                         </span>
                                                     ) : (
@@ -1209,7 +982,7 @@ export default function AssignmentEditorPanel({
                                                                 onKeyDown={(e) => handleKeyDown('pr', task, seg.id, e)}
                                                                 onKeyUp={(e: any) => setFocusedTaskInfo(prev => prev?.segmentId === seg.id ? { ...prev, cursorOffset: e.target.selectionStart || 0 } : prev)}
                                                                 onClick={(e: any) => setFocusedTaskInfo(prev => prev?.segmentId === seg.id ? { ...prev, cursorOffset: e.target.selectionStart || 0 } : prev)}
-                                                                className="w-full bg-transparent outline-none text-sm font-bold text-slate-900 placeholder:text-slate-400 py-1"
+                                                                className="w-full bg-transparent outline-none text-[15px] font-bold text-slate-900 placeholder:text-slate-400 py-1"
                                                                 placeholder={sIdx === 0 && task.segments.length === 1 ? "আগামীকাল কি পড়ে আসতে হবে..." : ""}
                                                             />
                                                         </div>
@@ -1219,13 +992,13 @@ export default function AssignmentEditorPanel({
                                         </div>
                                         {
                                             prepTasks.length > 1 && (
-                                                <button type="button" onClick={() => removeTaskLine('pr', task.id)} className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0"><Trash2 size={18} /></button>
+                                                <button type="button" onClick={() => removeTaskLine('pr', task.id)} className="h-12 w-12 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 border border-transparent hover:border-red-100"><Trash2 size={18} /></button>
                                             )
                                         }
                                     </div>
                                 ))}
-                                <button type="button" onClick={() => addTaskLine('pr')} className="px-4 md:px-5 py-2.5 border-2 border-dashed border-purple-200 text-purple-400 text-[10px] font-black rounded-xl md:rounded-xl hover:border-purple-400 hover:text-purple-600 hover:bg-white transition-all flex items-center gap-2 bg-white/50 w-full md:w-fit justify-center md:justify-start">
-                                    <Plus size={16} /> নতুন লাইন যোগ করুন
+                                <button type="button" onClick={() => addTaskLine('pr')} className="h-12 px-6 border-2 border-dashed border-[#5B3A57]/20 text-[#5B3A57] text-xs font-black rounded-2xl hover:border-[#5B3A57]/50 hover:bg-[#5B3A57]/5 transition-all flex items-center gap-2 bg-white/50 w-full md:w-fit justify-center md:justify-start shadow-sm">
+                                    <Plus size={18} /> নতুন লাইন যোগ করুন
                                 </button>
                             </div>
                         </div>
@@ -1233,17 +1006,17 @@ export default function AssignmentEditorPanel({
 
                     {/* Homework */}
                     {activeTab === 'HW' && (
-                        <div className="bg-orange-50/30 p-5 md:p-6 rounded-[24px] md:rounded-[32px] border border-orange-100 shadow-inner">
+                        <div className="bg-[#A6611A]/5 p-5 md:p-6 rounded-[24px] md:rounded-[32px] border border-[#A6611A]/10 shadow-inner">
                             <div className="mb-6">
-                                <label className="text-xs md:text-sm font-black text-orange-600 uppercase tracking-widest flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-orange-600 shadow-sm"></span>
+                                <label className="text-sm md:text-base font-black text-[#A6611A] uppercase tracking-widest flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-[#A6611A] shadow-sm"></span>
                                     বাড়ির কাজ (Homework)
                                 </label>
                             </div>
 
                             <div className="flex flex-wrap items-center gap-1.5 mb-4">
                                 {ALL_TAGS.filter(t => pinnedTagIds.hw.includes(t.id)).map(tag => (
-                                    <button key={tag.id} type="button" onClick={() => appendTagToTask('hw', tag.id)} className={`text-[9px] md:text-[10px] px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg md:rounded-xl font-black ${tag.color} border border-white/50 hover:shadow-sm transition-all shadow-white/50 animate-in fade-in zoom-in-50`}>{tag.label}</button>
+                                    <button key={tag.id} type="button" onClick={() => appendTagToTask('hw', tag.id)} className={`text-[11px] md:text-xs px-2.5 md:px-3 py-1 md:py-1.5 rounded-lg md:rounded-xl font-black ${tag.color} border border-white/50 hover:shadow-sm transition-all shadow-white/50 animate-in fade-in zoom-in-50`}>{tag.label}</button>
                                 ))}
 
                                 {/* Tag Library Button */}
@@ -1251,14 +1024,14 @@ export default function AssignmentEditorPanel({
                                     <button
                                         type="button"
                                         onClick={() => setShowTagLibrary(!showTagLibrary)}
-                                        className="p-1 px-2 bg-orange-100 text-orange-400 rounded-lg hover:bg-orange-600 hover:text-white transition-all shadow-sm"
+                                        className="p-1 px-2 bg-white text-[#A6611A] border border-[#A6611A]/20 rounded-lg hover:bg-[#A6611A] hover:text-white transition-all shadow-sm"
                                     >
-                                        <Plus size={12} />
+                                        <Plus size={14} />
                                     </button>
 
                                     {showTagLibrary && (
                                         <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 z-[60] animate-in fade-in slide-in-from-top-2">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">ট্যাগ লাইব্রেরি (Shortcut Picker)</p>
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">ট্যাগ লাইব্রেরি (Shortcut Picker)</p>
                                             <div className="flex flex-wrap gap-2">
                                                 {ALL_TAGS.map(tag => {
                                                     const isPinned = pinnedTagIds.hw.includes(tag.id);
@@ -1267,12 +1040,12 @@ export default function AssignmentEditorPanel({
                                                             key={tag.id}
                                                             type="button"
                                                             onClick={() => toggleTagPin(tag.id)}
-                                                            className={`text-[9px] px-2.5 py-1.5 rounded-lg font-black border transition-all flex items-center gap-1.5 ${isPinned
-                                                                ? `${tag.color} border-current opacity-100`
-                                                                : 'bg-white text-slate-400 border-slate-100 opacity-60'
+                                                            className={`text-[11px] px-3 py-2 rounded-xl font-black border transition-all flex items-center gap-2 ${isPinned
+                                                                ? `${tag.color} border-current opacity-100 shadow-sm`
+                                                                : 'bg-white text-slate-500 border-slate-100 opacity-60'
                                                                 }`}
                                                         >
-                                                            {isPinned && <Check size={8} />}
+                                                            {isPinned && <Check size={10} />}
                                                             {tag.label}
                                                         </button>
                                                     );
@@ -1289,120 +1062,26 @@ export default function AssignmentEditorPanel({
                                         <div className="relative flex-shrink-0">
                                             <button
                                                 type="button"
-                                                onClick={() => setOpenStudentPickerTask(
-                                                    openStudentPickerTask?.id === task.id ? null : { section: 'hw', id: task.id }
-                                                )}
-                                                className={`px-2 py-1.5 rounded-lg transition-all flex items-center gap-1.5 border shadow-sm ${task.targetStudents && task.targetStudents.length > 0
-                                                    ? 'bg-amber-50 text-amber-600 border-amber-200'
+                                                onClick={() => setOpenStudentPickerTask({ section: 'hw', id: task.id })}
+                                                className={`h-12 px-3 rounded-xl transition-all flex items-center gap-2 border shadow-sm ${task.targetStudents && task.targetStudents.length > 0
+                                                    ? 'bg-[#A6611A] text-white border-[#A6611A]'
                                                     : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
                                                     }`}
                                             >
-                                                <Users size={14} />
-                                                <span className="text-[10px] font-black uppercase tracking-tighter shrink-0">
+                                                <Users size={16} />
+                                                <span className="text-xs font-black uppercase tracking-tight shrink-0">
                                                     {task.targetStudents && task.targetStudents.length > 0
                                                         ? task.targetStudents.length
                                                         : 'All'}
                                                 </span>
                                             </button>
-
-                                            {/* Student Picker Dropdown */}
-                                            {openStudentPickerTask?.id === task.id && (
-                                                <div className="absolute top-full left-0 mt-2 w-80 md:w-96 bg-white rounded-3xl shadow-2xl border border-slate-200 z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden">
-                                                    <div className="p-4 border-b border-slate-100 bg-slate-50/80 backdrop-blur-sm">
-                                                        <div className="flex items-center justify-between mb-3">
-                                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                                                <Users size={12} />
-                                                                Select Students
-                                                            </p>
-                                                            <div className="flex flex-wrap gap-1.5 mt-2 md:mt-0">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => toggleAllStudentsForTask('hw', task.id, true)}
-                                                                    className="text-[10px] px-2.5 py-1 bg-amber-600 text-white rounded-lg font-black hover:bg-amber-700 transition-colors"
-                                                                >
-                                                                    All
-                                                                </button>
-                                                                {classGroups.map(group => {
-                                                                    const studentsInGroup = classStudents.filter(s => s.metadata?.groupId === group.id).map(s => s.id);
-                                                                    const allInGroupSelected = studentsInGroup.length > 0 && studentsInGroup.every(id => task.targetStudents?.includes(id));
-                                                                    return (
-                                                                        <button
-                                                                            key={group.id}
-                                                                            type="button"
-                                                                            onClick={() => toggleGroupStudentsForTask('hw', task.id, group.id)}
-                                                                            className={`text-[10px] px-2.5 py-1 rounded-lg font-black transition-all border ${allInGroupSelected
-                                                                                ? 'bg-amber-100 text-amber-700 border-amber-200 shadow-sm'
-                                                                                : 'bg-white text-amber-600 border-amber-100 hover:bg-amber-50'
-                                                                                }`}
-                                                                        >
-                                                                            {group.name}
-                                                                        </button>
-                                                                    );
-                                                                })}
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => toggleAllStudentsForTask('hw', task.id, false)}
-                                                                    className="text-[10px] px-2.5 py-1 bg-slate-200 text-slate-600 rounded-lg font-black hover:bg-slate-300 transition-colors"
-                                                                >
-                                                                    Clear
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                        <div className="relative">
-                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                                                            <input
-                                                                type="text"
-                                                                value={studentSearch}
-                                                                onChange={(e) => setStudentSearch(e.target.value)}
-                                                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-400 transition-all"
-                                                                placeholder="Search by name or roll..."
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="max-h-80 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                                                        {filteredStudents.length > 0 ? (
-                                                            filteredStudents.map(student => {
-                                                                const isSelected = task.targetStudents?.includes(student.id) || false;
-                                                                return (
-                                                                    <button
-                                                                        key={student.id}
-                                                                        type="button"
-                                                                        onClick={() => toggleStudentForTask('hw', task.id, student.id)}
-                                                                        className={`w-full text-left px-3 py-2 rounded-xl flex items-center gap-3 transition-all ${isSelected
-                                                                            ? 'bg-amber-50 border border-amber-200'
-                                                                            : 'hover:bg-slate-50 border border-transparent'
-                                                                            }`}
-                                                                    >
-                                                                        <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center overflow-hidden shrink-0 ${isSelected ? 'bg-amber-600 border-amber-600' : 'bg-slate-100 border-slate-200'
-                                                                            }`}>
-                                                                            {student.metadata?.studentPhoto ? (
-                                                                                <img src={student.metadata.studentPhoto} alt={student.name} className="w-full h-full object-cover" />
-                                                                            ) : isSelected ? (
-                                                                                <Check size={14} className="text-white" />
-                                                                            ) : (
-                                                                                <span className="text-[10px] font-bold text-slate-500">{student.name.charAt(0)}</span>
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="flex-1 min-w-0">
-                                                                            <p className="text-xs font-bold text-slate-700 truncate">{student.name}</p>
-                                                                            <p className="text-[10px] text-slate-400 truncate">Roll: {student.studentId || 'N/A'}</p>
-                                                                        </div>
-                                                                    </button>
-                                                                );
-                                                            })
-                                                        ) : (
-                                                            <p className="text-center py-6 text-xs text-slate-400 font-bold">No students found</p>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
                                         </div>
 
-                                        <div className="flex-1 flex flex-wrap items-center gap-1.5 p-2 bg-white border border-orange-100 rounded-xl focus-within:ring-4 focus-within:ring-orange-500/10 focus-within:border-orange-300 transition-all shadow-sm min-h-[48px]">
+                                        <div className="flex-1 flex flex-wrap items-center gap-1.5 p-2 bg-white border border-[#A6611A]/10 rounded-xl focus-within:ring-4 focus-within:ring-[#A6611A]/10 focus-within:border-[#A6611A]/30 transition-all shadow-sm min-h-[48px]">
                                             {task.segments.map((seg, sIdx) => (
                                                 <React.Fragment key={seg.id}>
                                                     {seg.type === 'tag' ? (
-                                                        <span className={`inline-flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg border border-white/40 shadow-sm animate-in zoom-in-50 ${ALL_TAGS.find(t => t.id === seg.value)?.color}`}>
+                                                        <span className={`inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-1.5 rounded-lg border border-white/40 shadow-sm animate-in zoom-in-50 ${ALL_TAGS.find(t => t.id === seg.value)?.color}`}>
                                                             {ALL_TAGS.find(t => t.id === seg.value)?.label}
                                                             <button type="button" onClick={() => removeTagFromTask('hw', task.id, seg.id)} className="hover:scale-110 transition-transform p-0.5">
                                                                 <X size={10} />
@@ -1422,7 +1101,7 @@ export default function AssignmentEditorPanel({
                                                                 onKeyDown={(e) => handleKeyDown('hw', task, seg.id, e)}
                                                                 onKeyUp={(e: any) => setFocusedTaskInfo(prev => prev?.segmentId === seg.id ? { ...prev, cursorOffset: e.target.selectionStart || 0 } : prev)}
                                                                 onClick={(e: any) => setFocusedTaskInfo(prev => prev?.segmentId === seg.id ? { ...prev, cursorOffset: e.target.selectionStart || 0 } : prev)}
-                                                                className="w-full bg-transparent outline-none text-sm font-bold text-slate-900 placeholder:text-slate-400 py-1"
+                                                                className="w-full bg-transparent outline-none text-[15px] font-bold text-slate-900 placeholder:text-slate-400 py-1"
                                                                 placeholder={sIdx === 0 && task.segments.length === 1 ? "বাড়িতে কি কাজ করতে হবে..." : ""}
                                                             />
                                                         </div>
@@ -1432,13 +1111,13 @@ export default function AssignmentEditorPanel({
                                         </div>
                                         {
                                             homeworkTasks.length > 1 && (
-                                                <button type="button" onClick={() => removeTaskLine('hw', task.id)} className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0"><Trash2 size={18} /></button>
+                                                <button type="button" onClick={() => removeTaskLine('hw', task.id)} className="h-12 w-12 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 border border-transparent hover:border-red-100"><Trash2 size={18} /></button>
                                             )
                                         }
                                     </div>
                                 ))}
-                                <button type="button" onClick={() => addTaskLine('hw')} className="px-4 md:px-5 py-2.5 border-2 border-dashed border-orange-200 text-orange-400 text-[10px] font-black rounded-xl md:rounded-xl hover:border-orange-400 hover:text-orange-600 hover:bg-white transition-all flex items-center gap-2 bg-white/50 w-full md:w-fit justify-center md:justify-start">
-                                    <Plus size={16} /> নতুন লাইন যোগ করুন
+                                <button type="button" onClick={() => addTaskLine('hw')} className="h-12 px-6 border-2 border-dashed border-[#A6611A]/20 text-[#A6611A] text-xs font-black rounded-2xl hover:border-[#A6611A]/50 hover:bg-[#A6611A]/5 transition-all flex items-center gap-2 bg-white/50 w-full md:w-fit justify-center md:justify-start shadow-sm">
+                                    <Plus size={18} /> নতুন লাইন যোগ করুন
                                 </button>
                             </div>
                         </div>
@@ -1448,17 +1127,17 @@ export default function AssignmentEditorPanel({
                     {/* Comments Section */}
                     {
                         activeTab === 'CM' && (
-                            <div className="bg-slate-50 p-5 md:p-6 rounded-[24px] md:rounded-[32px] border border-slate-200 shadow-inner">
+                            <div className="bg-[#473B06]/5 p-5 md:p-6 rounded-[24px] md:rounded-[32px] border border-[#473B06]/10 shadow-inner">
                                 <div className="flex items-center justify-between mb-6">
-                                    <label className="text-xs md:text-sm font-black text-slate-600 uppercase tracking-widest flex items-center gap-2">
-                                        <MessageSquare size={16} />
+                                    <label className="text-sm md:text-base font-black text-[#473B06] uppercase tracking-widest flex items-center gap-2">
+                                        <MessageSquare size={18} className="text-[#473B06]" />
                                         মন্তব্য (Comments)
                                     </label>
 
                                     <div className="flex items-center gap-1.5 overflow-visible">
                                         <div className="flex flex-wrap gap-1.5 justify-end">
                                             {ALL_TAGS.filter(t => pinnedTagIds.cm.includes(t.id)).map(tag => (
-                                                <button key={tag.id} type="button" onClick={() => appendTagToTask('cm', tag.id)} className={`text-[10px] px-3 py-1.5 rounded-xl font-black ${tag.color} border border-white/50 hover:shadow-sm transition-all shadow-white/50 animate-in fade-in zoom-in-50`}>{tag.label}</button>
+                                                <button key={tag.id} type="button" onClick={() => appendTagToTask('cm', tag.id)} className={`text-[12px] px-3.5 py-1.5 rounded-xl font-black ${tag.color} border border-white/50 hover:shadow-sm transition-all shadow-white/50 animate-in fade-in zoom-in-50`}>{tag.label}</button>
                                             ))}
                                         </div>
 
@@ -1467,14 +1146,14 @@ export default function AssignmentEditorPanel({
                                             <button
                                                 type="button"
                                                 onClick={() => setShowTagLibrary(!showTagLibrary)}
-                                                className="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-[#045c84] hover:text-white transition-all shadow-sm"
+                                                className="p-1.5 bg-white text-[#473B06] border border-[#473B06]/20 rounded-lg hover:bg-[#473B06] hover:text-white transition-all shadow-sm"
                                             >
                                                 <Plus size={14} />
                                             </button>
 
                                             {showTagLibrary && (
                                                 <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 z-[60] animate-in fade-in slide-in-from-top-2">
-                                                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">ট্যাগ লাইব্রেরি (Shortcut Picker)</p>
+                                                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">ট্যাগ লাইব্রেরি (Shortcut Picker)</p>
                                                     <div className="flex flex-wrap gap-2">
                                                         {ALL_TAGS.map(tag => {
                                                             const isPinned = pinnedTagIds.cm.includes(tag.id);
@@ -1483,12 +1162,12 @@ export default function AssignmentEditorPanel({
                                                                     key={tag.id}
                                                                     type="button"
                                                                     onClick={() => toggleTagPin(tag.id)}
-                                                                    className={`text-[9px] px-2.5 py-1.5 rounded-lg font-black border transition-all flex items-center gap-1.5 ${isPinned
-                                                                        ? `${tag.color} border-current opacity-100`
-                                                                        : 'bg-white text-slate-400 border-slate-100 opacity-60'
+                                                                    className={`text-[11px] px-3 py-2 rounded-xl font-black border transition-all flex items-center gap-2 ${isPinned
+                                                                        ? `${tag.color} border-current opacity-100 shadow-sm`
+                                                                        : 'bg-white text-slate-500 border-slate-100 opacity-60'
                                                                         }`}
                                                                 >
-                                                                    {isPinned && <Check size={8} />}
+                                                                    {isPinned && <Check size={10} />}
                                                                     {tag.label}
                                                                 </button>
                                                             );
@@ -1507,120 +1186,26 @@ export default function AssignmentEditorPanel({
                                             <div className="relative flex-shrink-0">
                                                 <button
                                                     type="button"
-                                                    onClick={() => setOpenStudentPickerTask(
-                                                        openStudentPickerTask?.id === task.id ? null : { section: 'cm', id: task.id }
-                                                    )}
-                                                    className={`px-2 py-1.5 rounded-lg transition-all flex items-center gap-1.5 border shadow-sm ${task.targetStudents && task.targetStudents.length > 0
-                                                        ? 'bg-slate-200 text-slate-700 border-slate-300'
+                                                    onClick={() => setOpenStudentPickerTask({ section: 'cm', id: task.id })}
+                                                    className={`h-12 px-3 rounded-xl transition-all flex items-center gap-2 border shadow-sm ${task.targetStudents && task.targetStudents.length > 0
+                                                        ? 'bg-[#473B06] text-white border-[#473B06]'
                                                         : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
                                                         }`}
                                                 >
-                                                    <Users size={14} />
-                                                    <span className="text-[10px] font-black uppercase tracking-tighter shrink-0">
+                                                    <Users size={16} />
+                                                    <span className="text-xs font-black uppercase tracking-tight shrink-0">
                                                         {task.targetStudents && task.targetStudents.length > 0
                                                             ? task.targetStudents.length
                                                             : 'All'}
                                                     </span>
                                                 </button>
-
-                                                {/* Student Picker Dropdown */}
-                                                {openStudentPickerTask?.id === task.id && (
-                                                    <div className="absolute top-full left-0 mt-2 w-80 md:w-96 bg-white rounded-3xl shadow-2xl border border-slate-200 z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden">
-                                                        <div className="p-4 border-b border-slate-100 bg-slate-50/80 backdrop-blur-sm">
-                                                            <div className="flex items-center justify-between mb-3">
-                                                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                                                    <Users size={12} />
-                                                                    Select Students
-                                                                </p>
-                                                                <div className="flex flex-wrap gap-1.5 mt-2 md:mt-0">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => toggleAllStudentsForTask('cm', task.id, true)}
-                                                                        className="text-[10px] px-2.5 py-1 bg-slate-600 text-white rounded-lg font-black hover:bg-slate-700 transition-colors"
-                                                                    >
-                                                                        All
-                                                                    </button>
-                                                                    {classGroups.map(group => {
-                                                                        const studentsInGroup = classStudents.filter(s => s.metadata?.groupId === group.id).map(s => s.id);
-                                                                        const allInGroupSelected = studentsInGroup.length > 0 && studentsInGroup.every(id => task.targetStudents?.includes(id));
-                                                                        return (
-                                                                            <button
-                                                                                key={group.id}
-                                                                                type="button"
-                                                                                onClick={() => toggleGroupStudentsForTask('cm', task.id, group.id)}
-                                                                                className={`text-[10px] px-2.5 py-1 rounded-lg font-black transition-all border ${allInGroupSelected
-                                                                                    ? 'bg-slate-200 text-slate-800 border-slate-300 shadow-sm'
-                                                                                    : 'bg-white text-slate-600 border-slate-100 hover:bg-slate-50'
-                                                                                    }`}
-                                                                            >
-                                                                                {group.name}
-                                                                            </button>
-                                                                        );
-                                                                    })}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => toggleAllStudentsForTask('cm', task.id, false)}
-                                                                        className="text-[10px] px-2.5 py-1 bg-slate-200 text-slate-600 rounded-lg font-black hover:bg-slate-300 transition-colors"
-                                                                    >
-                                                                        Clear
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                            <div className="relative">
-                                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                                                                <input
-                                                                    type="text"
-                                                                    value={studentSearch}
-                                                                    onChange={(e) => setStudentSearch(e.target.value)}
-                                                                    className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:ring-4 focus:ring-slate-500/10 focus:border-slate-400 transition-all"
-                                                                    placeholder="Search by name or roll..."
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div className="max-h-80 overflow-y-auto p-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-                                                            {filteredStudents.length > 0 ? (
-                                                                filteredStudents.map(student => {
-                                                                    const isSelected = task.targetStudents?.includes(student.id) || false;
-                                                                    return (
-                                                                        <button
-                                                                            key={student.id}
-                                                                            type="button"
-                                                                            onClick={() => toggleStudentForTask('cm', task.id, student.id)}
-                                                                            className={`w-full text-left px-3 py-2 rounded-xl flex items-center gap-3 transition-all ${isSelected
-                                                                                ? 'bg-slate-100 border border-slate-300'
-                                                                                : 'hover:bg-slate-50 border border-transparent'
-                                                                                }`}
-                                                                        >
-                                                                            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center overflow-hidden shrink-0 ${isSelected ? 'bg-slate-600 border-slate-600' : 'bg-slate-100 border-slate-200'
-                                                                                }`}>
-                                                                                {student.metadata?.studentPhoto ? (
-                                                                                    <img src={student.metadata.studentPhoto} alt={student.name} className="w-full h-full object-cover" />
-                                                                                ) : isSelected ? (
-                                                                                    <Check size={14} className="text-white" />
-                                                                                ) : (
-                                                                                    <span className="text-[10px] font-bold text-slate-500">{student.name.charAt(0)}</span>
-                                                                                )}
-                                                                            </div>
-                                                                            <div className="flex-1 min-w-0">
-                                                                                <p className="text-xs font-bold text-slate-700 truncate">{student.name}</p>
-                                                                                <p className="text-[10px] text-slate-400 truncate">Roll: {student.studentId || 'N/A'}</p>
-                                                                            </div>
-                                                                        </button>
-                                                                    );
-                                                                })
-                                                            ) : (
-                                                                <p className="text-center py-6 text-xs text-slate-400 font-bold">No students found</p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </div>
 
-                                            <div className="flex-1 flex flex-wrap items-center gap-1.5 p-2 bg-white border border-slate-200 rounded-xl focus-within:ring-4 focus-within:ring-slate-500/10 focus-within:border-slate-300 transition-all shadow-sm min-h-[48px]">
+                                            <div className="flex-1 flex flex-wrap items-center gap-1.5 p-2 bg-white border border-[#473B06]/20 rounded-xl focus-within:ring-4 focus-within:ring-[#473B06]/10 focus-within:border-[#473B06]/40 transition-all shadow-sm min-h-[48px]">
                                                 {task.segments.map((seg, sIdx) => (
                                                     <React.Fragment key={seg.id}>
                                                         {seg.type === 'tag' ? (
-                                                            <span className={`inline-flex items-center gap-1 text-[9px] font-black px-2 py-1 rounded-lg border border-white/40 shadow-sm animate-in zoom-in-50 ${ALL_TAGS.find(t => t.id === seg.value)?.color}`}>
+                                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-black px-2.5 py-1.5 rounded-lg border border-white/40 shadow-sm animate-in zoom-in-50 ${ALL_TAGS.find(t => t.id === seg.value)?.color}`}>
                                                                 {ALL_TAGS.find(t => t.id === seg.value)?.label}
                                                                 <button type="button" onClick={() => removeTagFromTask('cm', task.id, seg.id)} className="hover:scale-110 transition-transform p-0.5">
                                                                     <X size={10} />
@@ -1640,7 +1225,7 @@ export default function AssignmentEditorPanel({
                                                                     onKeyDown={(e) => handleKeyDown('cm', task, seg.id, e)}
                                                                     onKeyUp={(e: any) => setFocusedTaskInfo(prev => prev?.segmentId === seg.id ? { ...prev, cursorOffset: e.target.selectionStart || 0 } : prev)}
                                                                     onClick={(e: any) => setFocusedTaskInfo(prev => prev?.segmentId === seg.id ? { ...prev, cursorOffset: e.target.selectionStart || 0 } : prev)}
-                                                                    className="w-full bg-transparent outline-none text-sm font-bold text-slate-900 placeholder:text-slate-400 py-1"
+                                                                    className="w-full bg-transparent outline-none text-[15px] font-bold text-slate-900 placeholder:text-slate-400 py-1"
                                                                     placeholder={sIdx === 0 && task.segments.length === 1 ? "মন্তব্য লিখুন..." : ""}
                                                                 />
                                                             </div>
@@ -1650,13 +1235,13 @@ export default function AssignmentEditorPanel({
                                             </div>
                                             {
                                                 commentTasks.length > 1 && (
-                                                    <button type="button" onClick={() => removeTaskLine('cm', task.id)} className="p-2.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0"><Trash2 size={18} /></button>
+                                                    <button type="button" onClick={() => removeTaskLine('cm', task.id)} className="h-12 w-12 flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shrink-0 border border-transparent hover:border-red-100"><Trash2 size={18} /></button>
                                                 )
                                             }
                                         </div>
                                     ))}
-                                    <button type="button" onClick={() => addTaskLine('cm')} className="px-4 md:px-5 py-2.5 border-2 border-dashed border-slate-300 text-slate-400 text-[10px] font-black rounded-xl md:rounded-xl hover:border-slate-500 hover:text-slate-600 hover:bg-white transition-all flex items-center gap-2 bg-white/50 w-full md:w-fit justify-center md:justify-start">
-                                        <Plus size={16} /> নতুন মন্তব্য লাইন
+                                    <button type="button" onClick={() => addTaskLine('cm')} className="h-12 px-6 border-2 border-dashed border-[#473B06]/30 text-[#473B06] text-xs font-black rounded-2xl hover:border-[#473B06]/60 hover:bg-[#473B06]/10 transition-all flex items-center gap-2 bg-white/50 w-full md:w-fit justify-center md:justify-start shadow-sm">
+                                        <Plus size={18} /> নতুন মন্তব্য লাইন
                                     </button>
                                 </div>
 
@@ -1667,19 +1252,19 @@ export default function AssignmentEditorPanel({
                                             <button
                                                 type="button"
                                                 onClick={() => handleChipClick(chip)}
-                                                className={`px-4 py-2.5 bg-white border rounded-xl text-[10px] font-black transition-all shadow-sm active:scale-95 flex items-center gap-2 ${activeDynamicChip?.label === chip.label
-                                                    ? 'border-[#045c84] text-[#045c84] bg-[#045c84]/5 ring-2 ring-[#045c84]/20'
-                                                    : 'border-slate-200 text-slate-600 hover:bg-[#045c84]/5 hover:border-[#045c84]/30 hover:text-[#045c84]'
+                                                className={`px-5 py-3 bg-white border-2 rounded-2xl text-xs font-black transition-all shadow-sm active:scale-95 flex items-center gap-2.5 ${activeDynamicChip?.label === chip.label
+                                                    ? 'border-[#473B06] text-[#473B06] bg-[#473B06]/10 ring-4 ring-[#473B06]/10'
+                                                    : 'border-slate-100 text-slate-600 hover:bg-[#473B06]/5 hover:border-[#473B06]/30 hover:text-[#473B06]'
                                                     }`}
                                             >
                                                 {chip.label}
-                                                {chip.isDynamic && <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />}
+                                                {chip.isDynamic && <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />}
                                             </button>
 
                                             {/* Dynamic Item Picker */}
                                             {chip.isDynamic && activeDynamicChip?.label === chip.label && (
                                                 <div className="absolute top-full left-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 z-50 animate-in fade-in slide-in-from-top-2 p-1.5 grid grid-cols-1 gap-1">
-                                                    <p className="px-2 py-1.5 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center border-b border-slate-50 mb-1">
+                                                    <p className="px-2 py-1.5 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center border-b border-slate-50 mb-1">
                                                         সিলেক্ট করুন
                                                     </p>
                                                     {chip.items?.map(item => (
@@ -1687,7 +1272,7 @@ export default function AssignmentEditorPanel({
                                                             key={item}
                                                             type="button"
                                                             onClick={() => insertComment(chip.template, item)}
-                                                            className="w-full text-left px-3 py-2 hover:bg-slate-50 rounded-xl text-[10px] font-bold text-slate-700 hover:text-[#045c84] transition-all flex items-center justify-between group"
+                                                            className="w-full text-left px-3 py-2 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 hover:text-[#045c84] transition-all flex items-center justify-between group"
                                                         >
                                                             {item}
                                                             <Check size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#045c84]" />
@@ -1701,8 +1286,199 @@ export default function AssignmentEditorPanel({
                             </div >
                         )
                     }
-                </div >
-            </div >
+                </div>
+            </div>
+            {/* Student Selection Modal */}
+            <Modal
+                isOpen={!!openStudentPickerTask}
+                onClose={() => setOpenStudentPickerTask(null)}
+                title="সিলেক্ট স্টুডেন্ট (Select Students)"
+                maxWidth="max-w-2xl"
+                noScroll={true}
+            >
+                {(() => {
+                    const sectionColor = openStudentPickerTask?.section === 'cw' ? '#018571' :
+                        openStudentPickerTask?.section === 'pr' ? '#5B3A57' :
+                            openStudentPickerTask?.section === 'hw' ? '#A6611A' :
+                                '#473B06';
+
+                    const currentTask = openStudentPickerTask ? getTasksBySection(openStudentPickerTask.section).find(t => t.id === openStudentPickerTask.id) : null;
+                    const everyStudentSelected = classStudents.length > 0 && classStudents.every(s => currentTask?.targetStudents?.includes(s.id));
+
+                    return (
+                        <div
+                            className="h-[85vh] flex flex-col transition-all duration-500 border-x-4 border-b-4 relative"
+                            style={{
+                                backgroundColor: `${sectionColor}05`,
+                                borderColor: `${sectionColor}20`
+                            }}
+                        >
+                            {/* Floating Modal Header with Light Background */}
+                            <div
+                                className="sticky top-0 z-20 p-5 md:p-6 border-b border-slate-100 flex items-center justify-between gap-4 backdrop-blur-md"
+                                style={{ backgroundColor: `${sectionColor}08` }}
+                            >
+                                <div className="flex-1 relative group">
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#045c84] transition-colors">
+                                        <Search size={18} />
+                                    </div>
+                                    <input
+                                        type="search"
+                                        value={studentSearch}
+                                        onChange={(e) => setStudentSearch(e.target.value)}
+                                        className="w-full pl-11 pr-4 py-3.5 bg-white border-2 border-slate-100 rounded-2xl text-sm font-bold focus:outline-none focus:border-[#045c84] focus:ring-4 focus:ring-[#045c84]/10 transition-all placeholder:text-slate-400"
+                                        onFocus={(e) => {
+                                            e.target.style.borderColor = sectionColor;
+                                            e.target.style.boxShadow = `0 0 0 4px ${sectionColor}20`;
+                                        }}
+                                        onBlur={(e) => {
+                                            e.target.style.borderColor = '#e2e8f0';
+                                            e.target.style.boxShadow = 'none';
+                                        }}
+                                        placeholder="নাম অথবা আইডি দিয়ে খুঁজুন..."
+                                    />
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => openStudentPickerTask && toggleAllStudentsForTask(openStudentPickerTask.section as any, openStudentPickerTask.id, !everyStudentSelected)}
+                                        className={`p-3.5 rounded-xl transition-all shadow-sm active:scale-95 flex items-center justify-center border-2 ${everyStudentSelected
+                                            ? 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100'
+                                            : 'hover:opacity-80'
+                                            }`}
+                                        style={!everyStudentSelected ? { backgroundColor: `${sectionColor}15`, borderColor: `${sectionColor}40`, color: sectionColor } : {}}
+                                        title={everyStudentSelected ? "Clear All" : "Select All"}
+                                    >
+                                        {everyStudentSelected ? <X size={20} /> : <Check size={20} />}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Scrollable Content Body - Fix Clipping with horizontal padding */}
+                            <div
+                                className="flex-1 overflow-y-auto custom-scrollbar p-5 md:p-6 px-6 md:px-8"
+                                data-lenis-prevent
+                            >
+                                <p className="text-[11px] font-black uppercase tracking-widest mb-3 px-1" style={{ color: sectionColor }}>গ্রুপ সিলেক্ট (Group Selection)</p>
+
+                                {/* Group Selection */}
+                                {classGroups.length > 0 && (
+                                    <div className="mb-6">
+                                        <div className="flex flex-wrap gap-2">
+                                            {classGroups.map(group => {
+                                                const studentsInGroup = classStudents.filter(s => s.metadata?.groupId === group.id).map(s => s.id);
+                                                const isGroupSelected = studentsInGroup.length > 0 && studentsInGroup.every(id => currentTask?.targetStudents?.includes(id));
+
+                                                return (
+                                                    <button
+                                                        key={group.id}
+                                                        type="button"
+                                                        onClick={() => openStudentPickerTask && toggleGroupStudentsForTask(openStudentPickerTask.section as any, openStudentPickerTask.id, group.id)}
+                                                        className={`px-4 py-2.5 rounded-xl font-bold text-sm transition-all border-2 flex items-center gap-2 ${isGroupSelected
+                                                            ? 'bg-white shadow-sm'
+                                                            : 'bg-white text-slate-600 border-slate-100 hover:border-slate-300'
+                                                            }`}
+                                                        style={isGroupSelected ? { borderColor: sectionColor, color: sectionColor } : {}}
+                                                    >
+                                                        <div
+                                                            className={`w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all ${isGroupSelected ? '' : 'border-slate-300'}`}
+                                                            style={isGroupSelected ? { backgroundColor: sectionColor, borderColor: sectionColor } : {}}
+                                                        >
+                                                            {isGroupSelected && <Check size={10} className="text-white" />}
+                                                        </div>
+                                                        {group.name}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Student List Grid */}
+                                <div className="py-1">
+                                    <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 px-1">শিক্ষার্থী তালিকা ({filteredStudents.length})</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {filteredStudents.length > 0 ? (
+                                            filteredStudents.map(student => {
+                                                const isSelected = currentTask?.targetStudents?.includes(student.id) || false;
+
+                                                return (
+                                                    <button
+                                                        key={student.id}
+                                                        type="button"
+                                                        onClick={() => openStudentPickerTask && toggleStudentForTask(openStudentPickerTask.section as any, openStudentPickerTask.id, student.id)}
+                                                        className={`w-full text-left px-4 py-3 rounded-2xl flex items-center gap-4 transition-all border-2 ${isSelected
+                                                            ? 'scale-[1.02]'
+                                                            : 'bg-white/60 border-transparent hover:border-slate-200'
+                                                            }`}
+                                                        style={isSelected ? { backgroundColor: `${sectionColor}15`, borderColor: `${sectionColor}40`, boxShadow: `0 8px 20px ${sectionColor}10` } : {}}
+                                                    >
+                                                        <div
+                                                            className={`w-10 h-10 rounded-full border-2 flex items-center justify-center overflow-hidden shrink-0 transition-all ${isSelected ? '' : 'bg-slate-100 border-slate-200'}`}
+                                                            style={isSelected ? { backgroundColor: sectionColor, borderColor: sectionColor } : {}}
+                                                        >
+                                                            {student.metadata?.studentPhoto ? (
+                                                                <img src={student.metadata.studentPhoto} alt={student.name} className="w-full h-full object-cover" />
+                                                            ) : isSelected ? (
+                                                                <Check size={20} className="text-white" />
+                                                            ) : (
+                                                                <span className="text-xs font-black text-slate-500">{student.name.charAt(0)}</span>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className={`text-sm font-black truncate ${isSelected ? 'text-slate-900' : 'text-slate-700'}`}>{student.name}</p>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="text-[10px] font-black px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded-md uppercase tracking-tight">ID: {student.studentId || 'N/A'}</span>
+                                                                {student.metadata?.groupId && (
+                                                                    <span
+                                                                        className="text-[10px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-tight"
+                                                                        style={{ backgroundColor: `${sectionColor}15`, color: sectionColor }}
+                                                                    >
+                                                                        {classGroups.find(g => g.id === student.metadata.groupId)?.name}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        <div
+                                                            className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${isSelected ? 'rotate-0 px-0' : 'border-slate-200 rotate-90 opacity-20'}`}
+                                                            style={isSelected ? { backgroundColor: sectionColor, borderColor: sectionColor } : {}}
+                                                        >
+                                                            {isSelected && <Check size={14} className="text-white" />}
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })
+                                        ) : (
+                                            <div className="col-span-full py-12 flex flex-col items-center justify-center text-slate-400 bg-white/40 rounded-3xl border-2 border-dashed border-slate-200">
+                                                <Users size={48} className="mb-4 opacity-20" />
+                                                <p className="text-sm font-bold">কোন শিক্ষার্থী পাওয়া যায়নি</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Sticky Footer */}
+                            <div className="p-6 border-t border-slate-100 flex justify-end bg-white/50 backdrop-blur-sm relative z-20">
+                                <button
+                                    type="button"
+                                    onClick={() => setOpenStudentPickerTask(null)}
+                                    className="px-10 py-3.5 border-2 rounded-[22px] font-black text-base transition-all active:scale-95 flex items-center gap-2 shadow-lg hover:shadow-xl"
+                                    style={{
+                                        backgroundColor: `${sectionColor}15`,
+                                        borderColor: `${sectionColor}40`,
+                                        color: sectionColor,
+                                        boxShadow: `0 8px 20px ${sectionColor}12`
+                                    }}
+                                >
+                                    কমপ্লিট (Done) <Check size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })()}
+            </Modal>
         </div >
     );
 }

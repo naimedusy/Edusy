@@ -138,7 +138,10 @@ export default function FieldLibrary({ isOpen, onClose, currentFields, onAddFiel
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                <div
+                    className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar"
+                    data-lenis-prevent
+                >
                     {categories.map(category => (
                         <div key={category} className="space-y-4">
                             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-l-4 border-[#045c84] pl-3">

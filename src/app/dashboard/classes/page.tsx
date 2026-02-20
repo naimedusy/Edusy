@@ -5,14 +5,11 @@ import { useSession } from '@/components/SessionProvider';
 import {
     BookOpen,
     Plus,
-    Trash2,
     Loader2,
-    ChevronRight,
-    Layers as Layers3,
-    Users,
+    Clock,
     Save,
-    X,
-    LayoutGrid
+    LayoutGrid,
+    Settings2
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import Toast from '@/components/Toast';
@@ -23,6 +20,7 @@ export default function ClassesPage() {
     const [loading, setLoading] = useState(true);
     const [isClassModalOpen, setIsClassModalOpen] = useState(false);
     const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+    const [isStartTimeModalOpen, setIsStartTimeModalOpen] = useState(false);
     const [selectedClass, setSelectedClass] = useState<any>(null);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
@@ -31,6 +29,7 @@ export default function ClassesPage() {
     const [bulkClassText, setBulkClassText] = useState('');
     const [isBulkMode, setIsBulkMode] = useState(false);
     const [groupData, setGroupData] = useState({ name: '' });
+    const [startTimeInput, setStartTimeInput] = useState('');
 
     const fetchClasses = async () => {
         if (!activeInstitute?.id) return;
@@ -60,7 +59,6 @@ export default function ClassesPage() {
             let payload: any = { instituteId: activeInstitute.id };
 
             if (isBulkMode) {
-                // Parse bulk text: 1. Class Name -> { name: "Class Name", order: 1 }
                 const items = bulkClassText
                     .split('\n')
                     .map(line => {
@@ -92,14 +90,14 @@ export default function ClassesPage() {
                 body: JSON.stringify(payload)
             });
             if (res.ok) {
-                setToast({ message: isBulkMode ? 'ক্লাসগুলো সফলভাবে তৈরি হয়েছে!' : 'ক্লাস সফলভাবে তৈরি হয়েছে!', type: 'success' });
+                setToast({ message: isBulkMode ? 'ক্লাসগুলো সফলভাবে তৈরি হয়েছে!' : 'ক্লাস সফলভাবে তৈরি হয়েছে!', type: 'success' });
                 setIsClassModalOpen(false);
                 setClassData({ name: '' });
                 setBulkClassText('');
                 fetchClasses();
             }
         } catch (error) {
-            setToast({ message: 'ক্রুটি হয়েছে।', type: 'error' });
+            setToast({ message: 'ক্রুটি হয়েছে।', type: 'error' });
         } finally {
             setActionLoading(false);
         }
@@ -116,22 +114,46 @@ export default function ClassesPage() {
                 body: JSON.stringify({ ...groupData, classId: selectedClass.id })
             });
             if (res.ok) {
-                setToast({ message: 'গ্রুপ সফলভাবে তৈরি হয়েছে!', type: 'success' });
+                setToast({ message: 'গ্রুপ সফলভাবে তৈরি হয়েছে!', type: 'success' });
                 setIsGroupModalOpen(false);
                 setGroupData({ name: '' });
                 fetchClasses();
             }
         } catch (error) {
-            setToast({ message: 'ক্রুটি হয়েছে।', type: 'error' });
+            setToast({ message: 'ক্রুটি হয়েছে।', type: 'error' });
         } finally {
             setActionLoading(false);
         }
     };
 
+    const handleSaveStartTime = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedClass?.id) return;
+        setActionLoading(true);
+        try {
+            const res = await fetch(`/api/admin/classes/${selectedClass.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ startTime: startTimeInput })
+            });
+            if (res.ok) {
+                setToast({ message: 'ক্লাস শুরুর সময় সেভ হয়েছে!', type: 'success' });
+                setIsStartTimeModalOpen(false);
+                fetchClasses();
+            }
+        } catch (error) {
+            setToast({ message: 'ক্রুটি হয়েছে।', type: 'error' });
+        } finally {
+            setActionLoading(false);
+        }
+    };
+
+    const isAdmin = activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN';
+
     return (
         <div className="p-4 md:p-8 space-y-8 animate-fade-in-up font-bengali">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                {activeRole !== 'STUDENT' && (
+                {isAdmin && (
                     <button
                         onClick={() => setIsClassModalOpen(true)}
                         className="flex items-center gap-2 px-6 py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-200 hover:shadow-xl transition-all active:scale-95"
@@ -150,13 +172,13 @@ export default function ClassesPage() {
             ) : classes.length === 0 ? (
                 <div className="bg-white rounded-3xl border-2 border-dashed border-slate-200 p-20 text-center text-slate-400">
                     <BookOpen className="mx-auto mb-4 opacity-20" size={64} />
-                    <p className="text-xl font-bold">কোন ক্লাস পাওয়া যায়নি।</p>
-                    {activeRole !== 'STUDENT' && (
+                    <p className="text-xl font-bold">কোন ক্লাস পাওয়া যায়নি।</p>
+                    {isAdmin && (
                         <button
                             onClick={() => setIsClassModalOpen(true)}
                             className="mt-4 text-[#045c84] font-bold hover:underline"
                         >
-                            প্রথম ক্লাস তৈরি করুন →
+                            প্রথম ক্লাস তৈরি করুন &rarr;
                         </button>
                     )}
                 </div>
@@ -171,19 +193,45 @@ export default function ClassesPage() {
                                     </div>
                                     <h3 className="text-lg font-bold text-slate-800">{c.name}</h3>
                                 </div>
-                                {activeRole !== 'STUDENT' && (
-                                    <button
-                                        onClick={() => {
-                                            setSelectedClass(c);
-                                            setIsGroupModalOpen(true);
-                                        }}
-                                        className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:text-[#045c84] hover:border-[#045c84] transition-all"
-                                        title="গ্রুপ যোগ করুন"
-                                    >
-                                        <Plus size={18} />
-                                    </button>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {isAdmin && (
+                                        <button
+                                            onClick={() => {
+                                                setSelectedClass(c);
+                                                setStartTimeInput(c.startTime || '');
+                                                setIsStartTimeModalOpen(true);
+                                            }}
+                                            className="p-2 bg-white border border-slate-200 text-slate-500 rounded-lg hover:text-[#045c84] hover:border-[#045c84] transition-all"
+                                            title="ক্লাস শুরুর সময় সেট করুন"
+                                        >
+                                            <Clock size={16} />
+                                        </button>
+                                    )}
+                                    {isAdmin && (
+                                        <button
+                                            onClick={() => {
+                                                setSelectedClass(c);
+                                                setIsGroupModalOpen(true);
+                                            }}
+                                            className="p-2 bg-white border border-slate-200 text-slate-600 rounded-lg hover:text-[#045c84] hover:border-[#045c84] transition-all"
+                                            title="গ্রুপ যোগ করুন"
+                                        >
+                                            <Plus size={18} />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
+
+                            {/* Start time badge */}
+                            {c.startTime && (
+                                <div className="px-6 pt-3 flex items-center gap-1.5">
+                                    <Clock size={12} className="text-[#045c84]" />
+                                    <span className="text-[10px] font-black text-[#045c84] uppercase tracking-wide">
+                                        ক্লাস শুরু: {c.startTime}
+                                    </span>
+                                </div>
+                            )}
+
                             <div className="p-6 space-y-3">
                                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                     <LayoutGrid size={12} />
@@ -285,6 +333,39 @@ export default function ClassesPage() {
                     >
                         {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
                         <span>সেভ করুন</span>
+                    </button>
+                </form>
+            </Modal>
+
+            {/* Start Time Modal */}
+            <Modal
+                isOpen={isStartTimeModalOpen}
+                onClose={() => setIsStartTimeModalOpen(false)}
+                title={`ক্লাস শুরুর সময় - ${selectedClass?.name}`}
+                maxWidth="max-w-md"
+            >
+                <form onSubmit={handleSaveStartTime} className="p-8 space-y-6">
+                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-xs text-[#045c84] font-medium">
+                        <p className="font-black mb-1">কেন এই সময় লাগে?</p>
+                        <p>প্রতিদিনের হোমওয়ার্ক ও পরের দিনের প্রস্তুতির ডেডলাইন এই এই ক্লাস শুরুর সময় পর্যন্ত থাকবে।</p>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">ক্লাস শুরুর সময়</label>
+                        <input
+                            type="time"
+                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black text-lg"
+                            value={startTimeInput}
+                            onChange={(e) => setStartTimeInput(e.target.value)}
+                            required
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        disabled={actionLoading}
+                        className="w-full py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
+                    >
+                        {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
+                        <span>সময় সেভ করুন</span>
                     </button>
                 </form>
             </Modal>

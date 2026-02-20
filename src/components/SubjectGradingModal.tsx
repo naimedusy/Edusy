@@ -68,7 +68,12 @@ export default function SubjectGradingModal({
 
     // Update selected subject and initialize marks when subjects list changes or modal opens
     React.useEffect(() => {
-        if (!isOpen) return;
+        if (!isOpen) {
+            document.body.style.overflow = 'unset';
+            return;
+        }
+
+        document.body.style.overflow = 'hidden';
 
         // Initialize marks and rules for subjects that don't have them yet
         const initialMarks = { ...subjectMarks };
@@ -184,7 +189,10 @@ export default function SubjectGradingModal({
                             </div>
                         </div>
 
-                        <div className="flex-1 space-y-1.5 overflow-y-auto px-1 custom-scrollbar -mx-1">
+                        <div
+                            className="flex-1 space-y-1.5 overflow-y-auto px-1 custom-scrollbar -mx-1"
+                            data-lenis-prevent
+                        >
                             {subjects.map((sub, idx) => (
                                 <button
                                     key={sub.id}
@@ -262,8 +270,8 @@ export default function SubjectGradingModal({
                             </div>
                         </div>
 
-                        <div className="flex-1 p-4 md:p-6 pt-4 overflow-y-auto space-y-4">
-                            {/* Clean wide Demo Score Bar */}
+                        {/* Fixed Demo Score Bar */}
+                        <div className="px-4 md:px-6 py-4 bg-white border-b border-slate-50 shrink-0">
                             <div className="bg-slate-50/80 border border-slate-100 rounded-xl p-2 px-3 md:px-5 flex items-center justify-between gap-4 w-full group">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-white text-[#045c84] rounded-lg shadow-sm flex items-center justify-center border border-slate-200/50">
@@ -309,6 +317,12 @@ export default function SubjectGradingModal({
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        <div
+                            className="flex-1 p-4 md:p-6 pt-2 overflow-y-auto space-y-4"
+                            data-lenis-prevent
+                        >
 
                             {/* Configuration Rows */}
                             <div className="space-y-3">

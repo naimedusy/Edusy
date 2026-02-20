@@ -102,6 +102,7 @@ export async function GET() {
                 website: inst.website || '',
                 logo: inst.logo || '',
                 coverImage: inst.coverImage || '',
+                assignmentReleaseTime: inst.assignmentReleaseTime || null,
                 createdAt: inst.createdAt,
                 updatedAt: inst.updatedAt,
                 _count: {
@@ -118,6 +119,38 @@ export async function GET() {
         return NextResponse.json(institutes);
     } catch (error) {
         console.error('Admin Institutes API Error:', error);
+        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    }
+}
+
+export async function PATCH(req: Request) {
+    try {
+        const { searchParams } = new URL(req.url);
+        const id = searchParams.get('id');
+        const body = await req.json();
+        const { assignmentReleaseTime, name, logo, coverImage, address, phone, website, type } = body;
+
+        if (!id) {
+            return NextResponse.json({ message: 'Institute ID is required' }, { status: 400 });
+        }
+
+        const updated = await (prisma as any).institute.update({
+            where: { id },
+            data: {
+                ...(assignmentReleaseTime !== undefined && { assignmentReleaseTime }),
+                ...(name !== undefined && { name }),
+                ...(logo !== undefined && { logo }),
+                ...(coverImage !== undefined && { coverImage }),
+                ...(address !== undefined && { address }),
+                ...(phone !== undefined && { phone }),
+                ...(website !== undefined && { website }),
+                ...(type !== undefined && { type }),
+            }
+        });
+
+        return NextResponse.json(updated);
+    } catch (error) {
+        console.error('Institute PATCH Error:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }

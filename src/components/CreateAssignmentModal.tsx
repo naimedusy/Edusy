@@ -95,6 +95,7 @@ export default function CreateAssignmentModal({
     // Reset when modal opens
     useEffect(() => {
         if (isOpen) {
+            document.body.style.overflow = 'hidden';
             setFormData(prev => ({
                 ...prev,
                 title: '',
@@ -110,7 +111,12 @@ export default function CreateAssignmentModal({
             if (initialClassId) {
                 fetchClassStudents(initialClassId);
             }
+        } else {
+            document.body.style.overflow = 'unset';
         }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
     }, [isOpen, initialClassId, initialBookId]);
 
     // Fetch students when class changes
@@ -274,7 +280,11 @@ export default function CreateAssignmentModal({
                 </div>
 
                 {/* Body */}
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
+                <form
+                    onSubmit={handleSubmit}
+                    className="flex-1 overflow-y-auto"
+                    data-lenis-prevent
+                >
                     <div className="p-8 space-y-8">
 
                         {/* 1. Selectors */}

@@ -37,15 +37,23 @@ export default function InstituteProfileModal({ isOpen, onClose, institute }: In
     const [deleteError, setDeleteError] = useState('');
 
     useEffect(() => {
-        if (institute) {
-            setEditForm({
-                name: institute.name || '',
-                type: institute.type || '',
-                address: institute.address || '',
-                phone: institute.phone || '',
-                website: institute.website || ''
-            });
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+            if (institute) {
+                setEditForm({
+                    name: institute.name || '',
+                    type: institute.type || '',
+                    address: institute.address || '',
+                    phone: institute.phone || '',
+                    website: institute.website || ''
+                });
+            }
+        } else {
+            document.body.style.overflow = 'unset';
         }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
     }, [institute, isOpen]);
 
     const handleUpdate = async (e: React.FormEvent) => {
@@ -199,7 +207,11 @@ export default function InstituteProfileModal({ isOpen, onClose, institute }: In
                     </button>
                 </div>
 
-                <form onSubmit={handleUpdate} className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
+                <form
+                    onSubmit={handleUpdate}
+                    className="p-8 space-y-6 overflow-y-auto custom-scrollbar"
+                    data-lenis-prevent
+                >
                     <div className="space-y-4">
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">প্রতিষ্ঠানের নাম</label>

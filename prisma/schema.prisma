@@ -48,6 +48,9 @@ model Institute {
   // Form Configuration
   studentFormConfig Json?
 
+  // Assignment release time (global for all classes, HH:mm format e.g. "06:00")
+  assignmentReleaseTime String?
+
   // Many-to-Many with User
   admins      User[]   @relation(fields: [adminIds], references: [id])
   adminIds    String[] @db.ObjectId
@@ -69,6 +72,9 @@ model Class {
   name        String
   order       Int      @default(0)
   
+  // Class start time used as assignment deadline (HH:mm format e.g. "09:00")
+  startTime   String?
+
   institute   Institute @relation(fields: [instituteId], references: [id])
   instituteId String    @db.ObjectId
   
@@ -197,7 +203,7 @@ model Book {
 
 model Assignment {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  title       String
+  title       String?  // Optional - auto-generated from subject/book name if not set
   description String?
   type        AssignmentType @default(HOMEWORK)
   status      AssignmentStatus @default(PUBLISHED)
@@ -224,10 +230,10 @@ model Assignment {
   // Resource references (PDFs, Notes, Suggestions)
   resources   Json?     // Array of { name: string, url: string, type: string }
   
-  createdAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
   scheduledDate DateTime @default(now())
-  releaseAt   DateTime?
-  updatedAt   DateTime @updatedAt
+  releaseAt     DateTime?
+  updatedAt     DateTime @updatedAt
 }
 
 model Submission {
@@ -239,10 +245,10 @@ model Submission {
   studentId     String     @db.ObjectId
   
   content       String?    // Text answer
-  attachments   Json?      // Array of { name: string, url: string, type: string }
+  attachments   Json?      // Array of { name, url, type }
   
-  // New: Track progress for individual tasks within structured assignments
-  // Format: { [taskId]: { status: 'DONE' | 'PENDING', attachments: [], submittedAt: Date, feedback: string } }
+  // Track progress for individual tasks within structured assignments
+  // Format: { [taskId]: { status: 'DONE' | 'PENDING', submittedBy: 'TEACHER'|'STUDENT'|'GUARDIAN', submittedAt: Date, feedback: string } }
   taskProgress  Json?      
 
   status        SubmissionStatus @default(SUBMITTED)

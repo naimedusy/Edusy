@@ -49,11 +49,29 @@ export async function POST(req: Request) {
         const releasedCount = pendingAssignments.length;
         let notificationCount = 0;
 
+        // Fetch institute to get global release time setting
+        const institute = await (prisma as any).institute.findUnique({
+            where: { id: instituteId },
+            select: { assignmentReleaseTime: true }
+        });
+
+        // Compute releaseAt using institute's global release time (e.g., "06:00")
+        let releaseAt: Date | null = null;
+        if (institute?.assignmentReleaseTime) {
+            const [hours, minutes] = institute.assignmentReleaseTime.split(':').map(Number);
+            const r = new Date();
+            r.setHours(hours, minutes, 0, 0);
+            releaseAt = r;
+        }
+
         for (const assignment of pendingAssignments) {
-            // A. Update status to RELEASED
+            // A. Update status to RELEASED and set releaseAt timestamp
             await (prisma as any).assignment.update({
                 where: { id: assignment.id },
-                data: { status: 'RELEASED' }
+                data: {
+                    status: 'RELEASED',
+                    ...(releaseAt && { releaseAt })
+                }
             });
 
             // B. Find relevant students in the class
@@ -98,7 +116,7 @@ export async function POST(req: Request) {
             // C. Create Notifications
             for (const student of finalStudents) {
                 // Determine personalized message if structured data exists
-                let personalizedMessage = `${assignment.teacher?.name} আপনার জন্য একটি নতুন ${assignment.title} যুক্ত করেছেন।`;
+                let personalizedMessage = `${assignment.teacher?.name} আপনার জন্য আজকের পাঠ (${assignment.class?.name}) যুক্ত করেছেন।`;
 
                 if (structuredData) {
                     const personalTasks: string[] = [];

@@ -37,6 +37,7 @@ interface AssignmentDetailsModalProps {
     onRevert?: (assignment: any) => void;
     isReleasing?: boolean;
     selectedStudentId?: string;
+    canEdit?: boolean;
 }
 
 export default function AssignmentDetailsModal({
@@ -47,7 +48,8 @@ export default function AssignmentDetailsModal({
     onEdit,
     onRevert,
     isReleasing,
-    selectedStudentId
+    selectedStudentId,
+    canEdit = true
 }: AssignmentDetailsModalProps) {
     const { user, activeInstitute } = useSession();
     const isStudent = user?.role === 'STUDENT';
@@ -68,25 +70,31 @@ export default function AssignmentDetailsModal({
     const studentRefs = React.useRef<{ [key: string]: HTMLDivElement | null }>({});
 
     React.useEffect(() => {
-        if (isOpen && assignment?.id) {
-            // Check if we need to fetch full assignment details (e.g. description is missing)
-            if (!assignment.description || !assignment.classId) {
-                fetchFullAssignment();
-            } else {
-                setFullAssignment(assignment);
-            }
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+            if (assignment?.id) {
+                // Check if we need to fetch full assignment details (e.g. description is missing)
+                if (!assignment.description || !assignment.classId) {
+                    fetchFullAssignment();
+                } else {
+                    setFullAssignment(assignment);
+                }
 
-            if (user?.role === 'STUDENT') {
-                fetchSubmission();
-            } else {
-                // For teachers/admins, we need students and all submissions
-                // Use assignment.classId or fullAssignment.classId once fetched
-                if (assignment.classId || fullAssignment?.classId) {
-                    fetchStudents();
-                    fetchSubmissions();
+                if (user?.role === 'STUDENT') {
+                    fetchSubmission();
+                } else {
+                    if (assignment.classId || fullAssignment?.classId) {
+                        fetchStudents();
+                        fetchSubmissions();
+                    }
                 }
             }
+        } else {
+            document.body.style.overflow = 'unset';
         }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
     }, [isOpen, assignment?.id, user?.role, activeInstitute?.id]);
 
     // Handle classId becoming available after fetch
@@ -528,7 +536,10 @@ export default function AssignmentDetailsModal({
                     </div>
 
                     {/* Body */}
-                    <div className="p-8 overflow-y-auto custom-scrollbar flex-1">
+                    <div
+                        className="p-8 overflow-y-auto custom-scrollbar flex-1"
+                        data-lenis-prevent
+                    >
                         {/* Meta Info */}
                         <div className="grid grid-cols-2 gap-4 mb-8 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                             <div className="flex items-center gap-3">
@@ -727,17 +738,17 @@ export default function AssignmentDetailsModal({
                                                                     {sub.status === 'SUBMITTED' ? (
                                                                         <div className="flex items-center gap-2">
                                                                             <button
-                                                                                onClick={() => handleStatusUpdate('APPROVED')}
-                                                                                disabled={isUpdating}
-                                                                                className="px-4 py-1.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/10 flex items-center gap-2 disabled:opacity-50"
+                                                                                onClick={() => canEdit && handleStatusUpdate('APPROVED')}
+                                                                                disabled={isUpdating || !canEdit}
+                                                                                className={`px-4 py-1.5 bg-emerald-600 text-white rounded-xl text-[10px] font-black hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-900/10 flex items-center gap-2 ${(isUpdating || !canEdit) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                             >
                                                                                 {isUpdating ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={12} />}
                                                                                 APPROVE
                                                                             </button>
                                                                             <button
-                                                                                onClick={() => handleStatusUpdate('REJECTED')}
-                                                                                disabled={isUpdating}
-                                                                                className="px-4 py-1.5 bg-white text-red-600 border border-red-100 rounded-xl text-[10px] font-black hover:bg-red-50 transition-all disabled:opacity-50"
+                                                                                onClick={() => canEdit && handleStatusUpdate('REJECTED')}
+                                                                                disabled={isUpdating || !canEdit}
+                                                                                className={`px-4 py-1.5 bg-white text-red-600 border border-red-100 rounded-xl text-[10px] font-black hover:bg-red-50 transition-all ${(isUpdating || !canEdit) ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                                             >
                                                                                 REJECT
                                                                             </button>
@@ -765,7 +776,7 @@ export default function AssignmentDetailsModal({
                                                                 <div className="space-y-2">
                                                                     <div className="flex items-center justify-between mb-2">
                                                                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">টাস্ক প্রগ্রেস</p>
-                                                                        {sub.status !== 'APPROVED' && (
+                                                                        {sub.status !== 'APPROVED' && canEdit && (
                                                                             <button
                                                                                 onClick={handleApproveAll}
                                                                                 disabled={isUpdating}
@@ -810,7 +821,7 @@ export default function AssignmentDetailsModal({
                                                                                 </div>
 
                                                                                 <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                                    {progress.status !== 'APPROVED' && (
+                                                                                    {canEdit && (
                                                                                         <button
                                                                                             onClick={() => handleStatusUpdate(sub.status, taskId, 'APPROVED')}
                                                                                             disabled={isUpdating}
@@ -820,22 +831,26 @@ export default function AssignmentDetailsModal({
                                                                                             <CheckCircle2 size={12} />
                                                                                         </button>
                                                                                     )}
-                                                                                    <button
-                                                                                        onClick={() => handleStatusUpdate(sub.status, taskId, 'RETRY')}
-                                                                                        disabled={isUpdating}
-                                                                                        className="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 shadow-sm disabled:opacity-50"
-                                                                                        title="Request Retry"
-                                                                                    >
-                                                                                        <RotateCcw size={12} />
-                                                                                    </button>
-                                                                                    <button
-                                                                                        onClick={() => handleStatusUpdate(sub.status, taskId, 'REJECTED')}
-                                                                                        disabled={isUpdating}
-                                                                                        className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow-sm disabled:opacity-50"
-                                                                                        title="Reject Task"
-                                                                                    >
-                                                                                        <X size={12} />
-                                                                                    </button>
+                                                                                    {canEdit && (
+                                                                                        <button
+                                                                                            onClick={() => handleStatusUpdate(sub.status, taskId, 'RETRY')}
+                                                                                            disabled={isUpdating}
+                                                                                            className="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 shadow-sm disabled:opacity-50"
+                                                                                            title="Request Retry"
+                                                                                        >
+                                                                                            <RotateCcw size={12} />
+                                                                                        </button>
+                                                                                    )}
+                                                                                    {canEdit && (
+                                                                                        <button
+                                                                                            onClick={() => handleStatusUpdate(sub.status, taskId, 'REJECTED')}
+                                                                                            disabled={isUpdating}
+                                                                                            className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow-sm disabled:opacity-50"
+                                                                                            title="Reject Task"
+                                                                                        >
+                                                                                            <X size={12} />
+                                                                                        </button>
+                                                                                    )}
                                                                                 </div>
                                                                             </div>
                                                                         ))}
@@ -882,7 +897,7 @@ export default function AssignmentDetailsModal({
                         </div>
 
                         <div className="flex gap-3">
-                            {assignment.status === 'DRAFT' && onRelease && (
+                            {assignment.status === 'DRAFT' && onRelease && canEdit && (
                                 <button
                                     onClick={(e) => onRelease(assignment.id, e).then(() => onClose())}
                                     disabled={isReleasing}
@@ -892,7 +907,7 @@ export default function AssignmentDetailsModal({
                                     রিলিজ করুন
                                 </button>
                             )}
-                            {(assignment.status === 'RELEASED' || assignment.status === 'PUBLISHED') && onRevert && (
+                            {(assignment.status === 'RELEASED' || assignment.status === 'PUBLISHED') && onRevert && canEdit && (
                                 <button
                                     onClick={() => {
                                         onRevert(assignment);
@@ -904,7 +919,7 @@ export default function AssignmentDetailsModal({
                                     প্রত্যাহার (Revert)
                                 </button>
                             )}
-                            {!isStudent && onEdit && (
+                            {!isStudent && onEdit && canEdit && (
                                 <button
                                     onClick={() => {
                                         onEdit(assignment);

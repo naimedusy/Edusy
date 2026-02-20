@@ -8,13 +8,15 @@ export async function PATCH(
     try {
         const { id } = await params;
         const body = await req.json();
-        const { name, order } = body;
+        const { name, order, startTime, schedule } = body;
 
-        const updatedClass = await prisma.class.update({
+        const updatedClass = await (prisma as any).class.update({
             where: { id },
             data: {
-                name,
-                order: order !== undefined ? order : undefined
+                ...(name !== undefined && { name }),
+                ...(order !== undefined && { order }),
+                ...(startTime !== undefined && { startTime }),
+                ...(schedule !== undefined && { schedule })
             }
         });
 

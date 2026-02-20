@@ -67,7 +67,11 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('edusy_active_role', newUser.role);
     }, []);
 
-    const logout = React.useCallback(() => {
+    const logout = React.useCallback(async () => {
+        // Clear server-side cookie so middleware knows session is gone
+        try {
+            await fetch('/api/auth/logout', { method: 'POST' });
+        } catch (_) { /* silently ignore network errors */ }
         setUser(null);
         setActiveRole(null);
         setActiveInstitute(null);

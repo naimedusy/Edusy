@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '@/components/SessionProvider';
 import AuthLayout from '../../components/AuthLayout';
@@ -14,8 +14,17 @@ export default function LoginPage() {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const router = useRouter();
-    const { login } = useSession();
+    const searchParams = useSearchParams();
+    const { login, user, isLoading } = useSession();
 
+    const redirectTo = searchParams.get('redirect') || '/dashboard';
+
+    // If already logged in, send them to their intended destination
+    useEffect(() => {
+        if (!isLoading && user) {
+            router.replace(redirectTo);
+        }
+    }, [user, isLoading, router, redirectTo]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -32,7 +41,7 @@ export default function LoginPage() {
             const data = await res.json();
             if (res.ok) {
                 login(data.user);
-                router.push('/dashboard');
+                router.push(redirectTo);
             } else {
                 setError(data.message || 'Login failed');
             }

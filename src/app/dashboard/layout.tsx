@@ -62,6 +62,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         );
     }
 
+    // Client-side auth guard: if the session loaded but no user found, redirect to login
+    if (!user) {
+        if (typeof window !== 'undefined') {
+            window.location.replace('/entrance?redirect=' + encodeURIComponent(window.location.pathname));
+        }
+        return null;
+    }
+
 
     // ...
     const menuItems = [
@@ -206,7 +214,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 
             {/* Main Content */}
-            <div className="flex-1 lg:pl-72 flex flex-col h-screen min-w-0 overflow-hidden">
+            <div className="flex-1 lg:pl-72 flex flex-col min-w-0">
                 {/* Topbar */}
                 <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-3 md:gap-4 min-w-0">
@@ -255,7 +263,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </header>
 
                 {/* Page Content */}
-                <main className="flex-1 overflow-y-auto overflow-x-hidden">
+                <main className="flex-1">
                     {children}
                 </main>
 

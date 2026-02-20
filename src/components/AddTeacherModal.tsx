@@ -27,6 +27,17 @@ export default function AddTeacherModal({ isOpen, onClose, onAdd, instituteId, i
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
+    }, [isOpen]);
+
+    useEffect(() => {
         const delayDebounceFn = setTimeout(async () => {
             if (searchQuery.length >= 1) { // Allow searching with 1 char if needed, but usually 3 is better. User said "type name", usually immediate feedback is expected. Let's stick to 1 or keep 3 but user might think it's broken if they type 'Al'. Let's go with 1 for "realtime" feel, or 2.
                 // actually previous code had check < 3. Let's keep it robust.
@@ -145,7 +156,10 @@ export default function AddTeacherModal({ isOpen, onClose, onAdd, instituteId, i
                             )}
                         </div>
 
-                        <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                        <div
+                            className="space-y-3 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar"
+                            data-lenis-prevent
+                        >
                             {searchResults.length > 0 ? (
                                 searchResults.map(user => (
                                     <div key={user.id} className="flex items-center justify-between p-4 bg-white border border-slate-100 rounded-xl shadow-sm hover:shadow-md transition-all group">

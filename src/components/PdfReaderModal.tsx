@@ -35,14 +35,18 @@ const PdfReaderModal: React.FC<PdfReaderModalProps> = ({
 
     useEffect(() => {
         setMounted(true);
-        if (!isOpen) {
-            setIsFull(false);
-            setShowSidebar(true);
-        } else {
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
             // Initial URL with params
             setIframeUrl(`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`);
+        } else {
+            setIsFull(false);
+            setShowSidebar(true);
+            document.body.style.overflow = 'unset';
         }
-        return () => setMounted(false);
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
     }, [isOpen, pdfUrl]);
 
     const handleJumpToPage = (page: number) => {
@@ -191,7 +195,10 @@ const PdfReaderModal: React.FC<PdfReaderModalProps> = ({
                             </div>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                        <div
+                            className="flex-1 overflow-y-auto p-4 custom-scrollbar"
+                            data-lenis-prevent
+                        >
                             <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">আপনার বুকমার্ক সমূহ</h3>
 
                             {bookmarks.length === 0 ? (

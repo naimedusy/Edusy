@@ -55,10 +55,13 @@ export default function GlobalAssignmentModal() {
                                     </div>
                                 )}
 
-                                <div className={`${assignmentModalConfig.view === 'EDITOR'
-                                    ? 'h-screen md:h-[98vh] max-h-[100vh] md:max-h-[98vh]'
-                                    : 'max-h-[80vh]'
-                                    } overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200`}>
+                                <div
+                                    className={`${assignmentModalConfig.view === 'EDITOR'
+                                        ? 'h-screen md:h-[98vh] max-h-[100vh] md:max-h-[98vh]'
+                                        : 'max-h-[80vh]'
+                                        } overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200`}
+                                    data-lenis-prevent
+                                >
                                     <TeacherAssignmentPanel
                                         onClose={onClose}
                                         initialView={assignmentModalConfig.view}

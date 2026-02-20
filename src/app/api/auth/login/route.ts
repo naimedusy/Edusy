@@ -148,10 +148,13 @@ export async function POST(req: Request) {
 
         console.log('🎉 [LOGIN SUCCESS] User type:', user.role);
 
-        return NextResponse.json({
+        const userId = user.id || user._id?.toString();
+
+        // Build response with user data
+        const response = NextResponse.json({
             message: 'Login successful',
             user: {
-                id: user.id || user._id?.toString(),
+                id: userId,
                 email: user.email,
                 role: user.role,
                 name: user.name,
@@ -162,6 +165,19 @@ export async function POST(req: Request) {
                 teacherProfiles: user.teacherProfiles || []
             }
         });
+
+        // Set HttpOnly auth cookie so the middleware can validate on every request
+        // Token is the userId — middleware only checks presence, deep validation via API
+        const isProduction = process.env.NODE_ENV === 'production';
+        response.cookies.set('edusy_auth_token', userId, {
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 30, // 30 days
+            path: '/'
+        });
+
+        return response;
 
     } catch (error: any) {
         console.error('CRITICAL LOGIN ERROR:', error);

@@ -62,7 +62,14 @@ export default function GradingRulesModal({
             // Guess grading type based on existing rules
             const isMadrasa = initialRules?.some(r => r.grade.includes('মুমতাজ') || r.grade.includes('জাইয়্যিদ'));
             setGradingType(isMadrasa ? 'Madrasa' : 'General');
+
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
         }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
     }, [isOpen, initialRules, initialTotalMarks]);
 
     const handleAddRow = () => {
@@ -167,7 +174,10 @@ export default function GradingRulesModal({
                         </div>
                     </div>
 
-                    <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 md:pr-3 custom-scrollbar mb-8">
+                    <div
+                        className="space-y-3 max-h-[50vh] overflow-y-auto pr-1 md:pr-3 custom-scrollbar mb-8"
+                        data-lenis-prevent
+                    >
                         <div className="grid grid-cols-[0.7fr_1.3fr_0.7fr_32px] md:grid-cols-[0.6fr_1.6fr_0.6fr_60px] gap-1.5 md:gap-6 mb-1 px-0.5">
                             <span className="text-[8px] md:text-[11px] font-semibold text-slate-400 uppercase tracking-widest text-center">Marks</span>
                             <span className="text-[8px] md:text-[11px] font-semibold text-slate-400 uppercase tracking-widest text-center">Grade</span>

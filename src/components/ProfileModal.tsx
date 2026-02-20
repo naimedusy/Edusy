@@ -28,14 +28,22 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
     });
 
     useEffect(() => {
-        if (user) {
-            setEditForm({
-                name: user.name || '',
-                email: user.email || '',
-                phone: user.phone || '',
-                password: ''
-            });
+        if (isOpen) {
+            document.body.style.overflow = 'hidden';
+            if (user) {
+                setEditForm({
+                    name: user.name || '',
+                    email: user.email || '',
+                    phone: user.phone || '',
+                    password: ''
+                });
+            }
+        } else {
+            document.body.style.overflow = 'unset';
         }
+        return () => {
+            document.body.style.overflow = 'unset';
+        };
     }, [user, isOpen]);
 
     const handleUpdate = async (e: React.FormEvent) => {
@@ -80,7 +88,11 @@ export default function ProfileModal({ isOpen, onClose, user }: ProfileModalProp
                     </button>
                 </div>
 
-                <form onSubmit={handleUpdate} className="p-8 space-y-6">
+                <form
+                    onSubmit={handleUpdate}
+                    className="p-8 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar"
+                    data-lenis-prevent
+                >
                     <div className="space-y-4">
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">আপনার নাম</label>
