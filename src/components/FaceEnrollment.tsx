@@ -22,6 +22,7 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
     const [error, setError] = useState<string | null>(null);
     const [progress, setProgress] = useState(0);
     const [isUsingPhoto, setIsUsingPhoto] = useState(false);
+    const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
     useEffect(() => {
         loadModels();
@@ -53,7 +54,7 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
         try {
             setError(null);
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user', width: 640, height: 480 }
+                video: { facingMode: facingMode, width: 640, height: 480 }
             });
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
@@ -74,6 +75,31 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
         if (videoRef.current && videoRef.current.srcObject) {
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+        }
+    };
+
+    const toggleCamera = () => {
+        const newMode = facingMode === 'user' ? 'environment' : 'user';
+        setFacingMode(newMode);
+        stopCamera();
+        setTimeout(() => {
+            startCameraWithMode(newMode);
+        }, 300);
+    };
+
+    const startCameraWithMode = async (mode: 'user' | 'environment') => {
+        try {
+            setError(null);
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: mode, width: 640, height: 480 }
+            });
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+        } catch (err: any) {
+            console.error('Error accessing camera:', err);
+            setError('ক্যামেরা চালু করা সম্ভব হয়নি।');
         }
     };
 
@@ -216,8 +242,17 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
                         autoPlay
                         muted
                         playsInline
-                        className="w-full h-full object-cover mirror scale-x-[-1]"
+                        className={`w-full h-full object-cover ${facingMode === 'user' ? 'mirror scale-x-[-1]' : ''}`}
                     />
+
+                    {/* Camera Toggle Button */}
+                    <button
+                        onClick={toggleCamera}
+                        className="absolute top-4 right-4 w-10 h-10 bg-black/40 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center text-white hover:bg-black/60 transition-all active:scale-90 z-20"
+                        title="ক্যামেরা পরিবর্তন করুন"
+                    >
+                        <RefreshCw size={18} className={facingMode === 'environment' ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                    </button>
 
                     {/* Face Overlay Guideline */}
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">

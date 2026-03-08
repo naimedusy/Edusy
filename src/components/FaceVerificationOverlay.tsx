@@ -27,6 +27,7 @@ export default function FaceVerificationOverlay({
     const [error, setError] = useState<string | null>(null);
     const [matchScore, setMatchScore] = useState<number>(0);
     const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
+    const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
     const uploadRef = useRef<HTMLInputElement>(null);
 
     const faceMatcher = React.useMemo(() => {
@@ -61,7 +62,7 @@ export default function FaceVerificationOverlay({
 
             setStatus('STARTING_CAMERA');
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user', width: 640, height: 480 }
+                video: { facingMode: facingMode, width: 640, height: 480 }
             });
 
             if (videoRef.current) {
@@ -83,6 +84,35 @@ export default function FaceVerificationOverlay({
             const stream = videoRef.current.srcObject as MediaStream;
             stream.getTracks().forEach(track => track.stop());
             videoRef.current.srcObject = null;
+        }
+    };
+
+    const toggleCamera = () => {
+        const newMode = facingMode === 'user' ? 'environment' : 'user';
+        setFacingMode(newMode);
+        stopCamera();
+        setTimeout(() => {
+            startCameraWithMode(newMode);
+        }, 300);
+    };
+
+    const startCameraWithMode = async (mode: 'user' | 'environment') => {
+        try {
+            setStatus('STARTING_CAMERA');
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: mode, width: 640, height: 480 }
+            });
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                videoRef.current.onloadedmetadata = () => {
+                    setStatus('VERIFYING');
+                };
+            }
+        } catch (err: any) {
+            console.error('Verification camera switch error:', err);
+            setError('ক্যামেরা চালু করা সম্ভব হয়নি।');
+            setStatus('ERROR');
         }
     };
 
@@ -241,8 +271,17 @@ export default function FaceVerificationOverlay({
                         autoPlay
                         muted
                         playsInline
-                        className={`w-full h-full object-cover scale-x-[-1] transition-transform duration-700 ${status === 'SUCCESS' ? 'scale-110' : ''}`}
+                        className={`w-full h-full object-cover transition-transform duration-700 ${facingMode === 'user' ? 'scale-x-[-1]' : ''} ${status === 'SUCCESS' ? 'scale-110' : ''}`}
                     />
+
+                    {/* Camera Toggle Button */}
+                    <button
+                        onClick={toggleCamera}
+                        className="absolute top-4 right-4 w-10 h-10 bg-black/40 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center text-white hover:bg-black/60 transition-all active:scale-90 z-20"
+                        title="ক্যামেরা পরিবর্তন করুন"
+                    >
+                        <RefreshCw size={18} className={facingMode === 'environment' ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                    </button>
                     <canvas ref={canvasRef} className="hidden" />
 
                     {/* States Overlay */}

@@ -71,6 +71,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [analysisProgress, setAnalysisProgress] = useState({ current: 0, total: 0 });
     const [toast, setToast] = useState<{ message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' } | null>(null);
+    const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
     const showToast = (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' = 'SUCCESS') => {
         setToast({ message, type });
@@ -307,12 +308,51 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
             // Use more robust constraints - modern browser fallback
             const constraints = {
                 video: {
-                    facingMode: 'user',
+                    facingMode: facingMode,
                     width: { ideal: 640 },
                     height: { ideal: 480 }
                 }
             };
 
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                setIsCameraActive(true);
+                setStatus('SCANNING');
+                setIsTestMode(false);
+            }
+        } catch (err: any) {
+            console.error('Error accessing camera:', err);
+            setError(err.name === 'NotAllowedError' ? 'PERMISSION_DENIED' : 'ক্যামেরা সংযোগ বিচ্ছিন্ন। আবার চেষ্টা করুন।');
+            setStatus('ERROR');
+            setIsCameraActive(false);
+        }
+    };
+
+    const toggleCamera = () => {
+        const newMode = facingMode === 'user' ? 'environment' : 'user';
+        setFacingMode(newMode);
+        if (isCameraActive) {
+            stopScanner();
+            setTimeout(() => {
+                startScannerWithMode(newMode);
+            }, 300);
+        }
+    };
+
+    const startScannerWithMode = async (mode: 'user' | 'environment') => {
+        setError(null);
+        setStatus('INITIALIZING');
+        try {
+            initAudio();
+            await loadModels();
+            const constraints = {
+                video: {
+                    facingMode: mode,
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                }
+            };
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
@@ -886,6 +926,15 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                                         </button>
                                     ))}
                                 </div>
+
+                                {/* Camera Switch Toggle */}
+                                <button
+                                    onClick={toggleCamera}
+                                    className="w-9 h-9 rounded-xl bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/40 transition-all active:scale-90 shadow-xl"
+                                    title="ক্যামেরা পরিবর্তন করুন"
+                                >
+                                    <RefreshCw size={16} className={facingMode === 'environment' ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                                </button>
 
                                 {/* Pause/Active Toggle */}
                                 <button
