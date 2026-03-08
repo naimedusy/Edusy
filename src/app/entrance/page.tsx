@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useSession } from '@/components/SessionProvider';
@@ -8,7 +8,7 @@ import AuthLayout from '../../components/AuthLayout';
 
 import { Mail, Lock, LogIn, Loader2, AlertCircle } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginContent() {
     const [identifier, setIdentifier] = useState(''); // Can be email or phone
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
@@ -163,5 +163,17 @@ export default function LoginPage() {
                 </p>
             </div>
         </AuthLayout>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex items-center justify-center min-h-screen">
+                <Loader2 className="animate-spin text-[#047cac]" size={48} />
+            </div>
+        }>
+            <LoginContent />
+        </Suspense>
     );
 }
