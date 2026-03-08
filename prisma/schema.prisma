@@ -32,6 +32,10 @@ model User {
   teacherProfiles TeacherProfile[]
   assignments     Assignment[] @relation("TeacherAssignments")
   submissions     Submission[] @relation("StudentSubmissions")
+  
+  // Attendance & FRS
+  faceDescriptor  Float[] 
+  attendances     Attendance[] @relation("StudentAttendance")
 }
 
 model Institute {
@@ -65,6 +69,7 @@ model Institute {
   updatedAt   DateTime @updatedAt
 
   assignments Assignment[]
+  attendances Attendance[]
 }
 
 model Class {
@@ -85,6 +90,7 @@ model Class {
   updatedAt   DateTime @updatedAt
 
   assignments Assignment[]
+  attendances Attendance[]
 }
 
 model Group {
@@ -101,6 +107,7 @@ model Group {
   updatedAt   DateTime @updatedAt
 
   assignments Assignment[]
+  attendances Attendance[]
 }
 
 
@@ -233,6 +240,8 @@ model Assignment {
   createdAt     DateTime @default(now())
   scheduledDate DateTime @default(now())
   releaseAt     DateTime?
+  requireFaceVerify Boolean @default(false)
+  
   updatedAt     DateTime @updatedAt
 }
 
@@ -280,4 +289,44 @@ enum SubmissionStatus {
   APPROVED
   RETRY
   REJECTED
+}
+
+model Attendance {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  student     User     @relation("StudentAttendance", fields: [studentId], references: [id])
+  studentId   String   @db.ObjectId
+  
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  instituteId String    @db.ObjectId
+  
+  class       Class?    @relation(fields: [classId], references: [id])
+  classId     String?   @db.ObjectId
+
+  group       Group?    @relation(fields: [groupId], references: [id])
+  groupId     String?   @db.ObjectId
+  
+  date        DateTime @default(now())
+  dateString  String   // YYYY-MM-DD for uniqueness
+  status      AttendanceStatus @default(PRESENT)
+  method      AttendanceMethod @default(MANUAL) // MANUAL, FRS, QR
+  
+  remarks     String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([studentId, dateString])
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  LEAVE
+}
+
+enum AttendanceMethod {
+  MANUAL
+  FRS
+  QR
 }
