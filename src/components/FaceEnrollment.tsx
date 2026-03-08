@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 import { Camera, RefreshCw, CheckCircle2, XCircle, Loader2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePerformance } from '../hooks/usePerformance';
 
 interface FaceEnrollmentProps {
     studentId: string;
@@ -23,6 +24,8 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
     const [progress, setProgress] = useState(0);
     const [isUsingPhoto, setIsUsingPhoto] = useState(false);
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+    const { isLowCapacity } = usePerformance();
+    const hasAutoEnrolled = useRef(false);
 
     useEffect(() => {
         loadModels();
@@ -30,6 +33,14 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
             stopCamera();
         };
     }, []);
+
+    useEffect(() => {
+        if (modelsLoaded && profilePhoto && !hasAutoEnrolled.current && status === 'READY') {
+            hasAutoEnrolled.current = true;
+            console.log('Auto-enrolling from profile photo:', profilePhoto);
+            processImage(profilePhoto);
+        }
+    }, [modelsLoaded, profilePhoto, status]);
 
     const loadModels = async () => {
         try {
@@ -267,42 +278,49 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                                 className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center text-white text-center p-6">
                                 <Loader2 className="animate-spin text-[#045c84] mb-4" size={40} />
-                                <h4 className="text-lg font-black mb-1">সিস্টেম প্রস্তুত হচ্ছে...</h4>
-                                <p className="text-sm text-slate-400 font-bold">প্রথমবার লোড হতে কিছুক্ষণ সময় লাগতে পারে</p>
+                                <h4 className="text-xl font-black mb-1 italic">সিস্টেম প্রস্তুত হচ্ছে...</h4>
+                                <p className="text-[11px] sm:text-xs text-slate-400 font-bold uppercase tracking-widest">প্রথমবার লোড হতে কিছুক্ষণ সময় লাগতে পারে</p>
                             </motion.div>
                         )}
 
                         {status === 'SUCCESS' && (
                             <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
                                 className="absolute inset-0 bg-[#045c84]/90 flex flex-col items-center justify-center text-white text-center p-6">
-                                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-4">
+                                <div className={`w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-6 ${!isLowCapacity ? 'animate-bounce' : ''}`}>
                                     <CheckCircle2 size={40} strokeWidth={3} />
                                 </div>
-                                <h4 className="text-xl font-black mb-1">সাফল্যের সাথে সেভ হয়েছে!</h4>
-                                <p className="text-sm font-bold opacity-80 uppercase tracking-widest">ফেস আইডি এখন সচল</p>
+                                <h3 className="text-2xl sm:text-3xl font-black italic uppercase tracking-tight text-white mb-2">সাফল্য!</h3>
+                                <p className="text-[11px] sm:text-sm font-bold text-white/60 uppercase tracking-widest leading-relaxed px-6">ফেস আইডি সফলভাবে গ্রহণ করা হয়েছে।</p>
+                                <div className="mt-4 flex flex-col items-center">
+                                    <h1 className="text-lg sm:text-xl font-black italic uppercase tracking-tighter text-white/90 truncate max-w-[280px]">
+                                        {studentName}
+                                    </h1>
+                                </div>
                             </motion.div>
                         )}
 
                         {error && (error.includes('ক্যামেরা') || error.includes('অনুমতি')) && status === 'READY' && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                className="absolute inset-0 bg-slate-900/60 flex flex-col items-center justify-center text-white text-center p-6 backdrop-blur-md">
-                                <div className="w-16 h-16 bg-white/10 rounded-3xl flex items-center justify-center mb-4 border border-white/20">
-                                    <Camera size={28} className="text-white/60" />
+                                className="absolute inset-0 bg-slate-900/60 flex flex-col items-center justify-center text-white text-center p-6 backdrop-blur-md z-30">
+                                <div className={`w-24 h-24 border-4 border-dashed rounded-full flex items-center justify-center mb-6 ${!isLowCapacity ? 'animate-[spin_20s_linear_infinite]' : 'border-white/20'}`}>
+                                    <div className={`w-16 h-16 border-4 border-white/20 rounded-full flex items-center justify-center ${!isLowCapacity ? 'animate-pulse' : ''}`}>
+                                        <Camera size={28} className="text-white/40" />
+                                    </div>
                                 </div>
-                                <h4 className="text-[13px] font-black mb-1 italic">স্ক্যানার নিষ্ক্রিয়</h4>
-                                <p className="text-[10px] font-bold text-slate-300 max-w-[220px] leading-relaxed mb-6">
+                                <h4 className="text-xl font-black mb-1 italic uppercase tracking-tight">ক্যামেরা নিষ্ক্রিয়</h4>
+                                <p className="text-[11px] sm:text-xs font-bold text-slate-300 max-w-[240px] leading-relaxed mb-6 uppercase tracking-wider">
                                     ক্যামেরা কাজ না করলে সরাসরি ফটো আপলোড করে ট্রাই করুন।
                                 </p>
                                 <div className="flex flex-col gap-2 w-full max-w-[200px]">
                                     <button
                                         onClick={() => uploadInputRef.current?.click()}
-                                        className="py-2.5 bg-white text-slate-900 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95 shadow-lg shadow-white/10"
+                                        className="py-3 bg-white text-slate-900 rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all active:scale-95 shadow-lg shadow-white/10"
                                     >
                                         ফটো আপলোড করুন
                                     </button>
                                     <button
                                         onClick={startCamera}
-                                        className="py-2.5 bg-white/5 hover:bg-white/10 text-white/80 font-black rounded-xl transition-all flex items-center justify-center gap-2 border border-white/10 text-[11px]"
+                                        className="py-3 bg-white/5 hover:bg-white/10 text-white/80 font-black rounded-xl transition-all flex items-center justify-center gap-2 border border-white/10 text-[11px]"
                                     >
                                         আবার চেষ্টা করুন
                                     </button>

@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from './SessionProvider';
+import { usePerformance } from '../hooks/usePerformance';
 
 interface EnrolledStudent {
     id: string;
@@ -72,6 +73,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
     const [analysisProgress, setAnalysisProgress] = useState({ current: 0, total: 0 });
     const [toast, setToast] = useState<{ message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' } | null>(null);
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+    const { isLowCapacity } = usePerformance();
 
     const showToast = (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' = 'SUCCESS') => {
         setToast({ message, type });
@@ -832,7 +834,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
             {students.some(s => (!s.faceDescriptor || s.faceDescriptor.length === 0) && s.photo) && (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
                     <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isAnalyzing ? 'bg-amber-500 text-white animate-pulse' : 'bg-white text-amber-500 border border-amber-100'}`}>
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isAnalyzing ? `bg-amber-500 text-white ${!isLowCapacity ? 'animate-pulse' : ''}` : 'bg-white text-amber-500 border border-amber-100'}`}>
                             {isAnalyzing ? <RefreshCw className="animate-spin" size={24} /> : <Zap size={24} fill="currentColor" />}
                         </div>
                         <div>
@@ -865,8 +867,8 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                         {/* Minimal Live Indicator - Only when scanning */}
                         {status === 'SCANNING' && (
                             <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 z-20">
-                                <div className={`w-1.5 h-1.5 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`} />
-                                <span className="text-[9px] font-black text-white/90 uppercase tracking-[0.2em] pt-0.5 italic">
+                                <div className={`w-1.5 h-1.5 rounded-full ${isPaused ? 'bg-amber-400' : `bg-emerald-400 ${!isLowCapacity ? 'animate-pulse' : ''}`}`} />
+                                <span className="text-[10px] sm:text-[11px] font-black text-white/90 uppercase tracking-[0.2em] pt-0.5 italic">
                                     {isPaused ? 'PAUSED' : (isTestMode ? 'Test Mode' : 'Live Mode')}
                                 </span>
                             </div>
@@ -882,19 +884,19 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                                         <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/10 group-hover:scale-105 transition-transform duration-700">
                                             <Camera size={20} className="text-white/80" />
                                         </div>
-                                        <h3 className="text-lg font-black mb-1 italic uppercase tracking-tighter">
+                                        <h3 className="text-xl sm:text-2xl font-black mb-1 italic uppercase tracking-tighter">
                                             {error ? 'ক্যামেরা সমস্যা' : 'স্মার্ট হাজিরা সিস্টেম'}
                                         </h3>
-                                        <p className="text-[9px] font-bold text-white/60 max-w-[240px] mb-4 leading-relaxed uppercase tracking-wider">
+                                        <p className="text-[11px] sm:text-xs font-bold text-white/60 max-w-[280px] mb-4 leading-relaxed uppercase tracking-wider">
                                             {error || 'ক্যামেরা দিয়ে অটো হাজিরা নিতে "স্ক্যান শুরু" করুন অথবা ফটো আপলোড করুন।'}
                                         </p>
 
                                         <div className="flex flex-col items-center gap-3 mt-2 w-full max-w-[280px]">
                                             <div className="flex gap-2 w-full">
-                                                <button onClick={startScanner} disabled={status === 'LOADING_STUDENTS'} className="flex-1 py-1.5 bg-white text-slate-900 font-bold rounded-lg shadow-lg hover:bg-slate-50 transition-all text-[9px] uppercase tracking-wider active:scale-95">
+                                                <button onClick={startScanner} disabled={status === 'LOADING_STUDENTS'} className="flex-1 py-2.5 bg-white text-slate-900 font-bold rounded-lg shadow-lg hover:bg-slate-50 transition-all text-[11px] uppercase tracking-wider active:scale-95">
                                                     {error ? 'আবার চেষ্টা করুন' : 'স্ক্যান শুরু করুন'}
                                                 </button>
-                                                <button onClick={() => { setIsTestMode(true); uploadImgRef.current?.click(); }} className="flex-1 py-1.5 bg-white/10 hover:bg-white/15 text-white font-bold rounded-lg transition-all border border-white/10 text-[9px] uppercase tracking-wider active:scale-95">
+                                                <button onClick={() => { setIsTestMode(true); uploadImgRef.current?.click(); }} className="flex-1 py-2.5 bg-white/10 hover:bg-white/15 text-white font-bold rounded-lg transition-all border border-white/10 text-[11px] uppercase tracking-wider active:scale-95">
                                                     ফটো আপলোড
                                                 </button>
                                             </div>
@@ -985,7 +987,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                                                 )}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[9px] font-black underline underline-offset-2 opacity-80 uppercase tracking-widest leading-none mb-1 text-white">
+                                                <p className="text-[11px] font-black underline underline-offset-2 opacity-80 uppercase tracking-widest leading-none mb-1 text-white">
                                                     {match.isAlreadyMarked
                                                         ? 'পূর্বেই বর্তমান'
                                                         : match.status === 'LATE'
@@ -994,9 +996,9 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                                                                 ? 'ছুটি নিশ্চিত'
                                                                 : 'উপস্থিত নিশ্চিত'}
                                                 </p>
-                                                <p className="text-md font-black italic uppercase leading-tight truncate text-white">{match.name}</p>
+                                                <p className="text-xl font-black italic uppercase leading-tight truncate text-white">{match.name}</p>
                                             </div>
-                                            <div className="text-[10px] font-black bg-black/20 text-white px-2.5 py-1.5 rounded-lg uppercase border border-white/10 shrink-0">
+                                            <div className="text-[11px] font-black bg-black/20 text-white px-3 py-2 rounded-lg uppercase border border-white/10 shrink-0">
                                                 {match.time}
                                             </div>
                                         </motion.div>
@@ -1027,10 +1029,10 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as any)}
-                                    className={`flex-1 min-w-[80px] py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${activeTab === tab.id ? `bg-white text-${tab.color}-600 shadow-sm border border-slate-100` : 'text-slate-400 hover:bg-white/50'}`}
+                                    className={`flex-1 min-w-[80px] py-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${activeTab === tab.id ? `bg-white text-${tab.color}-600 shadow-sm border border-slate-100` : 'text-slate-400 hover:bg-white/50'}`}
                                 >
                                     <span className="opacity-60">{tab.label}</span>
-                                    <span className={`text-xs ${activeTab === tab.id ? `text-${tab.color}-600` : 'text-slate-600'}`}>{tab.count}</span>
+                                    <span className={`text-sm ${activeTab === tab.id ? `text-${tab.color}-600` : 'text-slate-600'}`}>{tab.count}</span>
                                 </button>
                             ))}
                         </div>

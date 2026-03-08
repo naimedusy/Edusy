@@ -4,6 +4,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, X, Loader2, ShieldCheck, AlertCircle, RefreshCw, Zap, Upload, Play, Pause } from 'lucide-react';
+import { usePerformance } from '../hooks/usePerformance';
 
 interface FaceVerificationOverlayProps {
     isOpen: boolean;
@@ -29,6 +30,7 @@ export default function FaceVerificationOverlay({
     const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
     const [isPaused, setIsPaused] = useState(false);
+    const { isLowCapacity } = usePerformance();
     const uploadRef = useRef<HTMLInputElement>(null);
 
     const faceMatcher = React.useMemo(() => {
@@ -358,8 +360,8 @@ export default function FaceVerificationOverlay({
                         )}
                     </AnimatePresence>
 
-                    {/* Scan Line Animation */}
-                    {(status === 'VERIFYING' && !isPaused) && (
+                    {/* Scan Line Animation - Only on high capacity devices */}
+                    {(status === 'VERIFYING' && !isPaused && !isLowCapacity) && (
                         <>
                             <motion.div
                                 animate={{ top: ['0%', '100%', '0%'] }}
