@@ -27,33 +27,39 @@ async function getMaxMetadataValue(instituteId: string, filterExtras: any, field
         ];
     }
 
-    const result = await (prisma as any).$runCommandRaw({
-        aggregate: 'User',
-        pipeline: [
-            { $match: filter },
-            {
-                $project: {
-                    numericVal: {
-                        $convert: {
-                            input: `$metadata.${fieldName}`,
-                            to: "int",
-                            onError: 0,
-                            onNull: 0
+    try {
+        const result = await (prisma as any).$runCommandRaw({
+            aggregate: 'User',
+            pipeline: [
+                { $match: filter },
+                {
+                    $project: {
+                        numericVal: {
+                            $convert: {
+                                input: `$metadata.${fieldName}`,
+                                to: "int",
+                                onError: 0,
+                                onNull: 0
+                            }
                         }
                     }
+                },
+                {
+                    $group: {
+                        _id: null,
+                        maxVal: { $max: "$numericVal" }
+                    }
                 }
-            },
-            {
-                $group: {
-                    _id: null,
-                    maxVal: { $max: "$numericVal" }
-                }
-            }
-        ],
-        cursor: {}
-    });
+            ],
+            cursor: {}
+        });
 
-    return result.cursor?.firstBatch?.[0]?.maxVal || 0;
+        return result.cursor?.firstBatch?.[0]?.maxVal || 0;
+    } catch (error) {
+        console.error(`Error in getMaxMetadataValue for field ${fieldName}:`, error);
+        // Fallback or rethrow? For now, rethrow so it's caught by the API route and logged there
+        throw error;
+    }
 }
 
 /**

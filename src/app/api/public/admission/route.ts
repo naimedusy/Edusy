@@ -3,8 +3,9 @@ import prisma from '@/utils/db';
 import { getNextStudentId, getNextRollNumber } from '@/utils/student-utils';
 
 export async function POST(req: NextRequest) {
+    let body: any = {};
     try {
-        const body = await req.json();
+        body = await req.json();
         let { name, phone, email, instituteId, metadata, guardianName, guardianPhone, guardianPassword, password: studentPassword } = body;
 
         if (!instituteId) {
@@ -152,8 +153,16 @@ export async function POST(req: NextRequest) {
             }
         }, { status: 201 });
 
-    } catch (error) {
-        console.error('Public Admission Error:', error);
-        return NextResponse.json({ message: 'সার্ভার ত্রুটি। দয়া করে আবার চেষ্টা করুন।' }, { status: 500 });
+    } catch (error: any) {
+        console.error('Public Admission CRITICAL Error:', {
+            message: error.message,
+            stack: error.stack,
+            cause: error.cause,
+            body: body // Log body to see what data caused the crash
+        });
+        return NextResponse.json({
+            message: 'সার্ভার ত্রুটি। দয়া করে আবার চেষ্টা করুন।',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        }, { status: 500 });
     }
 }

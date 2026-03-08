@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Configure Cloudinary
+cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export async function POST(req: Request) {
     try {
@@ -11,37 +17,29 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: 'No file uploaded' }, { status: 400 });
         }
 
+        // Convert file to base64
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
+        const fileBase64 = `data:${file.type};base64,${buffer.toString('base64')}`;
 
-        // Ensure uploads directory exists
-        const uploadDir = path.join(process.cwd(), 'public/uploads');
-        try {
-            await mkdir(uploadDir, { recursive: true });
-        } catch (e) {
-            // Ignore if exists
-        }
+        // Upload to Cloudinary
+        const uploadResponse = await cloudinary.uploader.upload(fileBase64, {
+            folder: 'edusy_uploads',
+            resource_type: 'auto',
+        });
 
-        // Generate unique filename
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.name);
-        const filename = file.name.replace(/\.[^/.]+$/, "") + '-' + uniqueSuffix + ext;
-
-        const filepath = path.join(uploadDir, filename);
-
-        await writeFile(filepath, buffer);
-        console.log(`Saved file to ${filepath}`);
-
-        // Return the public URL
-        const fileUrl = `/uploads/${filename}`;
+        console.log(`Uploaded file to Cloudinary: ${uploadResponse.secure_url}`);
 
         return NextResponse.json({
             message: 'File uploaded successfully',
-            url: fileUrl
+            url: uploadResponse.secure_url
         });
 
     } catch (error) {
         console.error('Upload Error:', error);
-        return NextResponse.json({ message: 'Upload failed', error: String(error) }, { status: 500 });
+        return NextResponse.json({
+            message: 'Upload failed',
+            error: String(error)
+        }, { status: 500 });
     }
 }
