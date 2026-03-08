@@ -743,6 +743,10 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
 
         const processFrame = async () => {
             if (status !== 'SCANNING' || !videoRef.current || !faceMatcher || !isCameraActive || isProcessing || isPaused) {
+                if (isPaused && canvasRef.current) {
+                    const ctx = canvasRef.current.getContext('2d');
+                    ctx?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+                }
                 if (status === 'SCANNING') requestRef.current = requestAnimationFrame(processFrame);
                 return;
             }

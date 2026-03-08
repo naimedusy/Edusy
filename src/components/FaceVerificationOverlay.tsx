@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as faceapi from '@vladmandic/face-api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, X, Loader2, ShieldCheck, AlertCircle, RefreshCw, Zap, Upload } from 'lucide-react';
+import { Camera, X, Loader2, ShieldCheck, AlertCircle, RefreshCw, Zap, Upload, Play, Pause } from 'lucide-react';
 
 interface FaceVerificationOverlayProps {
     isOpen: boolean;
@@ -28,6 +28,7 @@ export default function FaceVerificationOverlay({
     const [matchScore, setMatchScore] = useState<number>(0);
     const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
     const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+    const [isPaused, setIsPaused] = useState(false);
     const uploadRef = useRef<HTMLInputElement>(null);
 
     const faceMatcher = React.useMemo(() => {
@@ -176,7 +177,14 @@ export default function FaceVerificationOverlay({
         let isProcessing = false;
 
         const processFrame = async () => {
-            if (status !== 'VERIFYING' || !videoRef.current || !faceMatcher || isProcessing) return;
+            if (status !== 'VERIFYING' || !videoRef.current || !faceMatcher || isProcessing || isPaused) {
+                if (isPaused && canvasRef.current) {
+                    const ctx = canvasRef.current.getContext('2d');
+                    ctx?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+                }
+                if (status === 'VERIFYING') animationFrameId = requestAnimationFrame(processFrame);
+                return;
+            }
 
             // Frame Throttling Logic (Process every ~150ms)
             const now = Date.now();
@@ -282,6 +290,15 @@ export default function FaceVerificationOverlay({
                     >
                         <RefreshCw size={18} className={facingMode === 'environment' ? 'rotate-180 transition-transform' : 'transition-transform'} />
                     </button>
+
+                    {/* Pause Toggle Button */}
+                    <button
+                        onClick={() => setIsPaused(!isPaused)}
+                        className={`absolute top-16 right-4 w-10 h-10 backdrop-blur-md border border-white/20 rounded-xl flex items-center justify-center transition-all active:scale-90 z-20 shadow-lg ${isPaused ? 'bg-amber-500 text-white border-amber-400' : 'bg-black/40 text-white hover:bg-black/60'}`}
+                        title={isPaused ? "Resume Scanning" : "Pause Scanning"}
+                    >
+                        {isPaused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
+                    </button>
                     <canvas ref={canvasRef} className="hidden" />
 
                     {/* States Overlay */}
@@ -342,7 +359,7 @@ export default function FaceVerificationOverlay({
                     </AnimatePresence>
 
                     {/* Scan Line Animation */}
-                    {status === 'VERIFYING' && (
+                    {(status === 'VERIFYING' && !isPaused) && (
                         <>
                             <motion.div
                                 animate={{ top: ['0%', '100%', '0%'] }}
