@@ -106,7 +106,7 @@ export default function FaceVerificationOverlay({
             const img = await faceapi.bufferToImage(file);
 
             const detection = await faceapi
-                .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+                .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 320 }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
 
@@ -148,10 +148,20 @@ export default function FaceVerificationOverlay({
         const processFrame = async () => {
             if (status !== 'VERIFYING' || !videoRef.current || !faceMatcher || isProcessing) return;
 
+            // Frame Throttling Logic (Process every ~150ms)
+            const now = Date.now();
+            const lastProcess = (videoRef.current as any).lastProcessTime || 0;
+            if (now - lastProcess < 150) {
+                animationFrameId = requestAnimationFrame(processFrame);
+                return;
+            }
+            (videoRef.current as any).lastProcessTime = now;
+
             isProcessing = true;
             try {
+                // Increased inputSize (224 -> 320) for better accuracy
                 const detection = await faceapi
-                    .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+                    .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 320 }))
                     .withFaceLandmarks()
                     .withFaceDescriptor();
 

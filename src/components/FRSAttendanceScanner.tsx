@@ -707,10 +707,20 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                 return;
             }
 
+            // Frame Throttling Logic (Process every ~150ms)
+            const now = Date.now();
+            const lastProcess = (videoRef.current as any).lastProcessTime || 0;
+            if (now - lastProcess < 150) {
+                requestRef.current = requestAnimationFrame(processFrame);
+                return;
+            }
+            (videoRef.current as any).lastProcessTime = now;
+
             isProcessing = true;
             try {
+                // Increased inputSize (224 -> 320) for better accuracy
                 const detections = await faceapi
-                    .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
+                    .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 }))
                     .withFaceLandmarks()
                     .withFaceDescriptors();
 

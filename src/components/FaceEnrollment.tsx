@@ -94,7 +94,7 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
 
             setProgress(40);
             const detections = await faceapi
-                .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+                .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 320 }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
 
@@ -154,7 +154,7 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
             setProgress(20);
 
             const detections = await faceapi
-                .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+                .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 320 }))
                 .withFaceLandmarks()
                 .withFaceDescriptor();
 
