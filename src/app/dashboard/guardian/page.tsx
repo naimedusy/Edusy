@@ -281,12 +281,12 @@ export default function GuardianDashboardPage() {
                         {!selectedChildId ? (
                             <div className="p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center">
                                 <p className="text-xs font-bold text-slate-400">একজন সন্তান বেছে নিন</p>
-                                <p className="text-[10px] text-slate-300 mt-1">তাদের অ্যাসাইনমেন্টের অগ্রগতি দেখতে পাবেন</p>
+                                <p className="text-[10px] text-slate-300 mt-1">তাদের ক্লাস ডাইরির অগ্রগতি দেখতে পাবেন</p>
                             </div>
                         ) : (
                             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                 <div className="flex justify-between items-center mb-3">
-                                    <span className="text-xs font-bold text-slate-600">অ্যাসাইনমেন্ট সম্পন্নের হার</span>
+                                    <span className="text-xs font-bold text-slate-600">ক্লাস ডাইরি সম্পন্নের হার</span>
                                     <span className="text-xs font-black text-primary">{progressPercentage}%</span>
                                 </div>
                                 <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden">
@@ -296,7 +296,7 @@ export default function GuardianDashboardPage() {
                                     />
                                 </div>
                                 <p className="text-[10px] text-slate-400 mt-2 font-medium">
-                                    {assignments.filter((a: any) => a.userStatus === 'SUBMITTED' || a.userStatus === 'APPROVED' || a.userStatus === 'GRADED').length} / {assignments.length} টি অ্যাসাইনমেন্ট জমা দিয়েছে
+                                    {assignments.filter((a: any) => a.userStatus === 'SUBMITTED' || a.userStatus === 'APPROVED' || a.userStatus === 'GRADED').length} / {assignments.length} টি ক্লাস ডাইরি জমা দিয়েছে
                                 </p>
                             </div>
                         )}
@@ -314,7 +314,7 @@ export default function GuardianDashboardPage() {
                             <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl shadow-sm">
                                 <ClipboardList size={20} />
                             </div>
-                            <span>সাম্প্রতিক অ্যাসাইনমেন্ট</span>
+                            <span>সাম্প্রতিক ক্লাস ডাইরি</span>
                         </h2>
                         <a href="/dashboard/assignments" className="text-[10px] font-black text-primary uppercase tracking-widest hover:bg-primary/5 px-3 py-1.5 rounded-lg transition-all">সব দেখুন →</a>
                     </div>
@@ -460,7 +460,7 @@ export default function GuardianDashboardPage() {
                         ) : (
                             <div className="py-20 text-center">
                                 <ClipboardList className="mx-auto text-slate-200 mb-2" size={32} />
-                                <p className="text-slate-400 text-xs font-bold">কোনো অ্যাসাইনমেন্ট নেই</p>
+                                <p className="text-slate-400 text-xs font-bold">কোনো ক্লাস ডাইরি নেই</p>
                             </div>
                         )}
                     </div>

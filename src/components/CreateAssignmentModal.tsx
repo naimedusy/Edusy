@@ -265,7 +265,7 @@ export default function CreateAssignmentModal({
                             <Plus size={24} strokeWidth={3} />
                         </div>
                         <div>
-                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">অ্যাসাইনমেন্ট তৈরি করুন</h3>
+                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">ক্লাস ডাইরি তৈরি করুন</h3>
                             <p className="text-[10px] text-[#045c84] font-black uppercase tracking-widest mt-0.5">
                                 {scheduledDate && scheduledDate !== new Date().toISOString().split('T')[0]
                                     ? <span className="text-amber-600 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">⚠️ {scheduledDate} (অতীত রেকর্ড)</span>
@@ -598,7 +598,7 @@ export default function CreateAssignmentModal({
                             ) : (
                                 <>
                                     <Check size={18} />
-                                    অ্যাসাইনমেন্ট সেভ করুন
+                                    ক্লাস ডাইরি সেভ করুন
                                 </>
                             )}
                         </button>

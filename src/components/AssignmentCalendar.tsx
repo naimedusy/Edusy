@@ -84,7 +84,7 @@ export default function AssignmentCalendar({ assignments, selectedDate, onDateSe
                         <h2 className="text-2xl font-black text-slate-800 tracking-tight">
                             {MONTHS_BN[currentMonth.getMonth()]}, {currentMonth.getFullYear()}
                         </h2>
-                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">অ্যাসাইনমেন্ট হিস্টোরি ক্যালেন্ডার</p>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">ক্লাস ডাইরি হিস্টোরি ক্যালেন্ডার</p>
                     </div>
                 </div>
 

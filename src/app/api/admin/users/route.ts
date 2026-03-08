@@ -65,7 +65,7 @@ export async function GET(req: Request) {
         }
 
         // Filter by metadata.classId or metadata.groupId
-        if (classId) match['metadata.classId'] = classId;
+        if (classId && classId !== 'all') match['metadata.classId'] = classId;
         if (groupId) match['metadata.groupId'] = groupId;
 
         if (admissionStatus) {

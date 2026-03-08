@@ -20,7 +20,16 @@ import {
     FileText,
     ClipboardList,
     MoreVertical,
-    LogOut
+    LogOut,
+    CheckCircle2,
+    UserPlus,
+    Plus,
+    ArrowRight,
+    Search,
+    ChevronRight,
+    Zap,
+    Briefcase,
+    School
 } from 'lucide-react';
 import { useSession } from '@/components/SessionProvider';
 import { useUI } from '@/components/UIProvider';
@@ -28,6 +37,18 @@ import InstituteProfileModal from '@/components/InstituteProfileModal';
 import InstituteSwitcher from '@/components/InstituteSwitcher';
 import StudentAssignmentProgress from '@/components/StudentAssignmentProgress';
 import { useRouter } from 'next/navigation';
+import {
+    AreaChart,
+    Area,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer,
+    BarChart,
+    Bar,
+    Cell
+} from 'recharts';
 
 export default function DashboardPage() {
     const { activeRole, activeInstitute, switchInstitute, user, setAllInstitutes, isLoading } = useSession();
@@ -135,106 +156,141 @@ function SuperAdminDashboard({ statsData, loading }: { statsData: any, loading: 
     ] : [];
 
     return (
-        <div className="p-8 space-y-8 animate-fade-in">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="p-8 space-y-8 animate-fade-in font-bengali">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-800 uppercase tracking-tight flex items-center gap-3">
-                        <ShieldCheck className="text-[#045c84]" size={32} />
+                    <h1 className="text-3xl font-black text-slate-800 uppercase tracking-tighter flex items-center gap-3">
+                        <ShieldCheck className="text-[#045c84]" size={36} />
                         সিস্টেম ওভারসাইট
                     </h1>
-                    <p className="text-slate-500 font-medium font-bengali">পুরো প্লাটফর্মের বর্তমান অবস্থা এবং পরিসংখ্যান এখানে দেখুন।</p>
+                    <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-1">মাস্টার কন্ট্রোল ড্যাশবোর্ড</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <span className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-xl text-xs font-bold uppercase tracking-widest border border-emerald-100">
-                        <Activity size={14} />
-                        সিস্টেম অনলাইন
-                    </span>
+                <div className="flex items-center gap-4">
+                    <div className="flex flex-col items-end">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1 text-right">সার্ভার স্ট্যাটাস</span>
+                        <span className="flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                            সিস্টেম অনলাইন
+                        </span>
+                    </div>
                 </div>
             </div>
 
             {loading ? (
                 <div className="py-20 text-center">
                     <Loader2 className="animate-spin mx-auto text-[#045c84] mb-4" size={40} />
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-xs font-bengali">তথ্য লোড হচ্ছে...</p>
+                    <p className="text-slate-400 font-black uppercase tracking-[0.2em] text-[10px]">তথ্য লোড হচ্ছে...</p>
                 </div>
             ) : (
                 <>
                     {/* Stats Grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {stats.map((stat) => (
-                            <div key={stat.name} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
-                                <div className="flex items-center justify-between mb-4">
-                                    <div className={`p-4 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 group-hover:bg-${stat.color}-600 group-hover:text-white transition-all`}>
-                                        <stat.icon size={26} />
+                            <div key={stat.name} className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
+                                <div className={`absolute top-0 right-0 w-24 h-24 bg-${stat.color}-50 rounded-bl-[100px] -z-0 opacity-50 transition-all group-hover:scale-150`}></div>
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <div className={`p-4 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 group-hover:bg-${stat.color}-600 group-hover:text-white transition-all shadow-sm`}>
+                                            <stat.icon size={26} />
+                                        </div>
+                                        <div className={`flex items-center gap-1 text-[11px] font-black uppercase tracking-tighter ${stat.up ? 'text-emerald-700' : 'text-orange-600'}`}>
+                                            {stat.change}
+                                            {stat.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
+                                        </div>
                                     </div>
-                                    <div className={`flex items-center gap-1 text-sm font-medium ${stat.up ? 'text-emerald-700' : 'text-orange-600'}`}>
-                                        {stat.change}
-                                        {stat.up ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
-                                    </div>
+                                    <p className="text-slate-400 font-black uppercase text-[10px] tracking-widest">{stat.name}</p>
+                                    <h3 className="text-4xl font-black text-slate-800 mt-1">{stat.value}</h3>
                                 </div>
-                                <p className="text-slate-500 font-bold uppercase text-xs tracking-wider font-bengali">{stat.name}</p>
-                                <h3 className="text-3xl font-bold text-slate-800 mt-1">{stat.value}</h3>
                             </div>
                         ))}
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                         {/* Server Health */}
-                        <div className="lg:col-span-2 bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
-                            <h3 className="text-xl font-bold text-slate-800 mb-8 uppercase tracking-tight flex items-center gap-2 font-bengali">
-                                <Server className="text-[#045c84]" />
-                                সার্ভার পারফরম্যান্স
-                            </h3>
-                            <div className="space-y-6">
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-xs font-bold uppercase text-slate-500 tracking-wider font-bengali">
-                                        <span>CPU ইউসেজ</span>
-                                        <span>২৫%</span>
+                        <div className="lg:col-span-2 bg-white rounded-[40px] border border-slate-100 shadow-sm p-10 flex flex-col min-h-[450px]">
+                            <div className="flex items-center justify-between mb-10">
+                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-3">
+                                    <Server size={24} className="text-[#045c84]" />
+                                    সার্ভার পারফরম্যান্স
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-[#045c84] rounded-full" />
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">রিয়েল টাইম</span>
+                                </div>
+                            </div>
+                            <div className="flex-1 space-y-10">
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-xs font-black text-slate-800 uppercase tracking-widest">CPU ইউসেজ</p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">ইনটেল জেনন গোল্ড ৬৩৩০</p>
+                                        </div>
+                                        <span className="text-xl font-black text-[#045c84]">২৫%</span>
                                     </div>
-                                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-[#045c84] w-1/4 rounded-full"></div>
+                                    <div className="h-4 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100 p-0.5">
+                                        <div className="h-full bg-gradient-to-r from-[#045c84] to-sky-400 w-1/4 rounded-full shadow-inner"></div>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-xs font-bold uppercase text-slate-500 tracking-wider font-bengali">
-                                        <span>মেমোরি ইউসেজ</span>
-                                        <span>৪২%</span>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-xs font-black text-slate-800 uppercase tracking-widest">মেমোরি ইউসেজ</p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">১২৮জিবি ডিডিআর৪ ইসিসি</p>
+                                        </div>
+                                        <span className="text-xl font-black text-sky-500">৪২%</span>
                                     </div>
-                                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-sky-500 w-[42%] rounded-full"></div>
+                                    <div className="h-4 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100 p-0.5">
+                                        <div className="h-full bg-gradient-to-r from-sky-400 to-indigo-400 w-[42%] rounded-full shadow-inner"></div>
                                     </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <div className="flex justify-between text-xs font-bold uppercase text-slate-500 tracking-wider font-bengali">
-                                        <span>ডিস্ক স্পেস</span>
-                                        <span>৬৫%</span>
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-end">
+                                        <div>
+                                            <p className="text-xs font-black text-slate-800 uppercase tracking-widest">নেটওয়ার্ক ট্রাফিক</p>
+                                            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-widest">১০ জিবিপিএস আপলিঙ্ক</p>
+                                        </div>
+                                        <span className="text-xl font-black text-emerald-500">০৮%</span>
                                     </div>
-                                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-orange-500 w-[65%] rounded-full"></div>
+                                    <div className="h-4 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100 p-0.5">
+                                        <div className="h-full bg-gradient-to-r from-emerald-400 to-teal-400 w-[8%] rounded-full shadow-inner"></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Recent System Alerts */}
-                        <div className="bg-[#045c84] rounded-3xl shadow-xl p-8 text-white relative overflow-hidden">
-                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-                            <h3 className="text-xl font-bold mb-6 uppercase tracking-tight flex items-center gap-2 font-bengali">
-                                <AlertCircle />
+                        <div className="bg-[#045c84] rounded-[40px] shadow-2xl p-10 text-white relative overflow-hidden group">
+                            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-white/5 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
+                            <h3 className="text-xl font-black mb-10 uppercase tracking-tight flex items-center gap-3">
+                                <AlertCircle size={24} className="text-sky-300" />
                                 গুরুত্বপূর্ণ এলার্ট
                             </h3>
-                            <div className="space-y-4 relative z-10 font-bengali">
-                                <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md">
-                                    <p className="text-sm font-bold">নতুন ৫টি প্রতিষ্ঠান অনুমোদনের অপেক্ষায়</p>
-                                    <p className="text-[10px] opacity-60 mt-1 uppercase tracking-widest font-bold text-sky-200">২ ঘণ্টা আগে</p>
+                            <div className="space-y-6 relative z-10">
+                                <div className="p-5 bg-white/10 rounded-3xl border border-white/10 backdrop-blur-xl hover:bg-white/15 transition-all cursor-pointer">
+                                    <p className="text-sm font-black leading-relaxed">নতুন ৫টি প্রতিষ্ঠান অনুমোদনের অপেক্ষায় আছে</p>
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <div className="w-1.5 h-1.5 bg-sky-400 rounded-full" />
+                                        <p className="text-[10px] font-black text-sky-300 uppercase tracking-widest">২ ঘণ্টা আগে</p>
+                                    </div>
                                 </div>
-                                <div className="p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md">
-                                    <p className="text-sm font-bold">সার্ভার ব্যাকআপ সম্পন্ন হয়েছে</p>
-                                    <p className="text-[10px] opacity-60 mt-1 uppercase tracking-widest font-bold text-sky-200">৫ ঘণ্টা আগে</p>
+                                <div className="p-5 bg-white/10 rounded-3xl border border-white/10 backdrop-blur-xl hover:bg-white/15 transition-all cursor-pointer text-emerald-100">
+                                    <p className="text-sm font-black leading-relaxed">সার্ভার ব্যাকআপ সম্পন্ন হয়েছে সফলভাবে</p>
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+                                        <p className="text-[10px] font-black text-sky-300 uppercase tracking-widest">৫ ঘণ্টা আগে</p>
+                                    </div>
+                                </div>
+                                <div className="p-5 bg-white/10 rounded-3xl border border-white/10 backdrop-blur-xl hover:bg-white/15 transition-all cursor-pointer text-amber-100">
+                                    <p className="text-sm font-black leading-relaxed">ডাটাবেজ মেইনটেন্যান্স শিডিউল করা হয়েছে</p>
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <div className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
+                                        <p className="text-[10px] font-black text-sky-300 uppercase tracking-widest">আগামীকাল</p>
+                                    </div>
                                 </div>
                             </div>
-                            <button className="w-full mt-8 py-4 bg-white text-[#045c84] font-bold rounded-2xl text-xs uppercase tracking-[0.2em] hover:bg-sky-50 transition-all shadow-lg active:scale-95 font-bengali">
-                                সমস্ত লগ দেখুন
+                            <button className="w-full mt-10 py-5 bg-white text-[#045c84] font-black rounded-2xl text-[10px] uppercase tracking-[0.3em] hover:bg-sky-50 transition-all shadow-xl active:scale-95">
+                                সমস্ত লগ আর্কাইভ দেখুন
                             </button>
                         </div>
                     </div>
@@ -246,7 +302,6 @@ function SuperAdminDashboard({ statsData, loading }: { statsData: any, loading: 
 
 import InstituteOnboarding from '@/components/InstituteOnboarding';
 import PublicInstituteSearch from '@/components/PublicInstituteSearch';
-import { Briefcase, School, UserPlus } from 'lucide-react';
 
 function OnboardingRouter({ role, user, onComplete }: { role: string, user: any, onComplete: () => void }) {
     const [view, setView] = useState<'CHOICE' | 'CREATE' | 'SEARCH'>(
@@ -492,36 +547,196 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                     ))}
                 </div>
 
-                {/* Assignment Entry Shortcut */}
-                <a href="/dashboard/assignments" className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-lg transition-all group flex items-center gap-5 relative overflow-hidden">
-                    <div className="w-16 h-16 bg-blue-50 text-[#045c84] rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:bg-[#045c84] group-hover:text-white transition-all shadow-sm">
-                        <ClipboardList size={32} />
-                    </div>
-                    <div className="relative z-10">
-                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#045c84] transition-colors">অ্যাসাইনমেন্ট ড্যাশবোর্ড</h3>
-                        <p className="text-slate-500 text-xs font-medium mt-1">প্রতিষ্ঠানের সকল অ্যাসাইনমেন্ট ম্যানেজ করুন</p>
-                    </div>
-                </a>
+                {/* Dashboard Grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
-                {/* Only keep the left chart section, full width */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 flex flex-col min-h-[400px]">
-                        <div className="flex items-center justify-between mb-8">
-                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                                <TrendingUp className="text-[#045c84]" />
-                                ভর্তি সংক্রান্ত তথ্য
+                    {/* Main Content Area (Left 3 cols) */}
+                    <div className="lg:col-span-3 space-y-8">
+
+                        {/* Summary Charts */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {/* Admission Trends */}
+                            <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8 flex flex-col min-h-[400px] hover:shadow-md transition-shadow">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                                            <TrendingUp className="text-[#045c84]" />
+                                            ভর্তি সংক্রান্ত তথ্য
+                                        </h3>
+                                        <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-widest">গত ৭ দিনের আপডেট</p>
+                                    </div>
+                                    <select className="bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black px-4 py-2 outline-none text-slate-500 uppercase tracking-widest">
+                                        <option>এই সপ্তাহ</option>
+                                        <option>এই মাস</option>
+                                    </select>
+                                </div>
+                                <div className="flex-1 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <AreaChart data={[
+                                            { name: 'শনিবার', value: 4 },
+                                            { name: 'রবিবার', value: 7 },
+                                            { name: 'সোমবার', value: 5 },
+                                            { name: 'মঙ্গলবার', value: 12 },
+                                            { name: 'বুধবার', value: 8 },
+                                            { name: 'বৃহস্পতিবার', value: 15 },
+                                            { name: 'শুক্রবার', value: 10 },
+                                        ]}>
+                                            <defs>
+                                                <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor="#045c84" stopOpacity={0.2} />
+                                                    <stop offset="95%" stopColor="#045c84" stopOpacity={0} />
+                                                </linearGradient>
+                                            </defs>
+                                            <XAxis dataKey="name" hide />
+                                            <Tooltip
+                                                contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold' }}
+                                            />
+                                            <Area type="monotone" dataKey="value" stroke="#045c84" strokeWidth={4} fillOpacity={1} fill="url(#colorValue)" />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">মোট নতুন ভর্তি: ১২ জন</span>
+                                    <button className="text-[10px] font-black text-[#045c84] uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all">
+                                        বিশদ দেখুন <ArrowRight size={12} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Attendance Quick View */}
+                            <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8 flex flex-col min-h-[400px] hover:shadow-md transition-shadow">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div>
+                                        <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                                            <Zap className="text-amber-500" />
+                                            হাজিরা স্ট্যাটাস
+                                        </h3>
+                                        <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-widest">আজকের দিন</p>
+                                    </div>
+                                    <div className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest">
+                                        লাইভ
+                                    </div>
+                                </div>
+                                <div className="flex-1 flex flex-col justify-center">
+                                    <div className="flex items-center justify-around mb-8">
+                                        <div className="text-center">
+                                            <p className="text-4xl font-black text-slate-800">৯৫%</p>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">উপস্থিতি হার</p>
+                                        </div>
+                                        <div className="w-px h-12 bg-slate-100"></div>
+                                        <div className="text-center">
+                                            <p className="text-4xl font-black text-rose-500">০৫%</p>
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">অনুপস্থিতি হার</p>
+                                        </div>
+                                    </div>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between text-[11px] font-bold">
+                                            <span className="text-slate-500 uppercase">উপস্থিত শিক্ষার্থী</span>
+                                            <span className="text-slate-800">৩২০ জন</span>
+                                        </div>
+                                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-[#045c84] w-[95%]"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <a href="/dashboard/attendance/summary" className="mt-8 py-4 bg-slate-50 text-[#045c84] font-black rounded-2xl text-[10px] text-center uppercase tracking-widest hover:bg-[#045c84] hover:text-white transition-all">
+                                    পূর্ণাঙ্গ রিপোর্ট দেখুন
+                                </a>
+                            </div>
+                        </div>
+
+                        {/* Recent Activity / Progress */}
+                        <StudentAssignmentProgress instituteId={activeInstitute.id} title="শিক্ষার্থী ক্লাস ডাইরি প্রগ্রেস" />
+                    </div>
+
+                    {/* Sidebar Area (Right 1 col) */}
+                    <div className="lg:col-span-1 space-y-6">
+                        {/* Quick Shortcuts */}
+                        <div className="bg-[#045c84] rounded-[40px] shadow-xl p-8 text-white relative overflow-hidden group">
+                            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000"></div>
+                            <h3 className="text-xl font-black mb-8 uppercase tracking-tight flex items-center gap-2">
+                                <Plus size={20} />
+                                দ্রুত কাজ
                             </h3>
-                            <select className="bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold px-4 py-2 outline-none text-slate-700 w-auto">
-                                <option className="text-slate-700">এই সপ্তাহ</option>
-                                <option className="text-slate-700">এই মাস</option>
-                            </select>
+                            <div className="space-y-4 relative z-10">
+                                <button className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-4 hover:bg-white hover:text-[#045c84] transition-all group/btn">
+                                    <div className="p-2 bg-white/20 rounded-xl group-hover/btn:bg-[#045c84]/10">
+                                        <UserPlus size={18} />
+                                    </div>
+                                    <span className="text-sm font-bold">নতুন শিক্ষার্থী ভর্তি</span>
+                                </button>
+                                <button className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-4 hover:bg-white hover:text-[#045c84] transition-all group/btn">
+                                    <div className="p-2 bg-white/20 rounded-xl group-hover/btn:bg-[#045c84]/10">
+                                        <Zap size={18} />
+                                    </div>
+                                    <span className="text-sm font-bold">আজকের হাজিরা দিন</span>
+                                </button>
+                                <button className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-4 hover:bg-white hover:text-[#045c84] transition-all group/btn">
+                                    <div className="p-2 bg-white/20 rounded-xl group-hover/btn:bg-[#045c84]/10">
+                                        <FileText size={18} />
+                                    </div>
+                                    <span className="text-sm font-bold">রিপোর্ট জেনারেট করুন</span>
+                                </button>
+                            </div>
                         </div>
-                        <div className="flex-1 flex items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 font-medium italic">
-                            ভর্তি তথ্যের গ্রাফ এখানে প্রদর্শিত হবে
+
+                        {/* System Health / Message */}
+                        <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8">
+                            <h3 className="text-[12px] font-black text-slate-800 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                                <Activity size={16} className="text-emerald-500" />
+                                প্রোফাইল হেলথ
+                            </h3>
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                                        <span>প্রোফাইল পূর্ণতা</span>
+                                        <span>৮৫%</span>
+                                    </div>
+                                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                        <div className="h-full bg-emerald-500 w-[85%]"></div>
+                                    </div>
+                                </div>
+                                <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+                                    <p className="text-[11px] font-bold text-[#045c84] leading-relaxed">
+                                        আপনার প্রতিষ্ঠানের প্রোফাইল আরও প্রফেশনাল করতে কভার ফটো আপডেট করুন।
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Upcoming Events Placeholder */}
+                        <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8">
+                            <h3 className="text-[12px] font-black text-slate-800 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                                <Calendar size={16} className="text-rose-500" />
+                                আসন্ন ঘটনা
+                            </h3>
+                            <div className="space-y-4">
+                                <div className="flex gap-4">
+                                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-100">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase leading-none">মার্চ</span>
+                                        <span className="text-sm font-black text-slate-800 leading-none mt-1">১২</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black text-slate-700">মাসিক পরীক্ষা</p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">সকাল ১০টা</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-4">
+                                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-100">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase leading-none">মার্চ</span>
+                                        <span className="text-sm font-black text-slate-800 leading-none mt-1">১৫</span>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs font-black text-slate-700">শিক্ষক মিটিং</p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">বিকাল ৩টা</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <button className="w-full mt-6 text-[10px] font-black text-[#045c84] uppercase tracking-widest border border-blue-50 py-3 rounded-2xl hover:bg-blue-50 transition-all">
+                                ক্যালেন্ডার দেখুন
+                            </button>
                         </div>
                     </div>
-
-                    <StudentAssignmentProgress instituteId={activeInstitute.id} title="শিক্ষার্থী অ্যাসাইনমেন্ট প্রগ্রেস (প্রতিষ্ঠানের)" />
                 </div>
             </div>
 

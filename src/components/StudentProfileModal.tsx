@@ -264,7 +264,7 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
     const tabs = [
         { id: 'fees', label: 'ফি', icon: CreditCard },
         { id: 'attendance', label: 'উপস্থিতি', icon: Calendar },
-        { id: 'assignments', label: 'অ্যাসাইনমেন্ট', icon: BookOpen },
+        { id: 'assignments', label: 'ক্লাস ডাইরি', icon: BookOpen },
         ...(isAdmin ? [
             { id: 'login', label: 'লগইন তথ্য', icon: Key },
             { id: 'face', label: 'ফেস আইডি', icon: ScanFace }
@@ -428,15 +428,15 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
                             {loadingAssignments ? (
                                 <div className="flex flex-col items-center justify-center py-10 text-slate-400">
                                     <Loader2 size={24} className="animate-spin mb-2" />
-                                    <p className="text-sm">অ্যাসাইনমেন্ট লোড হচ্ছে...</p>
+                                    <p className="text-sm">ক্লাস ডাইরি লোড হচ্ছে...</p>
                                 </div>
                             ) : assignments.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center py-16 px-6 bg-slate-50/50 rounded-[32px] border border-dashed border-slate-200">
                                     <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-4">
                                         <BookOpen size={32} className="text-slate-300" />
                                     </div>
-                                    <h5 className="text-sm font-black text-slate-400 font-bengali">কোনো অ্যাসাইনমেন্ট পাওয়া যায়নি</h5>
-                                    <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest mt-1">অ্যাসাইনমেন্টের তালিকা এখন খালি</p>
+                                    <h5 className="text-sm font-black text-slate-400 font-bengali">কোনো ক্লাস ডাইরি পাওয়া যায়নি</h5>
+                                    <p className="text-[10px] text-slate-300 font-bold uppercase tracking-widest mt-1">ক্লাস ডাইরির তালিকা এখন খালি</p>
                                 </div>
                             ) : (
                                 assignments.map((assignment) => {
@@ -448,7 +448,7 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
                                             <div className="flex justify-between items-start gap-4">
                                                 <div className="flex-1 min-w-0">
                                                     <h5 className="text-xl font-black text-[#045c84] leading-tight capitalize">
-                                                        {assignment.book?.name || 'অ্যাসাইনমেন্ট'}
+                                                        {assignment.book?.name || 'ক্লাস ডাইরি'}
                                                     </h5>
                                                     <p className="text-sm font-bold text-slate-500 mt-1">
                                                         {assignment.title}

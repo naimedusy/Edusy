@@ -44,7 +44,7 @@ export default function GlobalAssignmentModal() {
                                             <div className="p-2 bg-[#045c84] text-white rounded-xl">
                                                 <ClipboardList size={24} />
                                             </div>
-                                            অ্যাসাইনমেন্ট স্ট্যাটাস প্যানেল
+                                            ক্লাস ডাইরি স্ট্যাটাস প্যানেল
                                         </Dialog.Title>
                                         <button
                                             onClick={onClose}

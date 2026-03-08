@@ -136,7 +136,7 @@ export default function ChildrenPage() {
                                         <p className="text-xl font-black text-emerald-600">{child.stats?.attendanceRate || '৮৫%'}</p>
                                     </div>
                                     <div className="text-center md:text-right">
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">অ্যাসাইনমেন্ট</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">ক্লাস ডাইরি</p>
                                         <p className="text-xl font-black text-primary">{String(child.stats?.assignmentsCount || 0).padStart(2, '0')}</p>
                                     </div>
                                 </div>

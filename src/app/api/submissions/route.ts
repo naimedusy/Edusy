@@ -106,8 +106,8 @@ export async function POST(req: Request) {
                     data: {
                         userId: submission.assignment.teacherId,
                         type: 'ASSIGNMENT_SUBMITTED',
-                        title: 'অ্যাসাইনমেন্ট জমা হয়েছে',
-                        message: `${studentName} "${assignmentName}" অ্যাসাইনমেন্টটি জমা দিয়েছেন।`,
+                        title: 'ক্লাস ডাইরি জমা হয়েছে',
+                        message: `${studentName} "${assignmentName}" ক্লাস ডাইরিটি জমা দিয়েছেন।`,
                         metadata: { assignmentId, studentId, instituteId }
                     }
                 });
@@ -123,8 +123,8 @@ export async function POST(req: Request) {
                     data: {
                         userId: profile.userId,
                         type: 'ASSIGNMENT_SUBMITTED',
-                        title: 'শিক্ষার্থীর অ্যাসাইনমেন্ট',
-                        message: `${studentName} "${assignmentName}" অ্যাসাইনমেন্টটি জমা দিয়েছেন।`,
+                        title: 'শিক্ষার্থীর ক্লাস ডাইরি',
+                        message: `${studentName} "${assignmentName}" ক্লাস ডাইরিটি জমা দিয়েছেন।`,
                         metadata: { assignmentId, studentId, instituteId }
                     }
                 });
@@ -147,8 +147,8 @@ export async function POST(req: Request) {
                         data: {
                             userId: guardian.id,
                             type: 'ASSIGNMENT_SUBMITTED',
-                            title: 'সন্তানের অ্যাসাইনমেন্ট আপডেট',
-                            message: `আপনার সন্তান ${studentName} "${assignmentName}" অ্যাসাইনমেন্টটি জমা দিয়েছে।`,
+                            title: 'সন্তানের ক্লাস ডাইরি আপডেট',
+                            message: `আপনার সন্তান ${studentName} "${assignmentName}" ক্লাস ডাইরিটি জমা দিয়েছে।`,
                             metadata: { assignmentId, studentId, instituteId }
                         }
                     });

@@ -106,7 +106,7 @@ export default function TeacherDashboardPage() {
                         <ClipboardList size={28} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">সক্রিয় অ্যাসাইনমেন্ট</h3>
+                        <h3 className="text-lg font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">সক্রিয় ক্লাস ডাইরি</h3>
                         <p className="text-slate-500 text-xs font-medium">{stats?.activeAssignments || 0}টি চলমান</p>
                     </div>
                 </a>

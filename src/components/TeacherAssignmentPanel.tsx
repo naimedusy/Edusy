@@ -161,7 +161,7 @@ export default function TeacherAssignmentPanel({
 
             if (res.ok) {
                 const data = await res.json();
-                showToast(`${data.releasedCount}টি অ্যাসাইনমেন্ট রিলিজ করা হয়েছে`, 'success');
+                showToast(`${data.releasedCount}টি ক্লাস ডাইরি রিলিজ করা হয়েছে`, 'success');
                 setSelectedIds([]);
                 await fetchData();
             } else {
@@ -417,7 +417,7 @@ export default function TeacherAssignmentPanel({
                     });
 
                     if (res.ok) {
-                        setToast({ message: 'অ্যাসাইনমেন্ট সফলভাবে সেভ করা হয়েছে', type: 'success' });
+                        setToast({ message: 'ক্লাস ডাইরি সফলভাবে সেভ করা হয়েছে', type: 'success' });
                         await fetchData(); // Refresh data
 
                         // Small delay before returning to list so user sees the toast
@@ -495,14 +495,14 @@ export default function TeacherAssignmentPanel({
                     <div className="flex items-center gap-3">
                         <div
                             ref={classScrollRef}
-                            className="flex-1 flex items-center gap-2 overflow-x-auto pb-2 px-1 scroll-smooth scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent"
+                            className="flex-1 flex items-center gap-1.5 overflow-x-auto pb-1 px-1 scroll-smooth no-scrollbar"
                         >
                             <button
                                 data-class-id="ALL"
                                 onClick={() => setActiveClassTab('ALL')}
                                 className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border shrink-0 ${activeClassTab === 'ALL'
-                                    ? 'bg-[#045c84] text-white border-[#045c84] shadow-xl shadow-[#045c84]/20'
-                                    : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-white hover:border-[#045c84]/30 hover:shadow-md'
+                                    ? 'bg-[#045c84] text-white border-[#045c84] shadow-lg shadow-[#045c84]/10'
+                                    : 'bg-white/50 text-slate-500 border-white/80 hover:bg-white hover:border-[#045c84]/30'
                                     }`}
                             >
                                 সব ক্লাস ({availableClasses.length})
@@ -513,8 +513,8 @@ export default function TeacherAssignmentPanel({
                                     data-class-id={cls.id}
                                     onClick={() => setActiveClassTab(cls.id)}
                                     className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border shrink-0 ${activeClassTab === cls.id
-                                        ? 'bg-[#045c84] text-white border-[#045c84] shadow-xl shadow-[#045c84]/20'
-                                        : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-white hover:border-[#045c84]/30 hover:shadow-md'
+                                        ? 'bg-[#045c84] text-white border-[#045c84] shadow-lg shadow-[#045c84]/10'
+                                        : 'bg-white/50 text-slate-500 border-white/80 hover:bg-white hover:border-[#045c84]/30'
                                         }`}
                                 >
                                     {cls.name}
@@ -602,48 +602,57 @@ export default function TeacherAssignmentPanel({
 
             {/* Unified Status Dashboard - ONLY IN HISTORY TAB */}
             {activeTab === 'history' && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                     {[
-                        { id: 'TOTAL', label: 'সর্বমোট কাজ', count: stats.TOTAL, color: 'slate', icon: ClipboardList },
-                        { id: 'WAITING', label: 'অপেক্ষমাণ', count: stats.WAITING, color: 'amber', icon: Clock },
-                        { id: 'DRAFTING', label: 'ড্রাফটিং', count: stats.DRAFTING, color: 'blue', icon: PenTool },
-                        { id: 'RELEASED', label: 'রিলিজ করা', count: stats.RELEASED, color: 'emerald', icon: CheckCircle2 },
-                        { id: 'SUBMITTED', label: 'জমা হয়েছে', count: stats.SUBMITTED, color: 'purple', icon: TrendingUp },
-                        { id: 'APPROVED', label: 'অনুমোদিত', count: stats.APPROVED, color: 'teal', icon: CheckCircle },
+                        { id: 'TOTAL', label: 'সর্বমোট কাজ', count: stats.TOTAL, color: 'slate', icon: ClipboardList, glow: 'blue' },
+                        { id: 'WAITING', label: 'অপেক্ষমাণ', count: stats.WAITING, color: 'amber', icon: Clock, glow: 'amber' },
+                        { id: 'DRAFTING', label: 'ড্রাফটিং', count: stats.DRAFTING, color: 'blue', icon: PenTool, glow: 'cyan' },
+                        { id: 'RELEASED', label: 'রিলিজ করা', count: stats.RELEASED, color: 'emerald', icon: CheckCircle2, glow: 'emerald' },
+                        { id: 'SUBMITTED', label: 'জমা হয়েছে', count: stats.SUBMITTED, color: 'purple', icon: TrendingUp, glow: 'purple' },
+                        { id: 'APPROVED', label: 'অনুমোদিত', count: stats.APPROVED, color: 'teal', icon: CheckCircle, glow: 'teal' },
                     ].map(tab => {
                         const Icon = tab.icon as any;
                         const isActive = activeStatusTab === tab.id;
                         const colors: any = {
-                            slate: 'text-slate-600 bg-slate-100 border-slate-200 active:bg-slate-800',
-                            amber: 'text-amber-600 bg-amber-50 border-amber-100 active:bg-amber-600',
-                            blue: 'text-blue-600 bg-blue-50 border-blue-100 active:bg-blue-600',
-                            emerald: 'text-emerald-600 bg-emerald-50 border-emerald-100 active:bg-emerald-600',
-                            purple: 'text-purple-600 bg-purple-50 border-purple-100 active:bg-purple-600',
-                            teal: 'text-teal-600 bg-teal-50 border-teal-100 active:bg-teal-600',
+                            slate: 'text-slate-600 bg-slate-100 border-slate-100',
+                            amber: 'text-amber-600 bg-amber-50 border-amber-100',
+                            blue: 'text-blue-600 bg-blue-50 border-blue-100',
+                            emerald: 'text-emerald-600 bg-emerald-50 border-emerald-100',
+                            purple: 'text-purple-600 bg-purple-50 border-purple-100',
+                            teal: 'text-teal-600 bg-teal-50 border-teal-100',
+                        };
+
+                        const glowColors: any = {
+                            blue: 'shadow-blue-500/20',
+                            amber: 'shadow-amber-500/20',
+                            cyan: 'shadow-cyan-500/20',
+                            emerald: 'shadow-emerald-500/20',
+                            purple: 'shadow-purple-500/20',
+                            teal: 'shadow-teal-500/20',
                         };
 
                         return (
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveStatusTab(tab.id)}
-                                className={`group relative flex flex-col items-start p-4 rounded-[24px] border transition-all duration-300 ${isActive
-                                    ? `bg-gradient-to-br from-slate-800 to-slate-900 border-slate-900 shadow-xl -translate-y-1`
-                                    : `bg-white border-slate-100 hover:border-[#045c84]/20 hover:shadow-lg`
+                                className={`group relative flex flex-col items-center justify-center p-5 rounded-[2.5rem] border transition-all duration-500 ${isActive
+                                    ? `bg-[#045c84] border-[#045c84] shadow-2xl ${glowColors[tab.glow]} -translate-y-2 scale-105`
+                                    : `bg-white/80 border-slate-100 hover:border-[#045c84]/30 hover:bg-white hover:shadow-xl hover:-translate-y-1`
                                     }`}
                             >
-                                <div className={`p-2 rounded-xl mb-2 transition-colors ${isActive ? 'bg-white/10 text-white' : `${colors[tab.color].split(' ')[1]} ${colors[tab.color].split(' ')[0]}`}`}>
-                                    <Icon size={16} />
+                                <div className={`p-3 rounded-2xl mb-3 transition-all duration-500 ${isActive ? 'bg-white/20 text-white rotate-6' : `${colors[tab.color]} group-hover:scale-110`}`}>
+                                    <Icon size={20} />
                                 </div>
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${isActive ? 'text-slate-400' : 'text-slate-500'}`}>{tab.label}</span>
-                                <div className="flex items-baseline gap-2 mt-1">
-                                    <span className={`text-2xl font-black ${isActive ? 'text-white' : 'text-slate-800'}`}>{tab.count}</span>
-                                    {tab.id === 'SUBMITTED' && tab.count > 0 && (
+                                <span className={`text-[10px] font-black uppercase tracking-[0.15em] mb-1 transition-colors ${isActive ? 'text-white/70' : 'text-slate-400'}`}>{tab.label}</span>
+                                <div className="flex items-baseline gap-2">
+                                    <span className={`text-3xl font-black tracking-tighter transition-colors ${isActive ? 'text-white' : 'text-slate-800'}`}>{tab.count}</span>
+                                    {tab.id === 'SUBMITTED' && tab.count > 0 && !isActive && (
                                         <span className="flex h-2 w-2 rounded-full bg-purple-500 animate-ping" />
                                     )}
                                 </div>
-                                {/* Accent line for active state */}
+
                                 {isActive && (
-                                    <div className="absolute top-4 right-4 w-1 h-6 bg-[#045c84] rounded-full shadow-[0_0_8px_#045c84]" />
+                                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-white/40 rounded-full blur-sm" />
                                 )}
                             </button>
                         );
@@ -861,7 +870,7 @@ export default function TeacherAssignmentPanel({
                                                                     ? 'bg-white text-slate-500 border-slate-200 hover:border-[#045c84] hover:text-[#045c84]'
                                                                     : 'bg-[#045c84] text-white border-[#045c84] hover:bg-[#034a6b]'
                                                                     }`}
-                                                                title={s.isDone ? "অ্যাসাইনমেন্ট এডিট করুন" : "নতুন ডায়েরি তৈরি করুন"}
+                                                                title={s.isDone ? "ক্লাস ডাইরি এডিট করুন" : "নতুন ডায়েরি তৈরি করুন"}
                                                             >
                                                                 {s.isDone ? <PenTool size={12} /> : <Plus size={12} />}
                                                                 {s.isDone ? 'এডিট করুন' : 'তৈরি করুন'}
@@ -1024,7 +1033,7 @@ export default function TeacherAssignmentPanel({
                     onClose={() => setScheduleModalClass(null)}
                     classId={scheduleModalClass.id}
                     className={scheduleModalClass.name}
-                    existingSchedule={scheduleModalClass.schedule}
+                    existingData={scheduleModalClass.schedule}
                     onSuccess={fetchData}
                 />
             )}

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import Toast from '@/components/Toast';
+import ClassScheduleSettingsModal from '@/components/ClassScheduleSettingsModal';
 
 export default function ClassesPage() {
     const { activeInstitute, activeRole } = useSession();
@@ -20,7 +21,7 @@ export default function ClassesPage() {
     const [loading, setLoading] = useState(true);
     const [isClassModalOpen, setIsClassModalOpen] = useState(false);
     const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
-    const [isStartTimeModalOpen, setIsStartTimeModalOpen] = useState(false);
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [selectedClass, setSelectedClass] = useState<any>(null);
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
@@ -126,26 +127,9 @@ export default function ClassesPage() {
         }
     };
 
-    const handleSaveStartTime = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!selectedClass?.id) return;
-        setActionLoading(true);
-        try {
-            const res = await fetch(`/api/admin/classes/${selectedClass.id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ startTime: startTimeInput })
-            });
-            if (res.ok) {
-                setToast({ message: 'ক্লাস শুরুর সময় সেভ হয়েছে!', type: 'success' });
-                setIsStartTimeModalOpen(false);
-                fetchClasses();
-            }
-        } catch (error) {
-            setToast({ message: 'ক্রুটি হয়েছে।', type: 'error' });
-        } finally {
-            setActionLoading(false);
-        }
+    const handleSettingsSuccess = () => {
+        setToast({ message: 'ক্লাস সেটিংস সফলভাবে সেভ হয়েছে!', type: 'success' });
+        fetchClasses();
     };
 
     const isAdmin = activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN';
@@ -198,13 +182,12 @@ export default function ClassesPage() {
                                         <button
                                             onClick={() => {
                                                 setSelectedClass(c);
-                                                setStartTimeInput(c.startTime || '');
-                                                setIsStartTimeModalOpen(true);
+                                                setIsSettingsModalOpen(true);
                                             }}
                                             className="p-2 bg-white border border-slate-200 text-slate-500 rounded-lg hover:text-[#045c84] hover:border-[#045c84] transition-all"
-                                            title="ক্লাস শুরুর সময় সেট করুন"
+                                            title="ক্লাস সেটিংস"
                                         >
-                                            <Clock size={16} />
+                                            <Settings2 size={16} />
                                         </button>
                                     )}
                                     {isAdmin && (
@@ -337,38 +320,17 @@ export default function ClassesPage() {
                 </form>
             </Modal>
 
-            {/* Start Time Modal */}
-            <Modal
-                isOpen={isStartTimeModalOpen}
-                onClose={() => setIsStartTimeModalOpen(false)}
-                title={`ক্লাস শুরুর সময় - ${selectedClass?.name}`}
-                maxWidth="max-w-md"
-            >
-                <form onSubmit={handleSaveStartTime} className="p-8 space-y-6">
-                    <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-xs text-[#045c84] font-medium">
-                        <p className="font-black mb-1">কেন এই সময় লাগে?</p>
-                        <p>প্রতিদিনের হোমওয়ার্ক ও পরের দিনের প্রস্তুতির ডেডলাইন এই এই ক্লাস শুরুর সময় পর্যন্ত থাকবে।</p>
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">ক্লাস শুরুর সময়</label>
-                        <input
-                            type="time"
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black text-lg"
-                            value={startTimeInput}
-                            onChange={(e) => setStartTimeInput(e.target.value)}
-                            required
-                        />
-                    </div>
-                    <button
-                        type="submit"
-                        disabled={actionLoading}
-                        className="w-full py-4 bg-[#045c84] text-white font-bold rounded-2xl shadow-lg shadow-blue-100 transition-all flex items-center justify-center gap-2"
-                    >
-                        {actionLoading ? <Loader2 className="animate-spin" size={20} /> : <Save size={20} />}
-                        <span>সময় সেভ করুন</span>
-                    </button>
-                </form>
-            </Modal>
+            {/* Class Settings Modal */}
+            {selectedClass && (
+                <ClassScheduleSettingsModal
+                    isOpen={isSettingsModalOpen}
+                    onClose={() => setIsSettingsModalOpen(false)}
+                    classId={selectedClass.id}
+                    className={selectedClass.name}
+                    existingData={selectedClass}
+                    onSuccess={handleSettingsSuccess}
+                />
+            )}
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
         </div>

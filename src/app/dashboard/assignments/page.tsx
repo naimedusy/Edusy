@@ -177,10 +177,10 @@ function AssignmentsPageContent() {
             });
 
             if (res.ok) {
-                showToast('অ্যাসাইনমেন্ট সফলভাবে তৈরি করা হয়েছে', 'success');
+                showToast('ক্লাস ডাইরি সফলভাবে তৈরি করা হয়েছে', 'success');
                 fetchData();
             } else {
-                showToast('অ্যাসাইনমেন্ট তৈরি করতে ব্যর্থ হয়েছে', 'error');
+                showToast('ক্লাস ডাইরি তৈরি করতে ব্যর্থ হয়েছে', 'error');
             }
         } catch (error) {
             showToast('সার্ভার এরর, পুনরায় চেষ্টা করুন', 'error');
@@ -224,7 +224,7 @@ function AssignmentsPageContent() {
     const handleEdit = (assignment: any) => {
         setEditingAssignment(assignment);
         setTab('entry');
-        showToast('অ্যাসাইনমেন্ট এডিট মোডে লোড হয়েছে', 'success');
+        showToast('ক্লাস ডাইরি এডিট মোডে লোড হয়েছে', 'success');
     };
 
     const handleBulkHistoryRelease = async (ids?: string[]) => {
@@ -241,7 +241,7 @@ function AssignmentsPageContent() {
 
             if (res.ok) {
                 const data = await res.json();
-                showToast(`${data.releasedCount}টি অ্যাসাইনমেন্ট রিলিজ করা হয়েছে`, 'success');
+                showToast(`${data.releasedCount}টি ক্লাস ডাইরি রিলিজ করা হয়েছে`, 'success');
                 setSelectedHistoryIds([]);
                 fetchData();
             } else {
@@ -258,7 +258,7 @@ function AssignmentsPageContent() {
     const handleRevert = async (assignment: any) => {
         if (!activeInstitute?.id) return;
 
-        const confirmed = window.confirm(`আপনি কি নিশ্চিত যে আপনি "${assignment.title}" অ্যাসাইনমেন্টটি প্রত্যাহার করতে চান? এটি শিক্ষার্থীদের ডায়রি থেকে মুছে যাবে এবং তাদের কাছে একটি দুঃখিত মেসেজ যাবে।`);
+        const confirmed = window.confirm(`আপনি কি নিশ্চিত যে আপনি "${assignment.title}" ক্লাস ডাইরিটি প্রত্যাহার করতে চান? এটি শিক্ষার্থীদের ডাইরি থেকে মুছে যাবে এবং তাদের কাছে একটি দুঃখিত মেসেজ যাবে।`);
 
         if (!confirmed) return;
 
@@ -271,10 +271,10 @@ function AssignmentsPageContent() {
 
             if (res.ok) {
                 const data = await res.json();
-                showToast(`অ্যাসাইনমেন্ট প্রত্যাহার করা হয়েছে এবং ${data.notificationCount}টি নোটিফিকেশন পাঠানো হয়েছে`, 'success');
+                showToast(`ক্লাস ডাইরি প্রত্যাহার করা হয়েছে এবং ${data.notificationCount}টি নোটিফিকেশন পাঠানো হয়েছে`, 'success');
                 fetchData();
             } else {
-                showToast('অ্যাসাইনমেন্ট প্রত্যাহার করতে ব্যর্থ হয়েছে', 'error');
+                showToast('ক্লাস ডাইরি প্রত্যাহার করতে ব্যর্থ হয়েছে', 'error');
             }
         } catch (error) {
             console.error('Revert Error:', error);
@@ -301,18 +301,18 @@ function AssignmentsPageContent() {
 
             {/* ── Mobile two-tab switcher (hidden on lg+) ── */}
             {isAdminOrTeacher && (
-                <div className="flex lg:hidden mb-4 p-1 bg-white/60 backdrop-blur-xl rounded-2xl border border-white/30 shadow-sm gap-1">
+                <div className="flex lg:hidden mb-6 p-1.5 bg-white/60 backdrop-blur-2xl rounded-[24px] border border-white shadow-sm gap-1.5 overflow-hidden">
                     <button
                         onClick={() => setMobilePanel('task')}
-                        className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${mobilePanel === 'task' ? 'bg-[#045c84] text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'
+                        className={`flex-1 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${mobilePanel === 'task' ? 'bg-[#045c84] text-white shadow-lg shadow-[#045c84]/20' : 'text-slate-400 hover:bg-white/50'
                             }`}>
-                        📋 টাস্ক
+                        📋 ডাইরি ম্যানেজমেন্ট
                     </button>
                     <button
                         onClick={() => setMobilePanel('review')}
-                        className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${mobilePanel === 'review' ? 'bg-[#045c84] text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'
+                        className={`flex-1 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all duration-300 ${mobilePanel === 'review' ? 'bg-[#045c84] text-white shadow-lg shadow-[#045c84]/20' : 'text-slate-400 hover:bg-white/50'
                             }`}>
-                        📥 জমা দেওয়া
+                        📥 জমা পর্যালোচনা
                     </button>
                 </div>
             )}
@@ -341,88 +341,105 @@ function AssignmentsPageContent() {
 
                     {currentTab === 'history' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="flex flex-col xl:flex-row gap-6 items-start xl:items-center justify-between mb-8">
-                                <div className="flex flex-wrap gap-2 p-1.5 bg-white/40 backdrop-blur-xl rounded-[28px] border border-white/30 shadow-sm">
-                                    {(isAdmin || isTeacher) && (
-                                        <>
-                                            <button onClick={() => setSelectedClassId('all')}
-                                                className={`px-6 py-3 rounded-2xl text-[13px] font-black uppercase tracking-widest transition-all ${selectedClassId === 'all' || !selectedClassId ? 'bg-[#045c84] text-white shadow-lg shadow-blue-900/10 scale-105' : 'text-slate-500 hover:bg-white/50'}`}>
-                                                সব ক্লাস
-                                            </button>
-                                            {classes.map(c => (
-                                                <button key={c.id} onClick={() => setSelectedClassId(c.id)}
-                                                    className={`px-6 py-3 rounded-2xl text-[13px] font-black uppercase tracking-widest transition-all ${selectedClassId === c.id ? 'bg-[#045c84] text-white shadow-lg shadow-blue-900/10 scale-105' : 'text-slate-500 hover:bg-white/50'}`}>
-                                                    {c.name}
+                            {/* High-Fidelity Unified Toolbar */}
+                            <div className="bg-white/40 backdrop-blur-2xl p-4 rounded-[2.5rem] border border-white shadow-sm space-y-4 mb-4">
+                                <div className="flex flex-col xl:flex-row gap-4 items-start xl:items-center justify-between">
+                                    {/* Left: Class Filters (Unified) */}
+                                    <div className="flex flex-wrap gap-2 p-1.5 bg-slate-100/50 rounded-[28px] border border-slate-200/50">
+                                        {(isAdmin || isTeacher) && (
+                                            <>
+                                                <button onClick={() => setSelectedClassId('all')}
+                                                    className={`px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedClassId === 'all' || !selectedClassId ? 'bg-[#045c84] text-white shadow-lg shadow-[#045c84]/10' : 'text-slate-500 hover:bg-white'}`}>
+                                                    সব ক্লাস
                                                 </button>
-                                            ))}
-                                        </>
-                                    )}
-                                    {isStudent && (
-                                        <div className="px-6 py-3 text-[13px] font-black uppercase tracking-widest text-[#045c84]">
-                                            আমার ক্লাস: {classes[0]?.name || 'লোড হচ্ছে...'}
+                                                {classes.map(c => (
+                                                    <button key={c.id} onClick={() => setSelectedClassId(c.id)}
+                                                        className={`px-6 py-2.5 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${selectedClassId === c.id ? 'bg-[#045c84] text-white shadow-lg shadow-[#045c84]/10' : 'text-slate-500 hover:bg-white'}`}>
+                                                        {c.name}
+                                                    </button>
+                                                ))}
+                                            </>
+                                        )}
+                                        {isStudent && (
+                                            <div className="px-6 py-2.5 text-[11px] font-black uppercase tracking-widest text-[#045c84] flex items-center gap-2">
+                                                <Users size={14} />
+                                                আমার ক্লাস: {classes[0]?.name || 'লোড হচ্ছে...'}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Right: Date & View Controls */}
+                                    <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto">
+                                        <div className="flex items-center gap-2 p-1.5 bg-slate-100/50 rounded-[24px] border border-slate-200/50 flex-1 md:flex-none justify-between md:justify-start">
+                                            <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().split('T')[0]); }}
+                                                className="p-2.5 rounded-xl bg-white text-slate-400 hover:text-[#045c84] transition-all border border-slate-100 active:scale-95 shadow-sm">
+                                                <ChevronLeft size={16} />
+                                            </button>
+                                            <div className="px-2 flex items-center gap-2">
+                                                <CalendarIcon size={14} className="text-[#045c84]" />
+                                                <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
+                                                    className="bg-transparent border-none outline-none font-black text-slate-700 text-xs focus:ring-0 w-[110px] uppercase tracking-tighter" />
+                                            </div>
+                                            <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().split('T')[0]); }}
+                                                className="p-2.5 rounded-xl bg-white text-slate-400 hover:text-[#045c84] transition-all border border-slate-100 active:scale-95 shadow-sm">
+                                                <ChevronRight size={16} />
+                                            </button>
                                         </div>
-                                    )}
+
+                                        <div className="flex p-1.5 bg-slate-100/50 rounded-[24px] border border-slate-200/50">
+                                            <button onClick={() => setViewMode('list')}
+                                                className={`p-2.5 rounded-xl transition-all ${viewMode === 'list' ? 'bg-[#045c84] text-white shadow-lg' : 'text-slate-400 hover:text-[#045c84]'}`} title="তালিকা ভিউ">
+                                                <LayoutGrid size={18} />
+                                            </button>
+                                            <button onClick={() => setViewMode('calendar')}
+                                                className={`p-2.5 rounded-xl transition-all ${viewMode === 'calendar' ? 'bg-[#045c84] text-white shadow-lg' : 'text-slate-400 hover:text-[#045c84]'}`} title="ক্যালেন্ডার ভিউ">
+                                                <CalendarIcon size={18} />
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <div className="flex flex-wrap items-center gap-4">
-                                    <div className="flex items-center gap-2 p-1.5 bg-white/40 backdrop-blur-xl rounded-[24px] border border-white/30 shadow-sm">
-                                        <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().split('T')[0]); }}
-                                            className="p-3 rounded-xl bg-white/50 text-slate-400 hover:bg-white hover:text-[#045c84] transition-all border border-white/20 active:scale-90">
-                                            <ChevronLeft size={18} />
-                                        </button>
-                                        <div className="px-4 flex items-center gap-2">
-                                            <CalendarIcon size={16} className="text-[#045c84]" />
-                                            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
-                                                className="bg-transparent border-none outline-none font-bold text-slate-700 text-sm focus:ring-0 w-[130px]" />
-                                        </div>
-                                        <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().split('T')[0]); }}
-                                            className="p-3 rounded-xl bg-white/50 text-slate-400 hover:bg-white hover:text-[#045c84] transition-all border border-white/20 active:scale-90">
-                                            <ChevronRight size={18} />
-                                        </button>
+                                {/* Search Bar (Embedded in Toolbar) */}
+                                <div className="relative group overflow-hidden">
+                                    <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#045c84] transition-colors">
+                                        <Search size={18} />
                                     </div>
-                                    <div className="flex p-1.5 bg-white/40 backdrop-blur-xl rounded-[24px] border border-white/30 shadow-sm">
-                                        <button onClick={() => setViewMode('list')}
-                                            className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'bg-[#045c84] text-white shadow-lg' : 'text-slate-400 hover:text-[#045c84]'}`} title="তালিকা ভিউ">
-                                            <LayoutGrid size={20} />
-                                        </button>
-                                        <button onClick={() => setViewMode('calendar')}
-                                            className={`p-3 rounded-xl transition-all ${viewMode === 'calendar' ? 'bg-[#045c84] text-white shadow-lg' : 'text-slate-400 hover:text-[#045c84]'}`} title="ক্যালেন্ডার ভিউ">
-                                            <CalendarIcon size={20} />
-                                        </button>
-                                    </div>
+                                    <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-14 pr-6 py-4 bg-slate-50/50 border border-slate-100 rounded-3xl focus:bg-white focus:border-[#045c84]/30 focus:ring-8 focus:ring-[#045c84]/5 transition-all outline-none font-bold text-slate-800 placeholder:text-slate-300 text-sm"
+                                        placeholder={isStudent ? 'বিষয় বা শিরোনাম দিয়ে ডাইরি খুঁজো...' : 'শিরোনাম দিয়ে ক্লাস ডাইরি খুঁজুন...'} />
                                 </div>
                             </div>
-
                             {viewMode === 'calendar' ? (
                                 <div className="animate-in zoom-in-95 duration-500">
-                                    <AssignmentCalendar assignments={monthAssignments} selectedDate={selectedDate}
-                                        onDateSelect={(date) => { setSelectedDate(date); setViewMode('list'); }} />
+                                    <AssignmentCalendar
+                                        assignments={monthAssignments}
+                                        selectedDate={selectedDate}
+                                        onDateSelect={(date) => {
+                                            setSelectedDate(date);
+                                            setViewMode('list');
+                                        }}
+                                    />
                                 </div>
                             ) : (
                                 <>
-                                    {!isTeacher && (
-                                        <div className="bg-white/40 backdrop-blur-xl p-4 rounded-[28px] border border-white/30 shadow-sm flex flex-col md:flex-row gap-4 mb-4">
-                                            <div className="relative flex-1">
-                                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                                                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                                                    className="w-full pl-12 pr-4 py-4 bg-white/50 border-none rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-bold text-slate-800 placeholder:text-slate-300"
-                                                    placeholder={isStudent ? 'বিষয় বা শিরোনাম দিয়ে খোঁজো...' : 'শিরোনাম দিয়ে খুঁজুন...'} />
-                                            </div>
-                                        </div>
-                                    )}
                                     {loading ? (
                                         <div className="py-20 text-center">
                                             <div className="w-12 h-12 border-4 border-[#045c84]/20 border-t-[#045c84] rounded-full animate-spin mx-auto mb-4" />
-                                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">অ্যাসাইনমেন্ট লোড হচ্ছে...</p>
+                                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">ক্লাস ডাইরি লোড হচ্ছে...</p>
                                         </div>
                                     ) : Object.keys(groupedAssignments).length > 0 ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
                                             {Object.entries(groupedAssignments)
                                                 .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
                                                 .map(([date, dayAssignments]) => (
-                                                    <AssignmentCard key={date} assignment={dayAssignments[0]} dayAssignments={dayAssignments}
-                                                        role={activeRole as any} onAction={() => setSelectedDayAssignments(dayAssignments)}
-                                                        onRevert={handleRevert} />
+                                                    <AssignmentCard
+                                                        key={date}
+                                                        assignment={dayAssignments[0]}
+                                                        dayAssignments={dayAssignments}
+                                                        role={activeRole as any}
+                                                        onAction={() => setSelectedDayAssignments(dayAssignments)}
+                                                        onRevert={handleRevert}
+                                                    />
                                                 ))}
                                         </div>
                                     ) : (
@@ -430,12 +447,13 @@ function AssignmentsPageContent() {
                                             <div className="w-24 h-24 bg-white/50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200">
                                                 <ClipboardList size={48} />
                                             </div>
-                                            <h3 className="text-2xl font-black text-slate-600">কোনো অ্যাসাইনমেন্ট পাওয়া যায়নি</h3>
+                                            <h3 className="text-2xl font-black text-slate-600">কোনো ক্লাস ডাইরি পাওয়া যায়নি</h3>
                                             <p className="text-slate-400 font-bold mt-2">অন্য তারিখ বা ফিল্টার নির্বাচন করে চেষ্টা করুন।</p>
                                         </div>
                                     )}
                                 </>
                             )}
+
                         </div>
                     )}
                 </div>
@@ -461,7 +479,7 @@ function AssignmentsPageContent() {
             />
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
-        </div>
+        </div >
     );
 }
 

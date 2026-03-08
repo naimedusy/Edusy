@@ -523,7 +523,7 @@ export default function AssignmentDetailsModal({
                                     <div className="w-16 h-16 rounded-3xl bg-white flex items-center justify-center text-slate-200 shadow-sm">
                                         <ClipboardList size={32} />
                                     </div>
-                                    <p className="text-slate-400 font-black uppercase tracking-widest text-xs">কোনো টাস্ক পাওয়া যায়নি</p>
+                                    <p className="text-slate-400 font-black uppercase tracking-widest text-xs">কোনো তথ‍্য পাওয়া যায়নি</p>
                                 </div>
                             )}
                         </div>

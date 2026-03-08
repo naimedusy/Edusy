@@ -294,7 +294,7 @@ const StudentWiseView = ({ submissions, expanded, setExpanded, selectedIds, togg
                                                 <BookOpen size={13} />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[11px] font-black text-slate-700 truncate">{sub.assignment.book?.name || 'অ্যাসাইনমেন্ট'}</p>
+                                                <p className="text-[11px] font-black text-slate-700 truncate">{sub.assignment.book?.name || 'ক্লাস ডাইরি'}</p>
                                                 <div className="flex items-center gap-1 mt-0.5">
                                                     <p className="text-[9px] text-amber-600 font-bold shrink-0">{formatBengaliDate(sub.assignment.scheduledDate)}</p>
                                                     <span className="text-slate-200 text-[9px]">·</span>

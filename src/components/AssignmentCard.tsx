@@ -84,194 +84,128 @@ export default function AssignmentCard({
 
     const statusInfo = getStatusInfo(assignment.status, assignment.userStatus);
 
-    const renderPersonalCard = () => {
-        const date = new Date(assignment.createdAt);
-        const dayNameBangla = date.toLocaleDateString('bn-BD', { weekday: 'long' });
-        const dateBangla = date.toLocaleDateString('bn-BD', { day: 'numeric', month: 'long' });
+    // Realistic Book Cover Component
+    const BookCover = ({ book, status, isMultiple }: { book: any, status: string, isMultiple?: boolean }) => {
+        const isDraft = status === 'DRAFT';
+        const coverColor = book?.metadata?.color || '#045c84';
 
         return (
-            <div
-                onClick={() => onAction?.(assignment)}
-                className={`group bg-white/95 backdrop-blur-2xl rounded-3xl border ${isPinned ? 'border-[#045c84] shadow-xl shadow-[#045c84]/10' : 'border-white shadow-md'} p-6 hover:shadow-2xl hover:border-[#045c84]/30 transition-all duration-300 cursor-pointer relative overflow-hidden flex flex-col gap-6 min-h-[170px]`}
-            >
-                {/* Header: Bangla Day & Date */}
-                <div className="flex justify-between items-start">
-                    <div className="space-y-1.5">
-                        <h2 className="text-xl font-bold text-slate-900 leading-tight tracking-tight">
-                            {dayNameBangla}
-                        </h2>
-                        <div className="flex items-center gap-2 text-slate-400">
-                            <Calendar size={13} className="shrink-0" />
-                            <p className="text-[13px] font-semibold font-sans">
-                                {dateBangla}
-                            </p>
+            <div className="relative group/book w-full aspect-[3/4] rounded-r-lg rounded-l-md overflow-hidden shadow-2xl transition-all duration-500 group-hover:scale-105 group-hover:-translate-y-2 group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)] perspective-1000">
+                {/* Book Spine Shadow */}
+                <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-black/30 z-10 rounded-l-sm" />
+                <div className="absolute left-[2.5px] top-0 bottom-0 w-[1px] bg-white/20 z-10 shadow-[0_0_5px_rgba(255,255,255,0.2)]" />
+
+                {/* Stack Effect for multiple assignments */}
+                {isMultiple && (
+                    <>
+                        <div className="absolute -right-1 -top-1 w-full h-full bg-white/20 rounded-r-lg -z-10 translate-x-1 -translate-y-1 shadow-md" />
+                        <div className="absolute -right-2 -top-2 w-full h-full bg-white/10 rounded-r-lg -z-20 translate-x-2 -translate-y-2 shadow-sm" />
+                    </>
+                )}
+
+                {/* Cover Image or Default */}
+                {book?.metadata?.coverImage ? (
+                    <img src={book.metadata.coverImage} className="w-full h-full object-cover" alt={book.name} />
+                ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center relative overflow-hidden" style={{ backgroundColor: coverColor }}>
+                        {/* Abstract Texture */}
+                        <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/leather.png")' }} />
+                        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+
+                        <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center mb-4 border border-white/30 rotate-12 shadow-lg">
+                            <BookOpen size={28} className="text-white drop-shadow-lg" />
+                        </div>
+                        <h5 className="text-white font-black text-xs uppercase tracking-widest leading-tight drop-shadow-xl px-2 line-clamp-3">
+                            {book?.name || assignment.title || 'DAILY DIARY'}
+                        </h5>
+                        <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center gap-1">
+                            <div className="w-8 h-0.5 bg-white/30 rounded-full" />
+                            <p className="text-white/40 text-[7px] font-black uppercase tracking-[0.4em]">EDUSY PREMIUM</p>
                         </div>
                     </div>
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            togglePinAssignment(assignment);
-                        }}
-                        className={`p-2.5 rounded-xl transition-all duration-200 ${isPinned ? 'bg-[#045c84] text-white shadow-lg' : 'bg-slate-50/50 text-slate-300 hover:text-[#045c84] hover:bg-white border border-slate-100 shadow-sm'}`}
-                    >
-                        {isPinned ? <PinOff size={16} /> : <Pin size={16} className="rotate-45" />}
-                    </button>
-                </div>
+                )}
 
-                {/* Content: Subjects */}
-                <div className="flex flex-col gap-3 mt-auto">
-                    {dayAssignments && dayAssignments.length > 0 ? (
-                        <div className="flex flex-wrap gap-2.5">
-                            {dayAssignments.map((a, idx) => (
-                                <div
-                                    key={idx}
-                                    className="flex items-center gap-2.5 px-3.5 py-2 bg-slate-50/50 rounded-2xl border border-slate-100/50 group-hover:bg-white group-hover:border-[#045c84]/10 transition-all shadow-sm"
-                                >
-                                    <div className="w-5 h-5 rounded-full bg-[#045c84]/10 flex items-center justify-center">
-                                        <BookOpen size={10} className="text-[#045c84]" />
-                                    </div>
-                                    <span className="text-[14px] font-bold text-slate-700 tracking-tight">
-                                        {a.book?.name || a.title}
-                                    </span>
-                                </div>
-                            ))}
+                {/* Status Overlay */}
+                {isDraft && (
+                    <div className="absolute inset-0 bg-amber-500/10 backdrop-blur-[1px] flex items-center justify-center">
+                        <div className="bg-amber-600 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-2xl rotate-[-15deg] border border-white/30 transform scale-125">
+                            DRAFT
                         </div>
-                    ) : (
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-2xl bg-[#045c84] text-white flex items-center justify-center shadow-lg shadow-[#045c84]/10 shrink-0">
-                                <BookOpen size={20} />
-                            </div>
-                            <div className="min-w-0">
-                                <h4 className="text-[15px] font-bold text-slate-800 truncate">{assignment.book?.name || assignment.title}</h4>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Refined Arrow */}
-                <div className="absolute top-1/2 -translate-y-1/2 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                    <div className="w-8 h-8 rounded-full bg-[#045c84]/5 flex items-center justify-center">
-                        <ChevronRight size={18} className="text-[#045c84]" />
                     </div>
-                </div>
+                )}
+
+                {/* Sheen */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 opacity-0 group-hover/book:opacity-100 transition-opacity duration-700 pointer-events-none" />
             </div>
         );
     };
 
-    if (isStudent || isGuardian) return renderPersonalCard();
-
     return (
         <div
             onClick={() => onAction?.(assignment)}
-            className={`group bg-white rounded-[24px] border ${isSelected ? 'border-blue-500 ring-4 ring-blue-500/10' : 'border-slate-200'} p-4 hover:shadow-2xl hover:shadow-blue-900/10 transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[140px] h-auto`}
+            className="group relative flex flex-col gap-4 p-2 transition-all cursor-pointer"
         >
-            {assignment.status === 'DRAFT' && (
-                <div className="absolute top-0 right-0 left-0 h-1 bg-amber-400"></div>
-            )}
-            {onSelect && (
-                <div
-                    className="absolute top-3 right-10 z-10"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onSelect(assignment.id, !isSelected);
-                    }}
-                >
-                    <div className={`w-5 h-5 rounded-md border-2 transition-all flex items-center justify-center ${isSelected ? 'bg-blue-600 border-blue-600' : 'bg-white border-slate-300 group-hover:border-blue-400'}`}>
-                        {isSelected && <CheckCircle2 size={12} className="text-white" />}
+            {/* The Realistic Book */}
+            <div className="w-full max-w-[200px] mx-auto">
+                <BookCover book={assignment.book} status={assignment.status} />
+            </div>
+
+            {/* Below Text Content */}
+            <div className="space-y-2 px-1 text-center md:text-left">
+                <div className="flex flex-col gap-0.5">
+                    <h3 className="text-sm font-black text-slate-800 leading-tight group-hover:text-[#045c84] transition-colors line-clamp-1">
+                        {assignment.book?.name || assignment.title}
+                    </h3>
+                    <div className="flex items-center justify-center md:justify-start gap-2">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            {assignment.class?.name || 'All Classes'}
+                        </span>
+                        <span className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
+                        <span className="text-[10px] font-bold text-[#045c84] uppercase tracking-tighter">
+                            {new Date(assignment.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' })}
+                        </span>
                     </div>
                 </div>
-            )}
 
-            {/* Pin Toggle for Teacher/Admin too if they want */}
+                <div className="flex items-center justify-center md:justify-start gap-4">
+                    {/* Status Badge - Subtle */}
+                    <div className={`px-2 py-0.5 rounded-full border text-[8px] font-black uppercase tracking-wider ${statusInfo.color}`}>
+                        {statusInfo.label}
+                    </div>
+
+                    {/* Submission Count */}
+                    <div className="flex items-center gap-1.5 grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all">
+                        <Users size={10} className="text-slate-400" />
+                        <span className="text-[10px] font-black text-slate-500">
+                            {assignment._count?.submissions || 0}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Three Dot Action Button (Floating relative to card) */}
+            <div className="absolute top-4 right-4 z-20 opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 transition-all duration-300">
+                <button
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        // openAssignmentDetails(assignment);
+                    }}
+                    className="w-10 h-10 rounded-2xl bg-white shadow-xl flex items-center justify-center text-slate-400 hover:text-[#045c84] hover:scale-110 active:scale-95 transition-all border border-slate-100"
+                >
+                    <MoreVertical size={18} />
+                </button>
+            </div>
+
+            {/* Pin Action */}
             <button
                 onClick={(e) => {
                     e.stopPropagation();
                     togglePinAssignment(assignment);
                 }}
-                className={`absolute top-3 right-3 z-10 p-1.5 rounded-lg transition-all ${isPinned ? 'bg-blue-600 text-white' : 'text-slate-300 hover:text-blue-500 opacity-0 group-hover:opacity-100'}`}
+                className={`absolute top-4 left-4 z-20 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${isPinned ? 'bg-[#045c84] text-white shadow-lg' : 'bg-white/80 backdrop-blur-sm text-slate-300 hover:text-[#045c84] opacity-0 group-hover:opacity-100 border border-white/50'}`}
             >
-                <Pin size={12} className={isPinned ? '' : 'rotate-45'} />
+                <Pin size={14} className={isPinned ? '' : 'rotate-45'} />
             </button>
-
-            <div>
-                <div className="flex justify-between items-start mb-2">
-                    <div className="flex items-center gap-1.5 px-2 py-0.5 bg-slate-50 text-slate-400 text-[8px] font-black rounded-full border border-slate-100 uppercase tracking-tighter">
-                        <Calendar size={8} /> {new Date(assignment.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' })}
-                    </div>
-                    <div className={`flex items-center gap-2 px-3 py-1 ${statusInfo.color} text-[10px] font-black rounded-xl border uppercase tracking-wider shadow-sm`}>
-                        {statusInfo.icon}
-                        {statusInfo.label}
-                    </div>
-                </div>
-
-                <div className="flex justify-between items-start mb-1">
-                    <h3 className="text-base font-black text-slate-700 truncate group-hover:text-[#045c84] transition-colors">
-                        {assignment.book?.name || assignment.title}
-                    </h3>
-                    {(role === 'ADMIN' || role === 'TEACHER') && (assignment.status === 'RELEASED' || assignment.status === 'PUBLISHED') && onRevert && (
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onRevert(assignment);
-                            }}
-                            className="p-1.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-all border border-red-100 flex items-center gap-1.5"
-                            title="প্রত্যাহার করুন (Revert)"
-                        >
-                            <RotateCcw size={12} />
-                            <span className="text-[8px] font-black uppercase">Revert</span>
-                        </button>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-2 mb-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{assignment.class?.name || 'Unknown Class'}</p>
-                    <span className="w-1 h-1 rounded-full bg-slate-300"></span>
-                    <div className="flex items-center gap-1.5">
-                        <div className="w-4 h-4 rounded-full overflow-hidden bg-slate-100">
-                            {assignment.teacher?.metadata?.photo ? (
-                                <img src={assignment.teacher.metadata.photo} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                                <div className="w-full h-full flex items-center justify-center text-[7px] font-bold text-slate-400">
-                                    {assignment.teacher?.name?.charAt(0)}
-                                </div>
-                            )}
-                        </div>
-                        <p className="text-[10px] font-bold text-slate-500 truncate italic">by {assignment.teacher?.name || 'Teacher'}</p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-50">
-                <div className="flex flex-wrap gap-1">
-                    {taskTypes.length > 0 ? (
-                        taskTypes.map((type: string) => {
-                            let color = 'bg-slate-50 text-slate-500 border-slate-100';
-                            if (type === 'সি.ডব্লিউ') color = 'bg-slate-50 text-slate-500 border-slate-100';
-                            if (type === 'প্রস্তুতি') color = 'bg-slate-50 text-slate-500 border-slate-100';
-                            if (type === 'এইচ.ডব্লিউ') color = 'bg-slate-50 text-slate-500 border-slate-100';
-                            if (type === 'মন্তব্য') color = 'bg-slate-50 text-slate-500 border-slate-100';
-
-                            return (
-                                <span key={type} className={`px-1.5 py-0.5 ${color} text-[8px] font-black rounded border uppercase tracking-tighter`}>
-                                    {type}
-                                </span>
-                            );
-                        })
-                    ) : (
-                        <span className="text-[10px] font-bold text-slate-300 italic">No structured tasks</span>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-3">
-                    <div className="text-right">
-                        <p className="text-[8px] text-slate-400 uppercase font-black tracking-tighter">Done</p>
-                        <p className="text-xs font-black text-slate-700 leading-none">{assignment._count?.submissions || 0}</p>
-                    </div>
-                    <div className="w-8 h-8 rounded-xl bg-[#045c84]/5 text-[#045c84] flex items-center justify-center group-hover:bg-[#045c84] group-hover:text-white transition-all shadow-sm">
-                        <FileText size={16} />
-                    </div>
-                </div>
-            </div>
         </div >
     );
 }

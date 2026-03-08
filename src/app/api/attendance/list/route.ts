@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
         // Build native MongoDB filter
         const filter: any = { dateString };
-        if (classId && classId !== 'all') {
+        if (classId && classId !== 'all' && classId !== '') {
             filter.classId = toOid(classId);
         }
         if (instituteId) {

@@ -35,7 +35,7 @@ type BulkAction = 'APPROVED' | 'REJECTED' | 'RETRY';
 export default function StudentAssignmentProgress({
     instituteId,
     teacherId,
-    title = 'শিক্ষার্থীর অ্যাসাইনমেন্ট প্রগ্রেস'
+    title = 'শিক্ষার্থীর ক্লাস ডাইরি প্রগ্রেস'
 }: { instituteId?: string; teacherId?: string; title?: string }) {
     const { openAssignmentDetails } = useUI();
     const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -294,7 +294,7 @@ export default function StudentAssignmentProgress({
                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-4">
                             <ClipboardList size={32} />
                         </div>
-                        <p className="text-slate-400 text-xs font-bold">এখনো কোনো অ্যাসাইনমেন্ট জমা পড়েনি</p>
+                        <p className="text-slate-400 text-xs font-bold">এখনো কোনো ক্লাস ডাইরি জমা পড়েনি</p>
                     </div>
                 ) : (
                     [...grouped.entries()].map(([studentId, { name, photo, items }]) => {
@@ -403,7 +403,7 @@ export default function StudentAssignmentProgress({
                                                                 </span>
                                                             </div>
                                                             <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1.5 mt-1">
-                                                                <span className="text-[#045c84] font-bold">{sub.assignment.book?.name || 'অ্যাসাইনমেন্ট'}</span>
+                                                                <span className="text-[#045c84] font-bold">{sub.assignment.book?.name || 'ক্লাস ডাইরি'}</span>
                                                                 <span className="opacity-30">•</span>
                                                                 <span className="line-clamp-1">{sub.assignment.title}</span>
                                                             </p>
@@ -463,7 +463,7 @@ export default function StudentAssignmentProgress({
                     href="/dashboard/assignments"
                     className="w-full h-11 flex items-center justify-center bg-slate-50 hover:bg-[#045c84] hover:text-white text-slate-600 rounded-2xl transition-all font-black text-xs uppercase tracking-[0.2em] gap-2 group"
                 >
-                    সকল অ্যাসাইনমেন্ট দেখুন
+                    সকল ক্লাস ডাইরি দেখুন
                     <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </a>
             </div>

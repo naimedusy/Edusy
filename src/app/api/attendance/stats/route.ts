@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
         }
 
         const filter: any = { instituteId: { $oid: instituteId } };
-        if (classId && classId !== 'all') {
+        if (classId && classId !== 'all' && classId !== '') {
             filter.classId = { $oid: classId };
         }
 

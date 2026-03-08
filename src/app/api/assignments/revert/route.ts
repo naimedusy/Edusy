@@ -59,13 +59,13 @@ export async function POST(req: Request) {
 
             // 4. Send "Sorry" notifications
             for (const student of classStudents) {
-                const studentMessage = `দুঃখিত, "${assignment.title}" অ্যাসাইনমেন্টটি প্রত্যাহার করা হয়েছে। এটি বর্তমানে আপনার ডায়েরিতে দৃশ্যমান হবে না।`;
+                const studentMessage = `দুঃখিত, "${assignment.title}" ক্লাস ডাইরিটি প্রত্যাহার করা হয়েছে। এটি বর্তমানে আপনার ডায়েরিতে দৃশ্যমান হবে না।`;
 
                 await prisma.notification.create({
                     data: {
                         userId: student.id,
                         type: 'ASSIGNMENT_REVERTED',
-                        title: 'অ্যাসাইনমেন্ট প্রত্যাহার!',
+                        title: 'ক্লাস ডাইরি প্রত্যাহার!',
                         message: studentMessage,
                         metadata: {
                             assignmentId: assignment.id,
@@ -78,12 +78,12 @@ export async function POST(req: Request) {
                 // Guardian Notification
                 const guardianId = (student.metadata as any)?.guardianId;
                 if (guardianId) {
-                    const guardianMessage = `দুঃখিত, আপনার সন্তান ${student.name}-এর "${assignment.title}" অ্যাসাইনমেন্টটি প্রত্যাহার করা হয়েছে।`;
+                    const guardianMessage = `দুঃখিত, আপনার সন্তান ${student.name}-এর "${assignment.title}" ক্লাস ডাইরিটি প্রত্যাহার করা হয়েছে।`;
                     await prisma.notification.create({
                         data: {
                             userId: guardianId,
                             type: 'ASSIGNMENT_REVERTED',
-                            title: 'অ্যাসাইনমেন্ট প্রত্যাহার',
+                            title: 'ক্লাস ডাইরি প্রত্যাহার',
                             message: guardianMessage,
                             metadata: {
                                 assignmentId: assignment.id,

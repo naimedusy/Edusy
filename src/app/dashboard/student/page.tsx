@@ -103,7 +103,7 @@ export default function StudentDashboardPage() {
                         <ClipboardList size={28} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">অ্যাসাইনমেন্ট</h3>
+                        <h3 className="text-lg font-bold text-slate-800 group-hover:text-indigo-600 transition-colors">ক্লাস ডাইরি</h3>
                         <p className="text-slate-500 text-xs font-medium">৫টি জমা দেওয়া বাকি</p>
                     </div>
                 </a>
@@ -152,7 +152,7 @@ export default function StudentDashboardPage() {
                     </div>
                 ) : (
                     <div className="py-20 text-center text-slate-400">
-                        <p>কোনো অ্যাসাইনমেন্ট পাওয়া যায়নি</p>
+                        <p>কোনো ক্লাস ডাইরি পাওয়া যায়নি</p>
                     </div>
                 )}
             </div>

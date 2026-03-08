@@ -14,7 +14,8 @@ import {
     UserCheck,
     Calendar as CalendarIcon,
     LayoutGrid,
-    Search
+    Search,
+    Building2
 } from 'lucide-react';
 import { useSession } from './SessionProvider';
 import dynamic from 'next/dynamic';
@@ -68,31 +69,31 @@ export default function AttendanceDashboard() {
 
     return (
         <div className="min-h-screen bg-[#f8fafc] font-bengali">
-            {/* Header */}
-            <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-6 py-4 shadow-sm">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Ultra-Compact Header */}
+            <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-2 shadow-sm">
+                <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-[#045c84] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
-                            <UserCheck size={24} />
+                        <div className="w-9 h-9 bg-[#045c84] rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-900/10 shrink-0">
+                            <Building2 size={18} />
                         </div>
-                        <div>
-                            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">হাজিরা ড্যাশবোর্ড</h1>
-                            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest italic">{activeInstitute?.name || 'Education System'}</p>
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                            <h1 className="text-base font-black text-slate-800 tracking-tight leading-none truncate max-w-[120px] md:max-w-none">
+                                {activeInstitute?.name || 'হাজিরা'}
+                            </h1>
+                            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
+                                <input
+                                    type="date"
+                                    value={selectedDate}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    className="bg-transparent border-none outline-none text-[10px] font-black text-slate-600 px-2 py-0.5 cursor-pointer focus:ring-0"
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    {/* Date & Mode Switcher Row */}
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-                            <input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                className="bg-transparent border-none outline-none text-xs font-black text-slate-600 px-3 py-1 cursor-pointer focus:ring-0"
-                            />
-                        </div>
-
-                        <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                    {/* Mode Switcher */}
+                    <div className="flex items-center gap-2">
+                        <div className="flex bg-slate-100 p-1 rounded-lg border border-slate-200 overflow-hidden">
                             {[
                                 { id: 'MANUAL', label: 'ম্যানুয়াল', icon: LayoutGrid },
                                 { id: 'FRS', label: 'ফেস রিডিং', icon: Camera },
@@ -101,13 +102,13 @@ export default function AttendanceDashboard() {
                                 <button
                                     key={mode.id}
                                     onClick={() => setActiveMode(mode.id as AttendanceMode)}
-                                    className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all duration-300 ${activeMode === mode.id
+                                    className={`px-3 py-1.5 rounded-md flex items-center gap-2 transition-all duration-300 ${activeMode === mode.id
                                         ? 'bg-white text-[#045c84] shadow-sm font-black ring-1 ring-slate-200'
                                         : 'text-slate-500 hover:text-slate-700 font-bold opacity-70'
                                         }`}
                                 >
-                                    <mode.icon size={18} />
-                                    <span className="text-[13px]">{mode.label}</span>
+                                    <mode.icon size={14} />
+                                    <span className="text-[10px] font-black whitespace-nowrap hidden sm:inline">{mode.label}</span>
                                 </button>
                             ))}
                         </div>
@@ -117,7 +118,7 @@ export default function AttendanceDashboard() {
 
             {/* Class Tabs - Horizontal Scrolling */}
             <div className="bg-white border-b border-slate-200 relative group overflow-hidden">
-                <div className="max-w-7xl mx-auto px-10 py-3 relative">
+                <div className="max-w-7xl mx-auto px-4 py-3 relative">
                     <button
                         onClick={() => scroll('left')}
                         className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white border border-slate-100 shadow-md flex items-center justify-center text-slate-400 hover:text-slate-900 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -131,7 +132,7 @@ export default function AttendanceDashboard() {
                     >
                         <button
                             onClick={() => setSelectedClassId('')}
-                            className={`px-6 py-2.5 rounded-full text-[14px] transition-all duration-300 relative ${selectedClassId === ''
+                            className={`px-6 py-2.5 rounded-xl text-[14px] transition-all duration-300 relative ${selectedClassId === ''
                                 ? 'bg-[#045c84]/10 text-[#045c84] font-black border-2 border-[#045c84]/40'
                                 : 'bg-[#f1f5f9] text-slate-500 font-bold border-2 border-transparent hover:bg-slate-200 hover:text-slate-700'
                                 }`}
@@ -148,7 +149,7 @@ export default function AttendanceDashboard() {
                             <button
                                 key={cls.id}
                                 onClick={() => setSelectedClassId(cls.id)}
-                                className={`px-6 py-2.5 rounded-full text-[14px] transition-all duration-300 relative ${selectedClassId === cls.id
+                                className={`px-6 py-2.5 rounded-xl text-[14px] transition-all duration-300 relative ${selectedClassId === cls.id
                                     ? 'bg-[#045c84]/10 text-[#045c84] font-black border-2 border-[#045c84]/40'
                                     : 'bg-[#f1f5f9] text-slate-500 font-bold border-2 border-transparent hover:bg-slate-200 hover:text-slate-700'
                                     }`}
@@ -174,7 +175,7 @@ export default function AttendanceDashboard() {
             </div>
 
             {/* Main Content Area */}
-            <div className="max-w-7xl mx-auto p-6">
+            <div className="max-w-7xl mx-auto px-3 py-6 sm:px-6">
                 <AnimatePresence mode="wait">
                     {activeMode === 'MANUAL' && (
                         <motion.div
@@ -204,9 +205,9 @@ export default function AttendanceDashboard() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="bg-white rounded-[40px] border-4 border-white shadow-2xl p-20 flex flex-col items-center justify-center text-center"
+                            className="bg-white rounded-2xl border-4 border-white shadow-2xl p-20 flex flex-col items-center justify-center text-center"
                         >
-                            <div className="w-32 h-32 bg-slate-50 rounded-[40px] flex items-center justify-center text-slate-200 mb-8 ring-8 ring-slate-50/50">
+                            <div className="w-32 h-32 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-200 mb-8 ring-8 ring-slate-50/50">
                                 <QrCode size={64} />
                             </div>
                             <h2 className="text-3xl font-black text-slate-800 mb-4 italic uppercase tracking-tighter">কিউআর কোড স্ক্যানার</h2>

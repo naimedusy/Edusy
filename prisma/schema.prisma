@@ -79,6 +79,13 @@ model Class {
   
   // Class start time used as assignment deadline (HH:mm format e.g. "09:00")
   startTime   String?
+  endTime     String?
+  tiffinStart String?
+  tiffinEnd   String?
+  
+  schedule    Json?
+  fees        Int?      @default(0)
+  lateThreshold Int?    @default(15) // Minutes
 
   institute   Institute @relation(fields: [instituteId], references: [id])
   instituteId String    @db.ObjectId

@@ -17,7 +17,10 @@ import {
     Clock,
     UserCheck,
     Check,
-    CheckSquare
+    CheckSquare,
+    Volume2,
+    Play,
+    Pause
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from './SessionProvider';
@@ -50,14 +53,33 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
     const [isCameraActive, setIsCameraActive] = useState(false);
     const [faceMatcher, setFaceMatcher] = useState<faceapi.FaceMatcher | null>(null);
     const [markedStudents, setMarkedStudents] = useState<Set<string>>(new Set());
-    const [lastMarked, setLastMarked] = useState<{ name: string, time: string, photo?: string } | null>(null);
+    const [recentMatches, setRecentMatches] = useState<{
+        id: string;
+        name: string;
+        time: string;
+        photo?: string;
+        isAlreadyMarked?: boolean;
+        status?: 'PRESENT' | 'LATE' | 'LEAVE';
+        timestamp: number;
+    }[]>([]);
+    const [scannerMarkMode, setScannerMarkMode] = useState<'PRESENT' | 'LATE' | 'LEAVE'>('PRESENT');
     const [isTestMode, setIsTestMode] = useState(false);
     const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
     const [modelsLoaded, setModelsLoaded] = useState(false);
+    const [activeTab, setActiveTab] = useState<'PRESENT' | 'LATE' | 'LEAVE' | 'ABSENT'>('ABSENT');
+    const [isPaused, setIsPaused] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [analysisProgress, setAnalysisProgress] = useState({ current: 0, total: 0 });
+    const [toast, setToast] = useState<{ message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' } | null>(null);
+
+    const showToast = (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' = 'SUCCESS') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 4000);
+    };
 
     // Multi-device sync states
     const [deviceId] = useState(() => Math.random().toString(36).substring(2, 10));
-    const [attendanceRecords, setAttendanceRecords] = useState<Record<string, { deviceId: string, timestamp: Date }>>({});
+    const [attendanceRecords, setAttendanceRecords] = useState<Record<string, { deviceId: string, timestamp: Date, status: string }>>({});
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -66,29 +88,29 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
     const hasAutoStarted = useRef(false);
 
     // Web Audio API Context & Buffers
-    const audioCtx = useRef<AudioContext | null>(null);
-    const audioBuffers = useRef<{ [key: string]: AudioBuffer }>({});
+    // Audio refs for HTML5 Audio
+    const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({});
 
-    useEffect(() => {
-        const loadSound = async (url: string, key: string) => {
-            try {
-                if (!audioCtx.current) audioCtx.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-                const response = await fetch(url);
-                const arrayBuffer = await response.arrayBuffer();
-                const audioBuffer = await audioCtx.current.decodeAudioData(arrayBuffer);
-                audioBuffers.current[key] = audioBuffer;
-            } catch (err) {
-                console.error(`Failed to load sound: ${url}`, err);
-            }
-        };
+    const initAudio = () => {
+        if (Object.keys(audioRefs.current).length > 0) return;
 
-        loadSound('/audio/success.mp3', 'success');
-        loadSound('/audio/denied.mp3', 'fail');
+        try {
+            const successAudio = new Audio('/audio/success.mp3');
+            const failAudio = new Audio('/audio/denied.mp3');
 
-        return () => {
-            if (audioCtx.current) audioCtx.current.close();
-        };
-    }, []);
+            // Preload
+            successAudio.load();
+            failAudio.load();
+
+            audioRefs.current = {
+                success: successAudio,
+                fail: failAudio
+            };
+            console.log('Audio elements initialized');
+        } catch (err) {
+            console.error('Audio initialization failed:', err);
+        }
+    };
 
     // Sync prop classId if provided
     useEffect(() => {
@@ -98,12 +120,21 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
     }, [propClassId]);
 
     useEffect(() => {
-        if (activeInstitute && !propClassId) {
+        if (!activeInstitute) {
+            setStatus('IDLE');
+            return;
+        }
+
+        // Handle class list fetching separately or only when strictly needed
+        if (!propClassId && classes.length === 0) {
             fetchClasses();
         }
-        if (activeInstitute) {
-            fetchEnrolledStudents(propClassId || selectedClassId);
-        }
+
+        // Unified fetch for students/attendance
+        const targetClass = propClassId !== undefined ? propClassId : selectedClassId;
+        fetchEnrolledStudents(targetClass);
+
+        // Reset models if needed or just ensured they are loaded
         loadModels();
     }, [activeInstitute, propClassId, selectedClassId, selectedDate]);
 
@@ -130,11 +161,12 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
         try {
             // Use provided selectedDate or fallback to current local date if absolutely missing
             const today = selectedDate || new Date().toISOString().split('T')[0];
+            const fetchClassId = targetClassId || 'all';
 
             const [studentsRes, attendanceRes, statsRes] = await Promise.all([
-                fetch(`/api/admin/users?role=STUDENT&instituteId=${activeInstitute.id}&classId=${targetClassId}`),
-                fetch(`/api/attendance/list?instituteId=${activeInstitute.id}&date=${today}`),
-                fetch(`/api/attendance/stats?instituteId=${activeInstitute.id}&classId=${targetClassId}`)
+                fetch(`/api/admin/users?role=STUDENT&instituteId=${activeInstitute.id}&classId=${fetchClassId}`),
+                fetch(`/api/attendance/list?instituteId=${activeInstitute.id}&date=${today}&classId=${fetchClassId}`),
+                fetch(`/api/attendance/stats?instituteId=${activeInstitute.id}&classId=${fetchClassId}`)
             ]);
 
             if (studentsRes.ok) {
@@ -170,13 +202,14 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                     const present = attendanceData.filter((a: any) => ['PRESENT', 'LATE', 'LEAVE'].includes(a.status));
                     const presentIds = present.map((a: any) => normalizeId(a.studentId));
 
-                    const newRecords: Record<string, { deviceId: string, timestamp: Date }> = {};
+                    const newRecords: Record<string, { deviceId: string, timestamp: Date, status: string }> = {};
                     present.forEach((a: any) => {
                         const sId = normalizeId(a.studentId);
                         if (sId) {
                             newRecords[sId] = {
                                 deviceId: a.remarks || 'unknown',
-                                timestamp: new Date(a.createdAt || a.updatedAt || Date.now())
+                                timestamp: new Date(a.createdAt || a.updatedAt || Date.now()),
+                                status: a.status
                             };
                         }
                     });
@@ -189,7 +222,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                     const labeledDescriptors = enrolled.map((s: any) =>
                         new faceapi.LabeledFaceDescriptors(s.id, [new Float32Array(s.faceDescriptor)])
                     );
-                    setFaceMatcher(new faceapi.FaceMatcher(labeledDescriptors, 0.6));
+                    setFaceMatcher(new faceapi.FaceMatcher(labeledDescriptors, 0.5));
                 } else {
                     setFaceMatcher(null);
                 }
@@ -245,17 +278,12 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
 
     const playSound = (type: 'success' | 'fail') => {
         try {
-            if (!audioCtx.current || !audioBuffers.current[type]) return;
+            const audio = audioRefs.current[type];
+            if (!audio) return;
 
-            // Resume context if suspended (browser policy)
-            if (audioCtx.current.state === 'suspended') {
-                audioCtx.current.resume();
-            }
-
-            const source = audioCtx.current.createBufferSource();
-            source.buffer = audioBuffers.current[type];
-            source.connect(audioCtx.current.destination);
-            source.start(0);
+            // Reset and play
+            audio.currentTime = 0;
+            audio.play().catch(e => console.error('Audio play failed:', e));
         } catch (e) {
             console.error('Audio playback error:', e);
         }
@@ -273,10 +301,19 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
 
 
         try {
+            initAudio();
             await loadModels();
-            const stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: 'user', width: 640, height: 480 }
-            });
+
+            // Use more robust constraints - modern browser fallback
+            const constraints = {
+                video: {
+                    facingMode: 'user',
+                    width: { ideal: 640 },
+                    height: { ideal: 480 }
+                }
+            };
+
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
             if (videoRef.current) {
                 videoRef.current.srcObject = stream;
                 setIsCameraActive(true);
@@ -285,12 +322,9 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
             }
         } catch (err: any) {
             console.error('Error accessing camera:', err);
-            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || err.message?.includes('Permission dismissed')) {
-                setError('PERMISSION_DENIED');
-            } else {
-                setError('ক্যামেরা অ্যাক্সেস করতে সমস্যা হয়েছে।');
-            }
-            setStatus('IDLE');
+            setError(err.name === 'NotAllowedError' ? 'PERMISSION_DENIED' : 'ক্যামেরা সংযোগ বিচ্ছিন্ন। আবার চেষ্টা করুন।');
+            setStatus('ERROR');
+            setIsCameraActive(false);
         }
     };
 
@@ -346,7 +380,8 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                             if (!nextRec[sId] || nextRec[sId].deviceId !== a.remarks) {
                                 nextRec[sId] = {
                                     deviceId: a.remarks || 'unknown',
-                                    timestamp: new Date(a.createdAt || a.updatedAt)
+                                    timestamp: new Date(a.createdAt || a.updatedAt),
+                                    status: a.status
                                 };
                                 changed = true;
                             }
@@ -361,51 +396,106 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
         return () => clearInterval(interval);
     }, [activeInstitute, selectedDate]);
 
-    // Auto-start Scanner
     useEffect(() => {
-        if (students.length > 0 && !isCameraActive && status === 'IDLE' && !error && !isTestMode && !hasAutoStarted.current) {
-            // Only auto-start if we haven't hit a permission error or explicit error state
-            // AND we haven't already tried to auto-start this mount
-            if (error !== 'PERMISSION_DENIED') {
+        // Only auto-start if we have students and aren't already active/loading
+        if (students.length > 0 && !isCameraActive && (status === 'IDLE' || status === 'LOADING_STUDENTS') && !hasAutoStarted.current) {
+            if (!error || error !== 'PERMISSION_DENIED') {
+                console.log('Auto-starting scanner...');
                 hasAutoStarted.current = true;
                 startScanner();
             }
         }
-    }, [students, isCameraActive, status, error, isTestMode]);
+
+        // Reset auto-start flag if class changes and we are IDLE again
+        if (status === 'IDLE' && !isCameraActive) {
+            // allows next class to auto-start if it has students
+        }
+    }, [students.length, isCameraActive, status, error, isTestMode]);
 
     const markAttendance = async (studentId: string, studentName: string, overrideClassId?: string) => {
-        const now = Date.now();
-        if (markingCooldown.current[studentId] && now - markingCooldown.current[studentId] < 10000) {
+        const now = new Date();
+        const nowTime = now.getTime();
+
+        if (markingCooldown.current[studentId] && nowTime - markingCooldown.current[studentId] < 5000) {
             return;
         }
-        markingCooldown.current[studentId] = now;
+        markingCooldown.current[studentId] = nowTime;
+
+        // NEW: Check for existing attendance to prevent duplicates and keep original time
+        const existingRecord = attendanceRecords[studentId];
 
         try {
-            const dateString = selectedDate || new Date().toISOString().split('T')[0];
+            const dateString = selectedDate || now.toISOString().split('T')[0];
             const deviceId = localStorage.getItem('attendance_device_id') || 'unknown';
+
+            // Find class settings for auto-late detection
+            const targetClassId = overrideClassId || selectedClassId || students.find(s => s.id === studentId)?.classId;
+            const targetClass = classes.find(c => c.id === targetClassId);
+
+            let status: 'PRESENT' | 'LATE' | 'LEAVE' = scannerMarkMode;
+
+            if (existingRecord) {
+                const newMatch = {
+                    id: studentId,
+                    name: studentName,
+                    time: new Date(existingRecord.timestamp).toLocaleTimeString('bn-BD'),
+                    photo: students.find(s => s.id === studentId)?.photo,
+                    isAlreadyMarked: true,
+                    status: existingRecord.status as any,
+                    timestamp: Date.now()
+                };
+                setRecentMatches(prev => [newMatch, ...prev.filter(m => m.id !== studentId)].slice(0, 3));
+                setTimeout(() => {
+                    setRecentMatches(prev => prev.filter(m => m.timestamp !== newMatch.timestamp));
+                }, 5000);
+                return;
+            }
+
+            // Only auto-calculate if user hasn't explicitly picked a special mode (Late/Leave)
+            if (scannerMarkMode === 'PRESENT' && targetClass?.startTime) {
+                const [startHour, startMin] = targetClass.startTime.split(':').map(Number);
+                const threshold = targetClass.lateThreshold || 15;
+                const startTimeToday = new Date(now);
+                startTimeToday.setHours(startHour, startMin, 0, 0);
+                const lateLimit = new Date(startTimeToday.getTime() + threshold * 60000);
+                if (now > lateLimit) status = 'LATE';
+            }
+
             const response = await fetch('/api/attendance/mark', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     studentId,
                     instituteId: activeInstitute?.id,
-                    classId: overrideClassId || selectedClassId || students.find(s => s.id === studentId)?.classId,
+                    classId: targetClassId,
                     dateString,
-                    status: 'PRESENT',
+                    status,
                     method: 'FRS',
                     remarks: deviceId
                 }),
             });
 
             if (response.ok) {
+                playSound('success');
                 setMarkedStudents(prev => new Set(prev).add(studentId));
                 setAttendanceRecords(prev => ({
                     ...prev,
-                    [studentId]: { deviceId, timestamp: new Date() }
+                    [studentId]: { deviceId, timestamp: new Date(), status }
                 }));
-                const student = students.find(s => s.id === studentId);
-                setLastMarked({ name: studentName, time: new Date().toLocaleTimeString('bn-BD'), photo: student?.photo });
-                setTimeout(() => setLastMarked(null), 4000);
+
+                const newMatch = {
+                    id: studentId,
+                    name: studentName,
+                    time: new Date().toLocaleTimeString('bn-BD'),
+                    photo: students.find(s => s.id === studentId)?.photo,
+                    isAlreadyMarked: false,
+                    status,
+                    timestamp: Date.now()
+                };
+                setRecentMatches(prev => [newMatch, ...prev.filter(m => m.id !== studentId)].slice(0, 3));
+                setTimeout(() => {
+                    setRecentMatches(prev => prev.filter(m => m.timestamp !== newMatch.timestamp));
+                }, 5000);
             }
         } catch (err) {
             console.error('Error marking attendance:', err);
@@ -436,11 +526,82 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                 // Optional: success toast could go here
             } else {
                 const errorData = await response.json();
-                alert(`হাজিরা বাতিল করা যায়নি: ${errorData.error || 'Unknown error'}`);
+                showToast(`হাজিরা বাতিল করা যায়নি: ${errorData.error || 'Unknown error'}`, 'ERROR');
             }
         } catch (error) {
             console.error('Error unmarking attendance:', error);
-            alert('সার্ভারে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।');
+            showToast('সার্ভারে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।', 'ERROR');
+        }
+    };
+
+    const runDataAnalysis = async () => {
+        const pendingStudents = students.filter(s => (!s.faceDescriptor || s.faceDescriptor.length === 0) && s.photo);
+        if (pendingStudents.length === 0) {
+            showToast('বিশ্লেষণ করার মতো কোনো নতুন শিক্ষার্থী পাওয়া যায়নি।', 'INFO');
+            return;
+        }
+
+        if (!modelsLoaded) {
+            showToast('মডেল লোড হওয়া পর্যন্ত অপেক্ষা করুন।', 'INFO');
+            return;
+        }
+
+        setIsAnalyzing(true);
+        setAnalysisProgress({ current: 0, total: pendingStudents.length });
+
+        let successCount = 0;
+        const updatedStudents = [...students];
+
+        try {
+            for (let i = 0; i < pendingStudents.length; i++) {
+                const student = pendingStudents[i];
+                setAnalysisProgress({ current: i + 1, total: pendingStudents.length });
+
+                try {
+                    const img = await faceapi.fetchImage(student.photo!);
+                    const detection = await faceapi
+                        .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 }))
+                        .withFaceLandmarks()
+                        .withFaceDescriptor();
+
+                    if (detection) {
+                        const descriptor = Array.from(detection.descriptor);
+                        const res = await fetch(`/api/students/${student.id}/face`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ descriptor })
+                        });
+
+                        if (res.ok) {
+                            successCount++;
+                            const index = updatedStudents.findIndex(s => s.id === student.id);
+                            if (index !== -1) {
+                                updatedStudents[index] = { ...updatedStudents[index], faceDescriptor: descriptor };
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Failed to analyze student ${student.id}:`, err);
+                }
+            }
+
+            setStudents(updatedStudents);
+
+            // Re-initialize FaceMatcher
+            const enrolled = updatedStudents.filter((s: any) => s.faceDescriptor && s.faceDescriptor.length > 0);
+            if (enrolled.length > 0) {
+                const labeledDescriptors = enrolled.map((s: any) =>
+                    new faceapi.LabeledFaceDescriptors(s.id, [new Float32Array(s.faceDescriptor)])
+                );
+                setFaceMatcher(new faceapi.FaceMatcher(labeledDescriptors, 0.5));
+            }
+
+            showToast(`${successCount} জন শিক্ষার্থীর ফেস ডেটা সফলভাবে বিশ্লেষণ করা হয়েছে।`, 'SUCCESS');
+        } catch (err) {
+            console.error('Data analysis failed:', err);
+            showToast('বিশ্লেষণ করার সময় একটি সমস্যা হয়েছে।', 'ERROR');
+        } finally {
+            setIsAnalyzing(false);
         }
     };
 
@@ -478,7 +639,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
             }
 
             if (!currentMatcher) {
-                setError('কোনো এনরোলড ছাত্র পাওয়া যায়নি।');
+                showToast('কোনো এনরোলড ছাত্র পাওয়া যায়নি।', 'ERROR');
                 return;
             }
 
@@ -488,7 +649,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                 .withFaceDescriptors();
 
             if (detections.length === 0) {
-                setError('ছবিতে কোনো মুখ পাওয়া যায়নি।');
+                showToast('ছবিতে কোনো মুখ পাওয়া যায়নি।', 'ERROR');
             } else {
                 setStatus('SCANNING');
                 if (canvasRef.current) {
@@ -507,7 +668,11 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                             boxColor: student ? '#10b981' : '#f43f5e'
                         });
                         drawBox.draw(canvasRef.current!);
-                        if (student) markAttendance(student.id, student.name, student.classId);
+                        if (student) {
+                            markAttendance(student.id, student.name, student.classId);
+                        } else {
+                            playSound('fail');
+                        }
                     });
                 }
             }
@@ -533,347 +698,403 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
         // Better approach: use Web Audio API for reliable generated sounds using single context
         // processFrame will use the playSound from the outer scope
 
-        let interval: NodeJS.Timeout;
+        let requestRef: { current: number | null } = { current: null };
+        let isProcessing = false;
+
         const processFrame = async () => {
-            if (status !== 'SCANNING' || !videoRef.current || !faceMatcher || !isCameraActive) return;
-            const detections = await faceapi
-                .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions())
-                .withFaceLandmarks()
-                .withFaceDescriptors();
-            if (detections.length > 0 && canvasRef.current) {
-                const displaySize = { width: videoRef.current.videoWidth, height: videoRef.current.videoHeight };
-                faceapi.matchDimensions(canvasRef.current, displaySize);
-                const resizedDetections = faceapi.resizeResults(detections, displaySize);
-                const ctx = canvasRef.current.getContext('2d');
-                if (ctx) {
-                    ctx.clearRect(0, 0, displaySize.width, displaySize.height);
-                    resizedDetections.forEach(detection => {
-                        const result = faceMatcher.findBestMatch(detection.descriptor);
-                        const label = result.label;
-                        const student = students.find(s => s.id === label);
-                        const box = detection.detection.box;
-                        const drawBox = new faceapi.draw.DrawBox(box, {
-                            label: student ? student.name : 'অচেনা',
-                            boxColor: student ? '#10b981' : '#f43f5e'
+            if (status !== 'SCANNING' || !videoRef.current || !faceMatcher || !isCameraActive || isProcessing || isPaused) {
+                if (status === 'SCANNING') requestRef.current = requestAnimationFrame(processFrame);
+                return;
+            }
+
+            isProcessing = true;
+            try {
+                const detections = await faceapi
+                    .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.4 }))
+                    .withFaceLandmarks()
+                    .withFaceDescriptors();
+
+                if (detections.length > 0 && canvasRef.current) {
+                    const displaySize = { width: videoRef.current.videoWidth, height: videoRef.current.videoHeight };
+
+                    // Only match dimensions if they changed (performance win)
+                    if (canvasRef.current.width !== displaySize.width || canvasRef.current.height !== displaySize.height) {
+                        faceapi.matchDimensions(canvasRef.current, displaySize);
+                    }
+
+                    const resizedDetections = faceapi.resizeResults(detections, displaySize);
+                    const ctx = canvasRef.current.getContext('2d');
+                    if (ctx) {
+                        ctx.clearRect(0, 0, displaySize.width, displaySize.height);
+                        resizedDetections.forEach(detection => {
+                            const result = faceMatcher.findBestMatch(detection.descriptor);
+                            const label = result.label;
+                            const student = students.find(s => s.id === label);
+                            const box = detection.detection.box;
+
+                            const drawBox = new faceapi.draw.DrawBox(box, {
+                                label: student ? student.name : 'অচেনা',
+                                boxColor: student ? '#10b981' : '#f43f5e'
+                            });
+                            drawBox.draw(canvasRef.current!);
+
+                            // Audio Feedback Logic
+                            const now = Date.now();
+                            const soundCooldown = 3000;
+                            const trackLabel = student ? student.id : 'unknown';
+
+                            if (!lastSoundPlayed.current[trackLabel] || now - lastSoundPlayed.current[trackLabel] > soundCooldown) {
+                                if (!student) playSound('fail');
+                                lastSoundPlayed.current[trackLabel] = now;
+                            }
+
+                            if (student) markAttendance(student.id, student.name, student.classId);
                         });
-                        drawBox.draw(canvasRef.current!);
-
-                        // Audio Feedback Logic
-                        const now = Date.now();
-                        const soundCooldown = 3000; // 3 seconds before playing sound again for the same person/unknown
-                        const trackLabel = student ? student.id : 'unknown';
-
-                        if (!lastSoundPlayed.current[trackLabel] || now - lastSoundPlayed.current[trackLabel] > soundCooldown) {
-                            playSound(student ? 'success' : 'fail');
-                            lastSoundPlayed.current[trackLabel] = now;
-                        }
-
-                        if (student) markAttendance(student.id, student.name, student.classId);
-                    });
+                    }
+                } else if (canvasRef.current) {
+                    const ctx = canvasRef.current.getContext('2d');
+                    ctx?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
                 }
-            } else if (canvasRef.current) {
-                const ctx = canvasRef.current.getContext('2d');
-                ctx?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            } catch (error) {
+                console.error('Frame processing error:', error);
+            } finally {
+                isProcessing = false;
+                if (status === 'SCANNING') requestRef.current = requestAnimationFrame(processFrame);
             }
         };
-        if (status === 'SCANNING' && !isTestMode) interval = setInterval(processFrame, 500);
-        return () => { if (interval) clearInterval(interval); };
+
+        if (status === 'SCANNING' && !isTestMode) {
+            requestRef.current = requestAnimationFrame(processFrame);
+        }
+
+        return () => {
+            if (requestRef.current) cancelAnimationFrame(requestRef.current);
+        };
     }, [status, faceMatcher, students, isCameraActive, isTestMode]);
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Data Analysis Strip */}
+            {students.some(s => (!s.faceDescriptor || s.faceDescriptor.length === 0) && s.photo) && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+                    <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isAnalyzing ? 'bg-amber-500 text-white animate-pulse' : 'bg-white text-amber-500 border border-amber-100'}`}>
+                            {isAnalyzing ? <RefreshCw className="animate-spin" size={24} /> : <Zap size={24} fill="currentColor" />}
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-black text-amber-900 uppercase tracking-tight">স্মার্ট ম্যাচিং বিশ্লেষণ প্রয়োজন</h4>
+                            <p className="text-[10px] font-bold text-amber-700/70 uppercase tracking-widest">
+                                {isAnalyzing
+                                    ? `বিশ্লেষণ চলছে: ${analysisProgress.current} / ${analysisProgress.total}`
+                                    : `${students.filter(s => (!s.faceDescriptor || s.faceDescriptor.length === 0) && s.photo).length} জন শিক্ষার্থীর ছবি বিশ্লেষণ বাকি আছে`}
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        onClick={runDataAnalysis}
+                        disabled={isAnalyzing || !modelsLoaded}
+                        className={`px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center gap-2 shadow-lg ${isAnalyzing
+                            ? 'bg-amber-100 text-amber-400 cursor-not-allowed'
+                            : 'bg-amber-500 text-white hover:bg-amber-600 shadow-amber-200'
+                            }`}
+                    >
+                        {isAnalyzing ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} fill="currentColor" />}
+                        {isAnalyzing ? 'বিশ্লেষণ হচ্ছে...' : 'বিশ্লেষণ করুন'}
+                    </button>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.5fr)_minmax(450px,1fr)] gap-8">
                 {/* Main Scanner Section */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="relative aspect-video bg-slate-900 rounded-[40px] overflow-hidden shadow-2xl border-4 border-white ring-8 ring-slate-100/50 group">
-                        <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
-                        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full scale-x-[-1]" />
-
-                        <AnimatePresence mode="wait">
-                            {(status === 'IDLE' || (status as string) === 'ERROR') && !isCameraActive && (
-                                <motion.div key="scanner-idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/40 backdrop-blur-md flex flex-col items-center justify-center text-white text-center p-4">
-                                    <div className="w-20 h-20 bg-white/10 rounded-[32px] flex items-center justify-center mb-6 ring-8 ring-white/5 group-hover:scale-110 transition-transform duration-500">
-                                        <Camera size={32} className="text-white/80" />
-                                    </div>
-                                    <h3 className="text-2xl font-black mb-2 italic uppercase tracking-tighter">স্মার্ট হাজিরা সিস্টেম</h3>
-                                    <p className="text-xs font-bold text-slate-300 max-w-[320px] mb-8 leading-relaxed opacity-60">ক্যামেরা দিয়ে অটো হাজিরা নিতে "স্ক্যান শুরু" ক্লিক করুন অথবা ফটো আপলোড করে চেক করুন।</p>
-                                    <div className="flex gap-4 w-full max-w-[480px]">
-                                        <button onClick={startScanner} disabled={status === 'LOADING_STUDENTS'} className="flex-1 py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-xl shadow-blue-900/20 hover:bg-[#034a6b] transition-all flex items-center justify-center gap-2 group/btn">
-                                            <Zap size={18} className="group-hover/btn:animate-pulse" />
-                                            স্ক্যান শুরু করুন
-                                        </button>
-                                        <button onClick={() => { setIsTestMode(true); uploadImgRef.current?.click(); }} className="flex-1 py-4 bg-white/10 hover:bg-white/20 text-white font-black rounded-2xl transition-all border border-white/10 flex items-center justify-center gap-2">
-                                            <Upload size={18} />
-                                            ফটো আপলোড
-                                        </button>
-                                    </div>
-                                    <input ref={uploadImgRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
-                                </motion.div>
-                            )}
-
-                            {status === 'INITIALIZING' && (
-                                <motion.div key="scanner-initializing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center text-white">
-                                    <Loader2 size={48} className="animate-spin text-[#045c84] mb-6" />
-                                    <p className="text-sm font-black italic tracking-widest text-[#045c84] uppercase">Initalizing Hardware...</p>
-                                </motion.div>
-                            )}
-
-                            {error === 'PERMISSION_DENIED' && (
-                                <motion.div key="scanner-error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900/90 backdrop-blur-xl flex flex-col items-center justify-center text-white p-8">
-                                    <div className="w-20 h-20 bg-rose-500/20 text-rose-500 rounded-3xl flex items-center justify-center mb-6 ring-8 ring-rose-500/10">
-                                        <XCircle size={40} />
-                                    </div>
-                                    <h3 className="text-2xl font-black mb-2 italic">ক্যামেরা পারমিশন নেই</h3>
-                                    <p className="text-xs font-bold text-slate-400 max-w-[320px] mb-8 leading-relaxed">ব্রাউজার সেটিংস থেকে ক্যামেরা ব্যবহারের অনুমতি দিন অথবা ফটো আপলোড করে হাজিরা দিন।</p>
-                                    <div className="flex gap-4">
-                                        <button onClick={startScanner} className="px-8 py-4 bg-[#045c84] text-white font-black rounded-2xl shadow-xl hover:bg-[#034a6b] transition-all active:scale-95 text-[14px] flex items-center gap-2">
-                                            <RefreshCw size={18} /> আবার চেষ্টা করুন
-                                        </button>
-                                        <button onClick={() => { setIsTestMode(true); uploadImgRef.current?.click(); }} className="px-8 py-4 bg-white text-slate-900 font-black rounded-2xl shadow-xl hover:bg-slate-100 transition-all active:scale-95 text-[14px]">ফটো আপলোড</button>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        {/* Recent detection pop-up */}
-                        <AnimatePresence mode="wait">
-                            {lastMarked && (
-                                <motion.div key="detection-popup" initial={{ opacity: 0, y: 30, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="absolute bottom-10 left-1/2 -translate-x-1/2 bg-emerald-500 text-white p-4 rounded-3xl shadow-2xl flex items-center gap-4 border-2 border-white/30 z-50 min-w-[320px]">
-                                    <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center overflow-hidden border border-white/20">
-                                        {lastMarked.photo ? <img src={lastMarked.photo} className="w-full h-full object-cover" /> : <CheckCircle2 size={24} />}
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-[10px] font-black opacity-80 uppercase tracking-widest leading-none mb-1">Marked Present</p>
-                                        <p className="text-lg font-black italic uppercase leading-tight truncate">{lastMarked.name}</p>
-                                    </div>
-                                    <div className="text-[11px] font-black bg-black/10 px-3 py-2 rounded-xl uppercase">{lastMarked.time}</div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-
-                        {/* Top Indicators */}
-                        <div className="absolute top-6 left-6 flex items-center gap-2">
-                            <div className="flex items-center gap-3 px-4 py-2 bg-slate-900/60 backdrop-blur-md rounded-2xl border border-white/10">
-                                <div className={`w-2 h-2 rounded-full ${status === 'SCANNING' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
-                                <span className="text-[10px] font-black text-white uppercase tracking-widest pt-0.5 italic">
-                                    {status === 'SCANNING' ? (isTestMode ? 'Test Mode' : 'Live Mode') : 'Standby'}
+                <div className="space-y-6 min-w-0">
+                    <div className="relative bg-slate-900 rounded-2xl overflow-hidden shadow-2xl border-4 border-white ring-8 ring-slate-100/50 group">
+                        {/* Minimal Live Indicator - Only when scanning */}
+                        {status === 'SCANNING' && (
+                            <div className="absolute top-4 left-4 flex items-center gap-2 bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 z-20">
+                                <div className={`w-1.5 h-1.5 rounded-full ${isPaused ? 'bg-amber-400' : 'bg-emerald-400 animate-pulse'}`} />
+                                <span className="text-[9px] font-black text-white/90 uppercase tracking-[0.2em] pt-0.5 italic">
+                                    {isPaused ? 'PAUSED' : (isTestMode ? 'Test Mode' : 'Live Mode')}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-3 px-4 py-2 bg-blue-600/80 backdrop-blur-md rounded-2xl border border-white/10 text-white">
-                                <span className="text-[10px] font-black uppercase italic tracking-widest pt-0.5">Pool: {students.length}</span>
-                            </div>
-                        </div>
-
-                        {status === 'SCANNING' && !isTestMode && (
-                            <button onClick={stopScanner} className="absolute bottom-6 right-6 w-14 h-14 bg-rose-500/90 text-white rounded-2xl transition-all z-40 flex items-center justify-center shadow-lg hover:scale-105 active:scale-95 border-2 border-white/20 blur-none">
-                                <XCircle size={28} />
-                            </button>
                         )}
-                    </div>
 
-                    {/* Stats Grid */}
-                    <div className="grid grid-cols-3 gap-6">
-                        {[
-                            { id: 'stat-attended', label: 'Attended', value: classMarkedStudents.size, color: 'emerald', icon: UserCheck },
-                            { id: 'stat-absent', label: 'Absent', value: classStudents.length - classMarkedStudents.size, color: 'rose', icon: XCircle },
-                            { id: 'stat-pool', label: 'Class Pool', value: classStudents.length, color: 'blue', icon: Users },
-                        ].map((stat) => (
-                            <div key={stat.id} className="bg-white p-6 rounded-[32px] border border-slate-200 flex items-center gap-5 group hover:shadow-xl transition-all duration-500">
-                                <div className={`w-12 h-12 bg-${stat.color}-50 text-${stat.color}-500 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                                    <stat.icon size={22} />
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 italic opacity-60">{stat.label}</p>
-                                    <p className="text-2xl font-black text-slate-800 leading-none">{stat.value}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+                        <div className="relative aspect-video">
+                            <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover scale-x-[-1]" />
+                            <canvas ref={canvasRef} className="absolute inset-0 w-full h-full scale-x-[-1]" />
 
-                    {/* Mobile Only: Attended Students Horizontal List (Below Camera/Stats) */}
-                    <div className="lg:hidden bg-white rounded-[32px] border border-emerald-100 p-5 shadow-sm overflow-hidden h-[200px] flex flex-col">
-                        <div className="flex items-center gap-2 mb-4 px-2 shrink-0">
-                            <CheckCircle2 size={16} className="text-emerald-500" />
-                            <h4 className="text-sm font-black text-emerald-600 italic uppercase">উপস্থিত ছাত্রছাত্রী</h4>
-                            <span className="ml-auto bg-emerald-100 text-emerald-600 px-2.5 py-1 rounded-lg text-[10px] font-black">{classMarkedStudents.size} জন</span>
-                        </div>
-                        {classMarkedStudents.size === 0 ? (
-                            <div className="flex-1 flex flex-col items-center justify-center opacity-40">
-                                <Users size={24} className="mb-2 text-emerald-300" />
-                                <p className="text-[10px] font-bold text-emerald-600 uppercase italic">কোনো রেকর্ড নেই</p>
-                            </div>
-                        ) : (
-                            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 px-2 flex-1 items-start">
-                                <AnimatePresence>
-                                    {Array.from(classMarkedStudents).reverse().map((id, idx) => {
-                                        const student = students.find(s => s.id === id);
-                                        if (!student) return null;
-                                        return (
-                                            <motion.div
-                                                key={`mobile-attn-${id || idx}`}
-                                                initial={{ opacity: 0, scale: 0.9, x: -20 }}
-                                                animate={{ opacity: 1, scale: 1, x: 0 }}
-                                                className={`min-w-[140px] rounded-2xl border-2 p-3 flex flex-col items-center text-center relative shadow-sm group/card ${attendanceRecords[student.id]?.deviceId === deviceId || attendanceRecords[student.id]?.deviceId === 'unknown' ? 'bg-emerald-50/50 border-emerald-100' : 'bg-indigo-50/50 border-indigo-100'}`}
-                                            >
-                                                <button
-                                                    onClick={() => unmarkAttendance(student.id)}
-                                                    className="absolute top-2 left-2 w-5 h-5 bg-white text-rose-500 rounded-full flex items-center justify-center shadow-sm border border-rose-100 hover:bg-rose-50 hover:scale-110 active:scale-95 transition-all z-10"
-                                                    title="Remove Attendance"
-                                                >
-                                                    <XCircle size={12} strokeWidth={3} />
+                            <AnimatePresence mode="wait">
+                                {(status === 'IDLE' || (status as string) === 'ERROR') && !isCameraActive && (
+                                    <motion.div key="scanner-idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/40 backdrop-blur-xl flex flex-col items-center justify-center text-white text-center p-6">
+                                        <div className="w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center mb-4 border border-white/10 group-hover:scale-105 transition-transform duration-700">
+                                            <Camera size={20} className="text-white/80" />
+                                        </div>
+                                        <h3 className="text-lg font-black mb-1 italic uppercase tracking-tighter">
+                                            {error ? 'ক্যামেরা সমস্যা' : 'স্মার্ট হাজিরা সিস্টেম'}
+                                        </h3>
+                                        <p className="text-[9px] font-bold text-white/60 max-w-[240px] mb-4 leading-relaxed uppercase tracking-wider">
+                                            {error || 'ক্যামেরা দিয়ে অটো হাজিরা নিতে "স্ক্যান শুরু" করুন অথবা ফটো আপলোড করুন।'}
+                                        </p>
+
+                                        <div className="flex flex-col items-center gap-3 mt-2 w-full max-w-[280px]">
+                                            <div className="flex gap-2 w-full">
+                                                <button onClick={startScanner} disabled={status === 'LOADING_STUDENTS'} className="flex-1 py-1.5 bg-white text-slate-900 font-bold rounded-lg shadow-lg hover:bg-slate-50 transition-all text-[9px] uppercase tracking-wider active:scale-95">
+                                                    {error ? 'আবার চেষ্টা করুন' : 'স্ক্যান শুরু করুন'}
                                                 </button>
-                                                <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
-                                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-white shadow-sm ring-2 ring-white ${attendanceRecords[student.id]?.deviceId === deviceId || attendanceRecords[student.id]?.deviceId === 'unknown' ? 'bg-emerald-500' : 'bg-indigo-500'}`}>
-                                                        <Check size={12} strokeWidth={3} />
-                                                    </div>
-                                                </div>
-                                                <div className={`w-12 h-12 bg-white rounded-full border-2 overflow-hidden mb-2 shadow-sm shrink-0 ${attendanceRecords[student.id]?.deviceId === deviceId || attendanceRecords[student.id]?.deviceId === 'unknown' ? 'border-emerald-200' : 'border-indigo-200'}`}>
-                                                    {student.photo ? (
-                                                        <img src={student.photo} alt={student.name} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        <div className={`w-full h-full flex items-center justify-center font-black text-xs uppercase ${attendanceRecords[student.id]?.deviceId === deviceId || attendanceRecords[student.id]?.deviceId === 'unknown' ? 'text-emerald-300' : 'text-indigo-300'}`}>
-                                                            {student.name.charAt(0)}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <p className="text-[11px] font-black text-slate-700 truncate w-full uppercase italic leading-tight mb-1">{student.name}</p>
-                                                <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400 uppercase mt-auto">
-                                                    <Clock size={10} />
-                                                    {attendanceRecords[student.id]?.timestamp?.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }) || new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })}
-                                                </div>
-                                                <div className={`flex items-center gap-1 text-[8px] font-black px-2 py-0.5 rounded-full mt-1.5 w-full justify-center ${attendanceRecords[student.id]?.deviceId === deviceId || attendanceRecords[student.id]?.deviceId === 'unknown' ? 'text-blue-500 bg-blue-50' : 'text-indigo-500 bg-indigo-50'}`}>
-                                                    <CheckSquare size={10} /> {attendanceRecords[student.id]?.deviceId === deviceId || attendanceRecords[student.id]?.deviceId === 'unknown' ? 'Message Sent' : 'Synced'}
-                                                </div>
-                                            </motion.div>
-                                        );
-                                    })}
-                                </AnimatePresence>
-                            </div>
-                        )}
-                    </div>
+                                                <button onClick={() => { setIsTestMode(true); uploadImgRef.current?.click(); }} className="flex-1 py-1.5 bg-white/10 hover:bg-white/15 text-white font-bold rounded-lg transition-all border border-white/10 text-[9px] uppercase tracking-wider active:scale-95">
+                                                    ফটো আপলোড
+                                                </button>
+                                            </div>
+                                        </div>
 
-                    {/* Absent Students List (Below Camera) */}
-                    {classStudents.length - classMarkedStudents.size > 0 && (
-                        <div className="bg-white rounded-[32px] border border-rose-100 p-5 shadow-sm">
-                            <div className="flex items-center gap-2 mb-4 px-2">
-                                <XCircle size={16} className="text-rose-500" />
-                                <h4 className="text-sm font-black text-rose-600 italic uppercase">অনুপস্থিত ছাত্রছাত্রী</h4>
-                                <span className="ml-auto bg-rose-100 text-rose-600 px-2.5 py-1 rounded-lg text-[10px] font-black">{classStudents.length - classMarkedStudents.size} জন</span>
-                            </div>
-                            <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2 px-2">
-                                <AnimatePresence>
-                                    {classStudents.filter(s => s.id && !classMarkedStudents.has(s.id)).map((student, idx) => (
-                                        <motion.div
-                                            key={`absent-${student.id || idx}`}
-                                            initial={{ opacity: 0, scale: 0.9 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.9 }}
-                                            className="min-w-[140px] bg-rose-50/50 rounded-2xl border-2 border-rose-100 p-3 flex flex-col items-center text-center group hover:bg-rose-50 hover:border-rose-200 transition-colors"
+                                        <input ref={uploadImgRef} type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" />
+                                    </motion.div>
+                                )}
+
+                                {status === 'INITIALIZING' && (
+                                    <motion.div key="scanner-initializing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center text-white">
+                                        <Loader2 size={48} className="animate-spin text-[#045c84] mb-6" />
+                                        <p className="text-sm font-black italic tracking-widest text-[#045c84] uppercase">Initalizing Hardware...</p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            {/* Persistent Controls Container */}
+                            <div className="absolute top-6 right-6 flex items-center gap-3 z-50">
+                                {/* Mode Selector */}
+                                <div className="hidden md:flex items-center gap-1.5 bg-black/20 backdrop-blur-md p-1 rounded-xl border border-white/10 shadow-xl">
+                                    {[
+                                        { id: 'PRESENT', label: 'উপস্থিত', color: 'bg-emerald-500' },
+                                        { id: 'LATE', label: 'দেরি', color: 'bg-amber-500' },
+                                        { id: 'LEAVE', label: 'ছুটি', color: 'bg-blue-500' }
+                                    ].map((mode) => (
+                                        <button
+                                            key={mode.id}
+                                            onClick={() => setScannerMarkMode(mode.id as any)}
+                                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all active:scale-95 ${scannerMarkMode === mode.id ? `${mode.color} text-white shadow-lg` : 'text-white/40 hover:text-white/60 hover:bg-white/5'}`}
                                         >
-                                            <div className="w-14 h-14 bg-white rounded-full border-2 border-rose-200 overflow-hidden mb-2 shadow-sm shrink-0">
-                                                {student.photo ? (
-                                                    <img src={student.photo} alt={student.name} className="w-full h-full object-cover" />
+                                            {mode.label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Pause/Active Toggle */}
+                                <button
+                                    onClick={() => setIsPaused(!isPaused)}
+                                    className={`w-9 h-9 rounded-xl backdrop-blur-md border border-white/10 flex items-center justify-center transition-all active:scale-90 group/pause shadow-xl ${isPaused ? 'bg-amber-500/20 text-amber-400 hover:bg-amber-500/30' : 'bg-black/20 text-white/60 hover:text-white hover:bg-black/40'}`}
+                                    title={isPaused ? "Resume Scanning" : "Pause Scanning"}
+                                >
+                                    {isPaused ? <Play size={16} fill="currentColor" /> : <Pause size={16} fill="currentColor" />}
+                                </button>
+
+                                {/* Persistent Audio Test Button */}
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); playSound('success'); }}
+                                    className="w-9 h-9 rounded-xl bg-black/20 backdrop-blur-md border border-white/10 flex items-center justify-center text-white/60 hover:text-white hover:bg-black/40 transition-all active:scale-90 group/test shadow-xl"
+                                    title="Test Audio"
+                                >
+                                    <Volume2 size={16} className="group-hover/test:scale-110 transition-transform" />
+                                </button>
+                            </div>
+
+                            {/* Recent detection pop-up stack */}
+                            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col-reverse items-center gap-2 z-50 pointer-events-none">
+                                <AnimatePresence mode="popLayout">
+                                    {recentMatches.map((match) => (
+                                        <motion.div
+                                            key={match.timestamp}
+                                            initial={{ opacity: 0, y: 20, scale: 0.8 }}
+                                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                                            exit={{ opacity: 0, scale: 0.8 }}
+                                            className={`p-3 rounded-2xl shadow-2xl flex items-center gap-4 border-2 min-w-[300px] backdrop-blur-md ${match.isAlreadyMarked
+                                                ? 'bg-amber-500/90 border-white/40'
+                                                : match.status === 'LATE'
+                                                    ? 'bg-amber-500/90 border-white/30'
+                                                    : match.status === 'LEAVE'
+                                                        ? 'bg-blue-500/90 border-white/30'
+                                                        : 'bg-emerald-500/90 border-white/30'
+                                                }`}
+                                        >
+                                            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center overflow-hidden border border-white/20 shrink-0">
+                                                {match.photo ? (
+                                                    <img src={match.photo} className="w-full h-full object-cover" />
                                                 ) : (
-                                                    <div className="w-full h-full flex items-center justify-center text-rose-300 font-black text-sm uppercase">
-                                                        {student.name.charAt(0)}
-                                                    </div>
+                                                    <CheckCircle2 size={24} className="text-white" />
                                                 )}
                                             </div>
-                                            <p className="text-xs font-black text-slate-700 truncate w-full group-hover:text-rose-600 transition-colors uppercase italic">{student.name}</p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <p className="text-[9px] font-bold text-slate-400 uppercase">Absent</p>
-                                                {student.stats && (
-                                                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${student.stats.percentage >= 80 ? 'text-emerald-600 bg-emerald-50' :
-                                                        student.stats.percentage >= 50 ? 'text-amber-600 bg-amber-50' : 'text-rose-600 bg-rose-50'
-                                                        }`}>
-                                                        {student.stats.percentage}%
-                                                    </span>
-                                                )}
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-[9px] font-black underline underline-offset-2 opacity-80 uppercase tracking-widest leading-none mb-1 text-white">
+                                                    {match.isAlreadyMarked
+                                                        ? 'পূর্বেই বর্তমান'
+                                                        : match.status === 'LATE'
+                                                            ? 'দেরি উপস্থিতি'
+                                                            : match.status === 'LEAVE'
+                                                                ? 'ছুটি নিশ্চিত'
+                                                                : 'উপস্থিত নিশ্চিত'}
+                                                </p>
+                                                <p className="text-md font-black italic uppercase leading-tight truncate text-white">{match.name}</p>
+                                            </div>
+                                            <div className="text-[10px] font-black bg-black/20 text-white px-2.5 py-1.5 rounded-lg uppercase border border-white/10 shrink-0">
+                                                {match.time}
                                             </div>
                                         </motion.div>
                                     ))}
                                 </AnimatePresence>
                             </div>
+
+
+                            {status === 'SCANNING' && !isTestMode && (
+                                <button onClick={stopScanner} className="absolute bottom-6 right-6 w-12 h-12 bg-black/40 backdrop-blur-md text-white/80 rounded-2xl transition-all z-40 flex items-center justify-center shadow-2xl hover:bg-black/60 active:scale-95 border border-white/10">
+                                    <XCircle size={24} />
+                                </button>
+                            )}
                         </div>
-                    )}
+                    </div>
                 </div>
 
-                {/* Log Panel */}
-                <div className="bg-white rounded-[40px] border border-slate-200 flex flex-col shadow-sm h-[calc(100vh-220px)] overflow-hidden">
-                    <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-100">
-                                <History size={18} />
-                            </div>
-                            <h3 className="font-black text-slate-700 italic uppercase tracking-tighter">Attendance Log</h3>
+                <div className="space-y-6">
+                    <div className="bg-white rounded-2xl border border-slate-200 flex flex-col shadow-sm h-[calc(100vh-220px)] overflow-hidden">
+                        {/* Tab Header */}
+                        <div className="flex bg-slate-50 border-b border-slate-100 p-1.5 gap-1.5 shrink-0 overflow-x-auto no-scrollbar">
+                            {[
+                                { id: 'PRESENT', label: 'উপস্থিত', color: 'emerald', count: Array.from(classMarkedStudents).filter(id => attendanceRecords[id]?.status === 'PRESENT').length },
+                                { id: 'LATE', label: 'দেরি', color: 'amber', count: Array.from(classMarkedStudents).filter(id => attendanceRecords[id]?.status === 'LATE').length },
+                                { id: 'LEAVE', label: 'ছুটি', color: 'blue', count: Array.from(classMarkedStudents).filter(id => attendanceRecords[id]?.status === 'LEAVE').length },
+                                { id: 'ABSENT', label: 'অনুপস্থিত', color: 'rose', count: classStudents.length - classMarkedStudents.size }
+                            ].map((tab) => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id as any)}
+                                    className={`flex-1 min-w-[80px] py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex flex-col items-center justify-center gap-1 ${activeTab === tab.id ? `bg-white text-${tab.color}-600 shadow-sm border border-slate-100` : 'text-slate-400 hover:bg-white/50'}`}
+                                >
+                                    <span className="opacity-60">{tab.label}</span>
+                                    <span className={`text-xs ${activeTab === tab.id ? `text-${tab.color}-600` : 'text-slate-600'}`}>{tab.count}</span>
+                                </button>
+                            ))}
                         </div>
-                        <div className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[9px] font-black uppercase tracking-widest ring-1 ring-emerald-100">Live</div>
-                    </div>
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
-                        <AnimatePresence mode="wait" initial={false}>
-                            {classMarkedStudents.size === 0 ? (
-                                <motion.div key="empty-log" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full flex flex-col items-center justify-center opacity-40 py-20">
-                                    <div className="w-16 h-16 bg-slate-100 text-slate-300 rounded-[28px] flex items-center justify-center mb-6">
-                                        <Users size={32} />
-                                    </div>
-                                    <p className="text-slate-400 font-bold text-xs uppercase italic tracking-widest text-center px-8 leading-relaxed">এই ক্লাসের কোনো হাজিরার রেকর্ড নেই।</p>
-                                </motion.div>
-                            ) : (
-                                Array.from(classMarkedStudents).reverse().map((id, index) => {
-                                    if (!id) return null; // Skip invalid IDs
-                                    const s = students.find(std => std.id === id);
-                                    return (
-                                        <motion.div key={`marked-${id}-${index}`} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className={`group flex items-center gap-4 p-4 rounded-3xl border hover:shadow-lg transition-all duration-300 ${attendanceRecords[id]?.deviceId === deviceId || attendanceRecords[id]?.deviceId === 'unknown' ? 'bg-slate-50 border-slate-100 hover:bg-white hover:border-emerald-200' : 'bg-indigo-50/30 border-indigo-50 hover:bg-white hover:border-indigo-200'}`}>
-                                            <div className={`w-12 h-12 bg-white rounded-2xl border overflow-hidden flex-shrink-0 ${attendanceRecords[id]?.deviceId === deviceId || attendanceRecords[id]?.deviceId === 'unknown' ? 'border-slate-100' : 'border-indigo-100'}`}>
-                                                {s?.photo ? <img src={s.photo} className="w-full h-full object-cover" /> : <div className={`w-full h-full flex items-center justify-center font-black text-xs uppercase ${attendanceRecords[id]?.deviceId === deviceId || attendanceRecords[id]?.deviceId === 'unknown' ? 'text-slate-300' : 'text-indigo-300'}`}>{s?.name.charAt(0)}</div>}
+                        <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar pb-20">
+                            <AnimatePresence mode="wait">
+                                {activeTab !== 'ABSENT' ? (
+                                    <motion.div
+                                        key={`list-${activeTab}`}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: 20 }}
+                                        className="space-y-3"
+                                    >
+                                        {Array.from(classMarkedStudents).filter(id => attendanceRecords[id]?.status === activeTab).length === 0 ? (
+                                            <div className="py-20 text-center opacity-40">
+                                                <Users size={32} className="mx-auto mb-4 text-slate-300" />
+                                                <p className="text-slate-400 font-bold text-[10px] uppercase italic">কোনো রেকর্ড পাওয়া যায়নি</p>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <p className={`text-[14px] font-black text-slate-700 truncate uppercase italic tracking-tight transition-colors leading-none ${attendanceRecords[id]?.deviceId === deviceId || attendanceRecords[id]?.deviceId === 'unknown' ? 'group-hover:text-emerald-600' : 'group-hover:text-indigo-600'}`}>
-                                                        {s?.name || 'Unknown'}
-                                                    </p>
-                                                    {s?.classId && (!propClassId && !selectedClassId) && (
-                                                        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[9px] font-black text-slate-400 border border-slate-200 uppercase tracking-tighter">
-                                                            {classes.find(c => c.id === s.classId)?.name || 'N/A'}
-                                                        </span>
-                                                    )}
-                                                    {s?.stats && (
-                                                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ml-auto ${s.stats.percentage >= 80 ? 'text-emerald-600 bg-emerald-50' :
-                                                            s.stats.percentage >= 50 ? 'text-amber-600 bg-amber-50' : 'text-rose-600 bg-rose-50'
-                                                            }`}>
-                                                            {s.stats.percentage}%
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <div className="flex items-center gap-2 opacity-60">
-                                                    <span className={`text-[9px] font-black uppercase tracking-tighter ${attendanceRecords[id]?.deviceId === deviceId || attendanceRecords[id]?.deviceId === 'unknown' ? 'text-emerald-500' : 'text-indigo-500'}`}>PRESENT {attendanceRecords[id]?.deviceId !== deviceId && attendanceRecords[id]?.deviceId !== 'unknown' ? '(REMOTE)' : ''}</span>
-                                                    <div className="w-0.5 h-0.5 bg-slate-300 rounded-full" />
-                                                    <span className="text-[9px] font-black flex items-center gap-1"><Clock size={10} /> {attendanceRecords[id]?.timestamp?.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' }) || new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                </div>
-                                                {s?.stats && (
-                                                    <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden mt-2">
-                                                        <div
-                                                            className={`h-full transition-all duration-500 rounded-full ${s.stats.percentage >= 80 ? 'bg-emerald-500' :
-                                                                s.stats.percentage >= 50 ? 'bg-amber-400' : 'bg-rose-400'
-                                                                }`}
-                                                            style={{ width: `${s.stats.percentage}%` }}
-                                                        />
+                                        ) : (
+                                            Array.from(classMarkedStudents)
+                                                .filter(id => attendanceRecords[id]?.status === activeTab)
+                                                .sort((a, b) => {
+                                                    const timeA = attendanceRecords[a]?.timestamp?.getTime() || 0;
+                                                    const timeB = attendanceRecords[b]?.timestamp?.getTime() || 0;
+                                                    return timeB - timeA;
+                                                })
+                                                .map((id) => {
+                                                    const s = students.find(std => std.id === id);
+                                                    if (!s) return null;
+                                                    return (
+                                                        <motion.div
+                                                            key={`attended-${id}`}
+                                                            layout
+                                                            className="bg-white rounded-xl p-3 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between gap-3 relative overflow-hidden group"
+                                                        >
+                                                            <div className="flex items-center gap-3 min-w-0">
+                                                                <div className="relative shrink-0">
+                                                                    <div className="w-10 h-10 rounded-lg bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 italic font-black text-slate-400 text-[10px]">
+                                                                        {s.photo ? (
+                                                                            <img src={s.photo} alt={s.name} className="w-full h-full object-cover" />
+                                                                        ) : (
+                                                                            <Users size={16} />
+                                                                        )}
+                                                                    </div>
+                                                                    {s.stats && (
+                                                                        <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center text-[7px] font-black text-white px-0.5 ${s.stats.percentage >= 80 ? 'bg-emerald-500' :
+                                                                            s.stats.percentage >= 50 ? 'bg-amber-500' : 'bg-rose-500'
+                                                                            }`}>
+                                                                            {s.stats.percentage}%
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                                <div className="min-w-0">
+                                                                    <p className="text-[13px] font-black text-slate-700 truncate leading-none mb-1 uppercase italic tracking-tight">{s.name}</p>
+                                                                    <p className="text-[9px] font-bold text-slate-400 truncate uppercase mt-0.5 flex items-center gap-1.5">
+                                                                        <Clock size={10} className="text-slate-300" />
+                                                                        {attendanceRecords[id]?.timestamp?.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' })}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => unmarkAttendance(id)}
+                                                                className="w-8 h-8 rounded-full bg-rose-50 text-rose-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white"
+                                                            >
+                                                                <XCircle size={16} />
+                                                            </button>
+                                                        </motion.div>
+                                                    );
+                                                })
+                                        )}
+                                    </motion.div>
+                                ) : (
+                                    <motion.div
+                                        key="absent-list"
+                                        initial={{ opacity: 0, x: 20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: -20 }}
+                                        className="space-y-3"
+                                    >
+                                        {classStudents.filter(s => !markedStudents.has(s.id)).length === 0 ? (
+                                            <div className="py-20 text-center opacity-40">
+                                                <CheckCircle2 size={32} className="mx-auto mb-4 text-emerald-300" />
+                                                <p className="text-emerald-600 font-bold text-[10px] uppercase italic">সবাই উপস্থিত!</p>
+                                            </div>
+                                        ) : (
+                                            classStudents.filter(s => !markedStudents.has(s.id)).map((s) => (
+                                                <motion.div
+                                                    key={`absent-${s.id}`}
+                                                    layout
+                                                    className="bg-white rounded-2xl p-3 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-center justify-between gap-3 opacity-80"
+                                                >
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="relative shrink-0 grayscale">
+                                                            <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center overflow-hidden border border-slate-100 italic font-black text-slate-400 text-[10px]">
+                                                                {s.photo ? (
+                                                                    <img src={s.photo} alt={s.name} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    <Users size={16} />
+                                                                )}
+                                                            </div>
+                                                            {s.stats && (
+                                                                <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center text-[7px] font-black text-white px-0.5 ${s.stats.percentage >= 80 ? 'bg-emerald-500' :
+                                                                    s.stats.percentage >= 50 ? 'bg-amber-500' : 'bg-rose-500'
+                                                                    }`}>
+                                                                    {s.stats.percentage}%
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="text-[13px] font-black text-slate-400 truncate leading-none mb-1 uppercase italic tracking-tight">{s.name}</p>
+                                                            <p className="text-[9px] font-bold text-rose-400/60 truncate uppercase">Absent</p>
+                                                        </div>
                                                     </div>
-                                                )}
-                                            </div>
-                                            <button
-                                                onClick={() => unmarkAttendance(id)}
-                                                title="Mark Absent (Undo)"
-                                                className="w-8 h-8 rounded-full bg-white text-rose-400 border border-slate-100 hover:bg-rose-500 hover:border-rose-500 hover:text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-                                            >
-                                                <XCircle size={16} />
-                                            </button>
-                                        </motion.div>
-                                    );
-                                })
-                            )}
-                        </AnimatePresence>
+                                                    <button
+                                                        onClick={() => markAttendance(s.id, s.name)}
+                                                        className="w-8 h-8 rounded-full bg-slate-50 text-slate-300 flex items-center justify-center hover:bg-[#045c84] hover:text-white transition-all"
+                                                    >
+                                                        <Check size={16} />
+                                                    </button>
+                                                </motion.div>
+                                            ))
+                                        )}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -882,6 +1103,44 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                 .no-scrollbar::-webkit-scrollbar { display: none; }
                 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
             `}</style>
-        </div >
+
+            {/* Glassmorphism Toast */}
+            <AnimatePresence>
+                {toast && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                        className="fixed top-6 right-6 z-[9999] pointer-events-none"
+                    >
+                        <div className={`
+                            min-w-[320px] px-6 py-4 rounded-2xl shadow-2xl backdrop-blur-xl border flex items-center gap-4 transition-all
+                            ${toast.type === 'SUCCESS' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-700' :
+                                toast.type === 'ERROR' ? 'bg-rose-500/10 border-rose-500/20 text-rose-700' :
+                                    'bg-slate-500/10 border-slate-500/20 text-slate-700'}
+                        `}>
+                            <div className={`
+                                w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-lg
+                                ${toast.type === 'SUCCESS' ? 'bg-emerald-500 text-white' :
+                                    toast.type === 'ERROR' ? 'bg-rose-500 text-white' :
+                                        'bg-slate-500 text-white'}
+                            `}>
+                                {toast.type === 'SUCCESS' ? <Check size={20} strokeWidth={3} /> :
+                                    toast.type === 'ERROR' ? <XCircle size={20} strokeWidth={3} /> :
+                                        <Users size={20} strokeWidth={3} />}
+                            </div>
+                            <div className="flex-1">
+                                <h4 className="text-[10px] font-black uppercase tracking-widest leading-none mb-1 opacity-60">
+                                    {toast.type === 'SUCCESS' ? 'সাফল্য' : toast.type === 'ERROR' ? 'ত্রুটি' : 'তথ্য'}
+                                </h4>
+                                <p className="text-sm font-black italic uppercase leading-tight truncate">
+                                    {toast.message}
+                                </p>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
     );
-}
+};

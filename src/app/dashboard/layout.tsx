@@ -23,7 +23,8 @@ import {
     Library,      // Library
     ClipboardList,// Assignment
     Megaphone,    // Notice
-    Zap           // Attendance
+    Zap,           // Attendance
+    TrendingUp
 } from 'lucide-react';
 
 import { useSession } from '@/components/SessionProvider';
@@ -76,6 +77,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const menuItems = [
         { name: 'ড্যাশবোর্ড', icon: LayoutDashboard, href: '/dashboard' },
         { name: 'হাজিরা', icon: Zap, href: '/dashboard/attendance/scan', roles: ['ADMIN', 'TEACHER'] },
+        { name: 'রিপোর্টস', icon: TrendingUp, href: '/dashboard/reports', roles: ['ADMIN', 'TEACHER'] },
         { name: 'প্রতিষ্ঠান', icon: Building2, href: '/dashboard/institute', adminOnly: true },
         { name: 'শিক্ষক', icon: GraduationCap, href: '/dashboard/teachers' },
         {
@@ -90,7 +92,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: 'লাইব্রেরি', icon: Library, href: '/dashboard/library', roles: ['STUDENT'] },
         { name: 'লাইব্রেরি', icon: Library, href: '/dashboard/admin/library', roles: ['ADMIN', 'SUPER_ADMIN'] },
 
-        { name: 'এসাইন্মেন্ট', icon: ClipboardList, href: '/dashboard/assignments' },
+        { name: 'ক্লাস ডাইরি', icon: ClipboardList, href: '/dashboard/assignments' },
         { name: 'নোটিশ', icon: Megaphone, href: '/dashboard/notices' },
         { name: 'ক্যালেন্ডার', icon: Calendar, href: '/dashboard/calendar' },
         { name: 'সেটিংস', icon: Settings, href: '/dashboard/settings' },
@@ -137,8 +139,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
 
             {/* Sidebar */}
-            <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 text-black transition-transform duration-300 lg:translate-x-0 shadow-lg ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-                <div className="flex flex-col h-full">
+            <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 text-black transition-transform duration-300 lg:translate-x-0 shadow-lg ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} h-screen overflow-hidden`}>
+                <div className="flex flex-col h-full overflow-hidden">
                     <div className="p-8 flex items-center gap-4 bg-primary text-white">
                         <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md shadow-inner">
                             <GraduationCap size={24} className="text-white" />
@@ -250,7 +252,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                                     pathname?.includes('/dashboard/settings') ? 'সেটিংস' :
                                                         pathname?.includes('/dashboard/guardians') ? 'অভিভাবক' :
                                                             pathname?.includes('/dashboard/calendar') ? 'ক্যালেন্ডার' :
-                                                                pathname?.includes('/dashboard/assignments') ? 'অ্যাসাইনমেন্ট' :
+                                                                pathname?.includes('/dashboard/assignments') ? 'ক্লাস ডাইরি' :
                                                                     pathname?.includes('/dashboard/attendance') ? 'হাজিরা' :
                                                                         pathname?.includes('/dashboard') ? 'ড্যাশবোর্ড' : ''}
                             </h2>
