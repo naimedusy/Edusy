@@ -1,8 +1,10 @@
 'use client';
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import PinnedAssignmentOverlay from './PinnedAssignmentOverlay';
+import dynamic from 'next/dynamic';
 import AssignmentDetailsModal from './AssignmentDetailsModal';
+
+const PinnedAssignmentOverlay = dynamic(() => import('./PinnedAssignmentOverlay'), { ssr: false });
 
 interface UIContextType {
     isAssignmentModalOpen: boolean;
@@ -92,7 +94,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
             <AssignmentDetailsModal
                 isOpen={!!globalAssignmentDetail}
                 onClose={closeAssignmentDetails}
-                assignment={globalAssignmentDetail?.assignment}
+                assignments={globalAssignmentDetail?.assignment ? [globalAssignmentDetail.assignment] : []}
                 selectedStudentId={globalAssignmentDetail?.options?.selectedStudentId}
             />
         </UIContext.Provider>

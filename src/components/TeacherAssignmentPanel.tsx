@@ -61,29 +61,29 @@ interface SubjectStatus {
 }
 
 const ALL_TAGS = [
-    { id: 'read', label: 'পড়া', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-    { id: 'write', label: 'লেখা', color: 'bg-blue-50 text-[#045c84] border-blue-100' },
-    { id: 'memo', label: 'মুখস্থ', color: 'bg-purple-50 text-purple-600 border-purple-100' },
-    { id: 'notes', label: 'নোট', color: 'bg-slate-50 text-slate-600 border-slate-200' },
-    { id: 'exercise', label: 'অনুশীলনী', color: 'bg-cyan-50 text-cyan-600 border-cyan-100' },
-    { id: 'chapter', label: 'অধ্যায়', color: 'bg-amber-50 text-amber-600 border-amber-100' },
-    { id: 'lesson', label: 'পাঠ', color: 'bg-orange-50 text-orange-600 border-orange-100' },
-    { id: 'meaning', label: 'শব্দার্থ', color: 'bg-lime-50 text-lime-600 border-lime-100' },
-    { id: 'qa', label: 'প্রশ্ন-উত্তর', color: 'bg-violet-50 text-violet-600 border-violet-100' },
-    { id: 'grammar', label: 'ব্যাকরণ', color: 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100' },
-    { id: 'test', label: 'পরীক্ষা', color: 'bg-red-50 text-red-600 border-red-100' },
-    { id: 'correction', label: 'সংশোধন', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
-    { id: 'drawing', label: 'ছবি/চিত্র', color: 'bg-pink-50 text-pink-600 border-pink-100' },
-    { id: 'map', label: 'মানচিত্র', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    { id: 'mcq', label: 'MCQ', color: 'bg-rose-50 text-rose-600 border-rose-100' },
-    { id: 'creative', label: 'সৃজনশীল', color: 'bg-teal-50 text-teal-600 border-teal-100' },
-    { id: 'excellent', label: 'চমৎকার', color: 'bg-blue-50 text-[#045c84] border-blue-100' },
-    { id: 'attentive', label: 'মনোযোগী', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-    { id: 'improving', label: 'উন্নতি করছে', color: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
-    { id: 'incomplete', label: 'অসম্পূর্ণ', color: 'bg-amber-50 text-amber-600 border-amber-100' },
-    { id: 'late', label: 'দেরি', color: 'bg-slate-50 text-slate-600 border-slate-200' },
-    { id: 'parent-call', label: 'অভিভাবক সাক্ষাত', color: 'bg-rose-50 text-rose-600 border-rose-100' },
-    { id: 'behavior', label: 'আচরণ ভালো', color: 'bg-cyan-50 text-cyan-600 border-cyan-100' }
+    { id: 'read', label: 'পড়া', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'write', label: 'লেখা', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'memo', label: 'মুখস্থ', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'notes', label: 'নোট', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'exercise', label: 'অনুশীলনী', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'chapter', label: 'অধ্যায়', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'lesson', label: 'পাঠ', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'meaning', label: 'শব্দার্থ', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'qa', label: 'প্রশ্ন-উত্তর', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'grammar', label: 'ব্যাকরণ', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'test', label: 'পরীক্ষা', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'correction', label: 'সংশোধন', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'drawing', label: 'ছবি/চিত্র', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'map', label: 'মানচিত্র', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'mcq', label: 'MCQ', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'creative', label: 'সৃজনশীল', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'excellent', label: 'চমৎকার', color: 'bg-blue-50 text-[#045c84] border-blue-100' }, // Feedback tags might stay slightly distinct? No, "not colorful" means everything.
+    { id: 'attentive', label: 'মনোযোগী', color: 'bg-slate-50 text-emerald-600 border-slate-200' },
+    { id: 'improving', label: 'উন্নতি করছে', color: 'bg-slate-50 text-indigo-600 border-slate-200' },
+    { id: 'incomplete', label: 'অসম্পূর্ণ', color: 'bg-slate-50 text-amber-600 border-slate-200' },
+    { id: 'late', label: 'দেরি', color: 'bg-slate-50 text-slate-500 border-slate-200' },
+    { id: 'parent-call', label: 'অভিভাবক সাক্ষাত', color: 'bg-slate-50 text-rose-600 border-slate-200' },
+    { id: 'behavior', label: 'আচরণ ভালো', color: 'bg-slate-50 text-slate-500 border-slate-200' }
 ];
 
 interface TeacherAssignmentPanelProps {
@@ -226,6 +226,12 @@ export default function TeacherAssignmentPanel({
                 studentsRes.json()
             ]);
 
+            // Guard: if any core response is not an array, bail out early to avoid wiping existing data
+            if (!Array.isArray(classes) || !Array.isArray(books) || !Array.isArray(teachers)) {
+                console.error('Unexpected API response format — aborting fetchData to preserve existing view', { classes, books, teachers });
+                return;
+            }
+
             setAllClasses(classes);
             setAllBooks(books);
             setTeachers(teachers);
@@ -240,6 +246,9 @@ export default function TeacherAssignmentPanel({
                 });
             }
 
+            // Safe fallback: if dateAssignments is not an array (API error), use empty array
+            const safeAssignments = Array.isArray(dateAssignments) ? dateAssignments : [];
+
             const subjectList: SubjectStatus[] = [];
             const processedPairs = new Set<string>();
 
@@ -251,7 +260,7 @@ export default function TeacherAssignmentPanel({
                         if (processedPairs.has(pairKey)) return;
                         processedPairs.add(pairKey);
 
-                        const assignment = dateAssignments.find((a: any) => a.classId === cls.id && a.bookId === book.id);
+                        const assignment = safeAssignments.find((a: any) => a.classId === cls.id && a.bookId === book.id);
 
                         // Find assigned teacher(s)
                         const assignedTeacher = teachers.find((t: any) =>
@@ -296,7 +305,7 @@ export default function TeacherAssignmentPanel({
                             const bookInfo = books.find((b: any) => b.id === bookId);
                             if (!bookInfo) return;
 
-                            const assignment = dateAssignments.find((a: any) => a.classId === classId && a.bookId === bookId);
+                            const assignment = safeAssignments.find((a: any) => a.classId === classId && a.bookId === bookId);
 
                             const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
 
@@ -703,14 +712,91 @@ export default function TeacherAssignmentPanel({
                                         </div>
                                         {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (() => {
                                             const cls = allClasses.find(c => c.name === className);
+
+                                            // Get subjects that are DRAFT
+                                            const draftAssignmentIds = classSubjects
+                                                .filter((s: any) => s.status === 'DRAFT' && s.assignmentId)
+                                                .map((s: any) => s.assignmentId as string);
+
+                                            // Get subjects that are WAITING (no assignment created at all yet)
+                                            const waitingSubjects = classSubjects
+                                                .filter((s: any) => !s.isDone)
+                                                .map((s: any) => ({
+                                                    classId: s.classId,
+                                                    bookId: s.bookId
+                                                }));
+
+                                            const totalPendingCount = draftAssignmentIds.length + waitingSubjects.length;
+
                                             return cls ? (
-                                                <button
-                                                    onClick={() => setScheduleModalClass({ id: cls.id, name: cls.name, schedule: (cls as any).schedule })}
-                                                    className="p-2 bg-white border border-slate-200 text-slate-400 hover:text-[#045c84] hover:border-[#045c84]/30 rounded-xl transition-all shadow-sm"
-                                                    title="ক্লাস সময়সূচী সেটিংস"
-                                                >
-                                                    <Settings size={14} />
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    {totalPendingCount > 0 && (
+                                                        <button
+                                                            onClick={async (e) => {
+                                                                e.stopPropagation();
+                                                                if (window.confirm(`আপনি কি এই ক্লাসের ${totalPendingCount}টি বাকি থাকা কাজ (ড্রাফট ও অপেক্ষমাণ) সরাসরি রিলিজ করতে চান?`)) {
+
+                                                                    const idsToRelease = [...draftAssignmentIds];
+
+                                                                    // 1. Create blank assignments for WAITING subjects
+                                                                    if (waitingSubjects.length > 0) {
+                                                                        try {
+                                                                            for (const subject of waitingSubjects) {
+                                                                                const res = await fetch('/api/assignments', {
+                                                                                    method: 'POST',
+                                                                                    headers: { 'Content-Type': 'application/json' },
+                                                                                    body: JSON.stringify({
+                                                                                        title: 'আজকের পড়া',
+                                                                                        description: JSON.stringify({
+                                                                                            sections: [
+                                                                                                { title: 'Homework (বাড়ির কাজ)', tasks: '' },
+                                                                                                { title: 'Classwork (ক্লাসের কাজ)', tasks: '' },
+                                                                                                { title: 'Preparation (খুশখত/পরবর্তী ক্লাসের প্রস্তুতি)', tasks: '' },
+                                                                                                { title: 'Comments (মন্তব্য/আচরণ)', tasks: '' }
+                                                                                            ]
+                                                                                        }),
+                                                                                        classId: subject.classId,
+                                                                                        bookId: subject.bookId,
+                                                                                        instituteId: activeInstitute?.id,
+                                                                                        teacherId: user?.id,
+                                                                                        scheduledDate: new Date(selectedDate).toISOString(),
+                                                                                        deadline: new Date(selectedDate).toISOString(),
+                                                                                        type: 'LECTURE',
+                                                                                        status: 'DRAFT'
+                                                                                    })
+                                                                                });
+                                                                                if (res.ok) {
+                                                                                    const data = await res.json();
+                                                                                    idsToRelease.push(data.id);
+                                                                                }
+                                                                            }
+                                                                        } catch (err) {
+                                                                            console.error("Failed to create empty assignments for waiting subjects", err);
+                                                                        }
+                                                                    }
+
+                                                                    // 2. Bulk release everything together
+                                                                    if (idsToRelease.length > 0) {
+                                                                        handleBulkRelease(idsToRelease);
+                                                                    }
+                                                                }
+                                                            }}
+                                                            disabled={isBulkReleasing}
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm disabled:opacity-50"
+                                                            title={`সব সাবজেক্টের কাজ রিলিজ করুন (${totalPendingCount}টি বাকি)`}
+                                                        >
+                                                            {isBulkReleasing ? <Loader2 size={12} className="animate-spin" /> : <TrendingUp size={12} />}
+                                                            সব রিলিজ করুন
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => setScheduleModalClass({ id: cls.id, name: cls.name, schedule: (cls as any).schedule })}
+                                                        className="p-1.5 bg-white border border-slate-200 text-slate-400 hover:text-[#045c84] hover:border-[#045c84]/30 rounded-xl transition-all shadow-sm"
+                                                        title="ক্লাস সময়সূচী সেটিংস"
+                                                    >
+                                                        <Settings size={14} />
+                                                    </button>
+                                                </div>
                                             ) : null;
                                         })()}
                                     </div>
@@ -754,38 +840,63 @@ export default function TeacherAssignmentPanel({
                                                         </div>
                                                         <div className="min-w-0">
                                                             <h4 className="font-bold text-slate-800 text-sm truncate">{s.bookName}</h4>
-                                                            <p className="text-[10px] font-bold text-slate-400 mt-0.5">{s.assignedTo || 'Teacher'}</p>
+                                                            <div className="flex items-center gap-1.5 mt-0.5">
+                                                                <p className="text-[10px] font-bold text-slate-400 capitalize">{s.assignedTo || 'Teacher'}</p>
+                                                            </div>
                                                         </div>
                                                     </div>
 
-                                                    {!s.isDone ? (
-                                                        <div className="flex items-center gap-3">
-                                                            <span className="px-3 py-1 bg-amber-100 text-amber-700 text-[9px] font-black rounded-full border border-amber-200 uppercase tracking-widest">পেন্ডিং</span>
-                                                            <ArrowRight size={16} className="text-amber-400 group-hover:translate-x-1 transition-transform" />
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center gap-6 flex-1 max-w-md">
-                                                            {/* Progress Bar Container */}
-                                                            <div className="flex-1 space-y-1.5">
-                                                                <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
-                                                                    <span className="text-slate-400">সাবমিশন প্রগ্রেস</span>
-                                                                    <span className={progress === 100 ? 'text-emerald-600' : 'text-[#045c84]'}>{Math.round(progress)}% ({s.submittedCount}/{s.totalStudents})</span>
-                                                                </div>
-                                                                <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
-                                                                    <div
-                                                                        className={`h-full transition-all duration-1000 ${progress === 100 ? 'bg-emerald-500' : 'bg-[#045c84]'}`}
-                                                                        style={{ width: `${progress}%` }}
-                                                                    />
-                                                                </div>
-                                                            </div>
-
+                                                    <div className="flex items-center gap-3">
+                                                        {s.canEdit && (
                                                             <button
-                                                                className={`p-2 rounded-lg transition-all ${isExpanded ? 'bg-[#045c84] text-white' : 'bg-slate-100 text-slate-400 hover:text-slate-600'}`}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (s.isDone && s.assignment) {
+                                                                        handleEditAssignment(s.assignment);
+                                                                    } else {
+                                                                        handleEntry(s.classId, s.bookId);
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm ${s.isDone
+                                                                    ? 'bg-white text-slate-500 border-slate-200 hover:border-[#045c84] hover:text-[#045c84]'
+                                                                    : 'bg-[#045c84] text-white border-[#045c84] hover:bg-[#034a6b]'
+                                                                    }`}
+                                                                title={s.isDone ? "অ্যাসাইনমেন্ট এডিট করুন" : "নতুন ডায়েরি তৈরি করুন"}
                                                             >
-                                                                {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                                                {s.isDone ? <PenTool size={12} /> : <Plus size={12} />}
+                                                                {s.isDone ? 'এডিট করুন' : 'তৈরি করুন'}
                                                             </button>
-                                                        </div>
-                                                    )}
+                                                        )}
+
+                                                        {!s.isDone ? (
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="px-2.5 py-1 bg-amber-50 text-amber-600 text-[9px] font-black rounded-lg border border-amber-100 uppercase tracking-widest">পেন্ডিং</span>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="hidden md:flex items-center gap-6 min-w-[140px]">
+                                                                {/* Progress Bar Container */}
+                                                                <div className="flex-1 space-y-1">
+                                                                    <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-tight">
+                                                                        <span className="text-slate-400 leading-none">প্রগ্রেস</span>
+                                                                        <span className={progress === 100 ? 'text-emerald-600' : 'text-[#045c84]'}>{Math.round(progress)}%</span>
+                                                                    </div>
+                                                                    <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden border border-slate-200/50">
+                                                                        <div
+                                                                            className={`h-full transition-all duration-1000 ${progress === 100 ? 'bg-emerald-500' : 'bg-[#045c84]'}`}
+                                                                            style={{ width: `${progress}%` }}
+                                                                        />
+                                                                    </div>
+                                                                </div>
+
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); setExpandedSubject(isExpanded ? null : `${s.classId}-${s.bookId}`); }}
+                                                                    className={`p-1.5 rounded-lg transition-all ${isExpanded ? 'bg-[#045c84] text-white' : 'bg-slate-100 text-slate-400 hover:text-slate-600'}`}
+                                                                >
+                                                                    {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
 
                                                 {/* Expanded Content */}
@@ -899,7 +1010,7 @@ export default function TeacherAssignmentPanel({
             <AssignmentDetailsModal
                 isOpen={!!selectedAssignment}
                 onClose={() => setSelectedAssignment(null)}
-                assignment={selectedAssignment}
+                assignments={selectedAssignment ? [selectedAssignment] : []}
                 onRelease={handleSingleRelease}
                 onEdit={handleEditAssignment}
                 isReleasing={releasingId === selectedAssignment?.id}
@@ -914,6 +1025,7 @@ export default function TeacherAssignmentPanel({
                     classId={scheduleModalClass.id}
                     className={scheduleModalClass.name}
                     existingSchedule={scheduleModalClass.schedule}
+                    onSuccess={fetchData}
                 />
             )}
 

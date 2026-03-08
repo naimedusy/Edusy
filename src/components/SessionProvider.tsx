@@ -12,6 +12,7 @@ interface User {
     defaultInstituteId?: string;
     institutes?: any[];
     teacherProfiles?: any[];
+    faceDescriptor?: number[];
     metadata?: {
         classId?: string;
         [key: string]: any;
@@ -46,7 +47,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         if (savedUser) {
             const parsedUser = JSON.parse(savedUser);
             setUser(parsedUser);
-            setActiveRole((savedRole as Role) || parsedUser.role);
+
+            let initialRole = (savedRole as Role) || parsedUser.role;
+
+            // Auto-promote to GUARDIAN if user is a student but has guardian metadata
+            if (initialRole === 'STUDENT' && (parsedUser.metadata?.childrenIds?.length > 0 || parsedUser.metadata?.studentId)) {
+                initialRole = 'GUARDIAN';
+            }
+
+            setActiveRole(initialRole);
             if (savedInstitute) {
                 setActiveInstitute(JSON.parse(savedInstitute));
             }
@@ -56,7 +65,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     const login = React.useCallback((newUser: User) => {
         setUser(newUser);
-        setActiveRole(newUser.role);
+
+        let initialRole = newUser.role;
+        // Auto-promote to GUARDIAN if user is a student but has guardian metadata
+        if (initialRole === 'STUDENT' && (newUser.metadata?.childrenIds?.length > 0 || newUser.metadata?.studentId)) {
+            initialRole = 'GUARDIAN';
+        }
+
+        setActiveRole(initialRole);
         // Set initial active institute
         if (newUser.institutes && newUser.institutes.length > 0) {
             const defaultInst = newUser.institutes.find((i: any) => i.id === newUser.defaultInstituteId) || newUser.institutes[0];
@@ -64,7 +80,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem('edusy_active_institute', JSON.stringify(defaultInst));
         }
         localStorage.setItem('edusy_session', JSON.stringify(newUser));
-        localStorage.setItem('edusy_active_role', newUser.role);
+        localStorage.setItem('edusy_active_role', initialRole);
     }, []);
 
     const logout = React.useCallback(async () => {

@@ -55,14 +55,9 @@ export async function POST(req: Request) {
             select: { assignmentReleaseTime: true }
         });
 
-        // Compute releaseAt using institute's global release time (e.g., "06:00")
-        let releaseAt: Date | null = null;
-        if (institute?.assignmentReleaseTime) {
-            const [hours, minutes] = institute.assignmentReleaseTime.split(':').map(Number);
-            const r = new Date();
-            r.setHours(hours, minutes, 0, 0);
-            releaseAt = r;
-        }
+        // When manually releasing from the Admin Panel, we want it to be visible immediately,
+        // so we set the release time to right now. This overrides the global "assignmentReleaseTime" delay setting.
+        const releaseAt = new Date();
 
         for (const assignment of pendingAssignments) {
             // A. Update status to RELEASED and set releaseAt timestamp
@@ -75,29 +70,34 @@ export async function POST(req: Request) {
             });
 
             // B. Find relevant students in the class
-            const students = await (prisma as any).user.findMany({
-                where: {
-                    instituteIds: { has: instituteId },
-                    role: 'STUDENT',
-                    metadata: {
-                        path: ['classId'],
-                        equals: assignment.classId
+            let finalStudents: any[] = [];
+            try {
+                const students = await (prisma as any).user.findMany({
+                    where: {
+                        instituteIds: { has: instituteId },
+                        role: 'STUDENT',
+                        metadata: {
+                            path: ['classId'],
+                            equals: assignment.classId
+                        }
                     }
-                }
-            });
+                });
+                finalStudents = students;
+            } catch (e) {
+                // If findMany with path fails (e.g., in MongoDB), the error is caught
+            }
 
             // If findMany with path fails or returns empty, try a fallback for different Prisma/Mongo versions
             // Some versions might need the nested object syntax
-            let finalStudents = students;
             if (finalStudents.length === 0) {
-                finalStudents = await (prisma as any).user.findMany({
+                const allStudents = await (prisma as any).user.findMany({
                     where: {
                         instituteIds: { has: instituteId },
                         role: 'STUDENT'
                     }
                 });
                 // Filter manually as a fallback
-                finalStudents = finalStudents.filter((s: any) => s.metadata?.classId === assignment.classId);
+                finalStudents = allStudents.filter((s: any) => s.metadata?.classId === assignment.classId);
             }
 
             // Parse assignment structure if available
@@ -141,7 +141,7 @@ export async function POST(req: Request) {
                     data: {
                         userId: student.id,
                         type: 'ASSIGNMENT_RELEASED',
-                        title: 'নতুন অ্যাসাইনমেন্ট!',
+                        title: 'তোমার আজকের ডায়েরি!',
                         message: personalizedMessage,
                         metadata: {
                             assignmentId: assignment.id,
@@ -153,14 +153,39 @@ export async function POST(req: Request) {
                 notificationCount++;
 
                 // Guardian Notification
-                const guardianId = student.metadata?.guardianId;
-                if (guardianId) {
+                // 1. Check direct guardianId link (legacy/specific)
+                const directGuardianId = student.metadata?.guardianId;
+
+                // 2. Find all guardians who have this student in their childrenIds list
+                // Use manual filter since Prisma + MongoDB doesn't support array_contains on JSON metadata
+                let linkedGuardians: any[] = [];
+                try {
+                    const allGuardians = await (prisma as any).user.findMany({
+                        where: {
+                            instituteIds: { has: instituteId },
+                            role: 'GUARDIAN'
+                        },
+                        select: { id: true, metadata: true }
+                    });
+                    linkedGuardians = allGuardians.filter((g: any) => {
+                        const childrenIds: string[] = g.metadata?.childrenIds || [];
+                        return childrenIds.includes(student.id);
+                    });
+                } catch (e) {
+                    console.error('Failed to fetch guardians for notification:', e);
+                }
+
+                const allGuardianIds = new Set<string>();
+                if (directGuardianId) allGuardianIds.add(directGuardianId);
+                linkedGuardians.forEach((g: any) => allGuardianIds.add(g.id));
+
+                for (const guardianId of allGuardianIds) {
                     await (prisma as any).notification.create({
                         data: {
                             userId: guardianId,
                             type: 'ASSIGNMENT_RELEASED',
-                            title: 'আপনার সন্তানের নতুন অ্যাসাইনমেন্ট',
-                            message: `${student.name}-এর জন্য একটি নতুন ${assignment.title} যুক্ত করা হয়েছে।`,
+                            title: 'আপনার সন্তানের আজকের ডায়েরি',
+                            message: `${student.name}-এর জন্য আজকের নতুন লেসন ও ডায়েরি যুক্ত করা হয়েছে।`,
                             metadata: {
                                 assignmentId: assignment.id,
                                 studentId: student.id,

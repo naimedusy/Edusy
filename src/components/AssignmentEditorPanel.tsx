@@ -89,7 +89,7 @@ const COMMENT_CHIPS: CommentChip[] = [
         label: 'খাতা শেষ',
         isDynamic: true,
         items: ['বাংলা খাতা', 'ইংরেজি খাতা', 'গণিত খাতা', 'বিজ্ঞান খাতা', 'খেলা খাতা', 'অনুশীলন খাতা'],
-        template: 'আজকে আপনার সন্তানের {item} শেষ হয়ে গেছে।'
+        template: 'আজকে {item} শেষ হয়ে গেছে।'
     },
     { label: 'মনোযোগী ছিল না', isDynamic: false, template: 'আজ ক্লাসে অমনোযোগী ছিল।' },
     { label: 'ভালো করেছে', isDynamic: false, template: 'আজকের পারফর্মেন্স খুব ভালো ছিল।' },
@@ -174,7 +174,8 @@ export default function AssignmentEditorPanel({
         groupId: '',
         bookId: initialBookId || '',
         resources: [] as any[],
-        releaseAt: ''
+        releaseAt: '',
+        requireFaceVerify: initialAssignment?.requireFaceVerify || false
     });
 
     // Helper to get current tasks based on section
@@ -256,7 +257,8 @@ export default function AssignmentEditorPanel({
                 groupId: initialAssignment.groupId || '',
                 bookId: initialAssignment.bookId || initialBookId || '',
                 resources: initialAssignment.resources || [],
-                releaseAt: initialAssignment.releaseAt ? new Date(initialAssignment.releaseAt).toISOString().slice(0, 16) : ''
+                releaseAt: initialAssignment.releaseAt ? new Date(initialAssignment.releaseAt).toISOString().slice(0, 16) : '',
+                requireFaceVerify: initialAssignment.requireFaceVerify || false
             });
 
             // Parse description to populate tasks
@@ -645,6 +647,7 @@ export default function AssignmentEditorPanel({
             teacherId: teacherId,
             instituteId: instituteId,
             pageNumber: pageNumber,
+            requireFaceVerify: formData.requireFaceVerify,
             scheduledDate: scheduledDate || null,
             resources: formData.resources,
             releaseAt: formData.releaseAt || null
@@ -704,6 +707,22 @@ export default function AssignmentEditorPanel({
                     </div>
 
                     <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4 px-6 py-2 bg-slate-50 rounded-2xl border border-slate-100 mr-2">
+                            <div className="flex flex-col items-end">
+                                <span className="text-[11px] font-black text-slate-800">ফেস আইডি সাবমিশন</span>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Face Verify</span>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    className="sr-only peer"
+                                    checked={formData.requireFaceVerify}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, requireFaceVerify: e.target.checked }))}
+                                />
+                                <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-[#045c84]/20 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#045c84]"></div>
+                            </label>
+                        </div>
+
                         <button
                             onClick={handleSubmit}
                             disabled={loading || !formData.classId || !formData.bookId}
@@ -1287,10 +1306,11 @@ export default function AssignmentEditorPanel({
                         )
                     }
                 </div>
-            </div>
+            </div >
             {/* Student Selection Modal */}
-            <Modal
-                isOpen={!!openStudentPickerTask}
+            < Modal
+                isOpen={!!openStudentPickerTask
+                }
                 onClose={() => setOpenStudentPickerTask(null)}
                 title="সিলেক্ট স্টুডেন্ট (Select Students)"
                 maxWidth="max-w-2xl"
@@ -1478,7 +1498,7 @@ export default function AssignmentEditorPanel({
                         </div>
                     );
                 })()}
-            </Modal>
+            </Modal >
         </div >
     );
 }

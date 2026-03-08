@@ -962,10 +962,15 @@ export default function StudentManagementPage() {
     }, [classes, activeRole, user, activeInstitute]);
 
     if (activeRole !== 'ADMIN' && activeRole !== 'SUPER_ADMIN' && activeRole !== 'TEACHER') {
+        if (typeof window !== 'undefined') {
+            if (activeRole === 'GUARDIAN') window.location.replace('/dashboard/guardian');
+            else if (activeRole === 'STUDENT') window.location.replace('/dashboard/student');
+            else window.location.replace('/dashboard');
+        }
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-500">
-                <Users size={64} className="mb-4 opacity-20" />
-                <p className="text-xl font-medium font-bengali">আপনার এই পেজটি দেখার অনুমতি নেই।</p>
+                <Loader2 className="animate-spin text-primary mb-4" size={40} />
+                <p className="text-xl font-medium font-bengali">পুনর্নির্দেশ করা হচ্ছে...</p>
             </div>
         );
     }
@@ -1562,8 +1567,28 @@ export default function StudentManagementPage() {
                                     type="button"
                                     onClick={() => {
                                         const link = `${window.location.origin}/admission/${activeInstitute.id}`;
-                                        navigator.clipboard.writeText(link);
-                                        setToast({ message: 'ভর্তি ফরমের লিঙ্ক কপি হয়েছে!', type: 'success' });
+                                        if (navigator.clipboard) {
+                                            navigator.clipboard.writeText(link).then(() => {
+                                                setToast({ message: 'ভর্তি ফরমের লিঙ্ক কপি হয়েছে!', type: 'success' });
+                                            }).catch(err => {
+                                                console.error('Failed to copy text: ', err);
+                                                setToast({ message: 'কপি করতে সমস্যা হয়েছে!', type: 'error' });
+                                            });
+                                        } else {
+                                            const textArea = document.createElement("textarea");
+                                            textArea.value = link;
+                                            document.body.appendChild(textArea);
+                                            textArea.focus();
+                                            textArea.select();
+                                            try {
+                                                document.execCommand('copy');
+                                                setToast({ message: 'ভর্তি ফরমের লিঙ্ক কপি হয়েছে!', type: 'success' });
+                                            } catch (err) {
+                                                console.error('Fallback: Oops, unable to copy', err);
+                                                setToast({ message: 'কপি করতে সমস্যা হয়েছে!', type: 'error' });
+                                            }
+                                            document.body.removeChild(textArea);
+                                        }
                                     }}
                                     className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-extrabold bg-blue-50 text-[#034a6b] hover:bg-blue-100 transition-all"
                                     title="ভর্তি ফরমের লিঙ্ক কপি করুন"
@@ -3002,8 +3027,26 @@ export default function StudentManagementPage() {
                                 } else if (activeTab === 'applications') {
                                     if (activeInstitute?.id) {
                                         const link = `${window.location.origin}/admission/${activeInstitute.id}`;
-                                        navigator.clipboard.writeText(link);
-                                        setToast({ message: 'ভর্তি ফরমের লিঙ্ক কপি হয়েছে!', type: 'success' });
+                                        if (navigator.clipboard) {
+                                            navigator.clipboard.writeText(link).then(() => {
+                                                setToast({ message: 'ভর্তি ফরমের লিঙ্ক কপি হয়েছে!', type: 'success' });
+                                            }).catch(err => {
+                                                console.error('Failed to copy text: ', err);
+                                            });
+                                        } else {
+                                            const textArea = document.createElement("textarea");
+                                            textArea.value = link;
+                                            document.body.appendChild(textArea);
+                                            textArea.focus();
+                                            textArea.select();
+                                            try {
+                                                document.execCommand('copy');
+                                                setToast({ message: 'ভর্তি ফরমের লিঙ্ক কপি হয়েছে!', type: 'success' });
+                                            } catch (err) {
+                                                console.error('Fallback: Oops, unable to copy', err);
+                                            }
+                                            document.body.removeChild(textArea);
+                                        }
                                     }
                                 }
                             }}

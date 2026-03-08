@@ -2,9 +2,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Calendar, BookOpen, CreditCard, ChevronRight, User, Edit, ChevronDown, ChevronUp, Printer, Trash2, Loader2, Check, Key, LogIn } from 'lucide-react';
+import { X, Calendar, BookOpen, CreditCard, ChevronRight, User, Edit, ChevronDown, ChevronUp, Printer, Trash2, Loader2, Check, Key, LogIn, Disc, ScanFace, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 import { useSession } from './SessionProvider';
+import dynamic from 'next/dynamic';
 import PrintLayout from './PrintLayout';
+
+const FaceEnrollment = dynamic(() => import('./FaceEnrollment'), { ssr: false });
 
 interface StudentProfileModalProps {
     isOpen: boolean;
@@ -16,7 +19,8 @@ interface StudentProfileModalProps {
 
 export default function StudentProfileModal({ isOpen, onClose, student, onEdit, onUpdate }: StudentProfileModalProps) {
     const { activeInstitute, user: currentUser, login } = useSession();
-    const [activeTab, setActiveTab] = useState<'fees' | 'attendance' | 'assignments' | 'login'>('fees');
+    const [activeTab, setActiveTab] = useState<'fees' | 'attendance' | 'assignments' | 'login' | 'face'>('fees');
+    const [showEnrollment, setShowEnrollment] = useState(false);
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -261,7 +265,10 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
         { id: 'fees', label: 'ফি', icon: CreditCard },
         { id: 'attendance', label: 'উপস্থিতি', icon: Calendar },
         { id: 'assignments', label: 'অ্যাসাইনমেন্ট', icon: BookOpen },
-        ...(isAdmin ? [{ id: 'login', label: 'লগইন তথ্য', icon: Key }] : []),
+        ...(isAdmin ? [
+            { id: 'login', label: 'লগইন তথ্য', icon: Key },
+            { id: 'face', label: 'ফেস আইডি', icon: ScanFace }
+        ] : []),
     ];
 
     return createPortal(
@@ -648,6 +655,54 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
                             </div>
                         </div>
                     )}
+
+                    {activeTab === 'face' && isAdmin && (
+                        <div className="space-y-6 animate-fade-in font-bengali">
+                            <div className="bg-slate-50 p-8 rounded-[32px] border border-slate-100 flex flex-col items-center text-center">
+                                <div className={`w-20 h-20 rounded-3xl flex items-center justify-center mb-5 shadow-inner transition-all ${student.faceDescriptor && student.faceDescriptor.length > 0 ? 'bg-emerald-50 text-emerald-500' : 'bg-white text-slate-300'}`}>
+                                    <ScanFace size={40} />
+                                </div>
+                                <h4 className="text-xl font-bold text-slate-800 mb-2">বায়োমেট্রিক ফেস আইডি</h4>
+                                <p className="text-sm text-slate-500 max-w-[280px] leading-relaxed mb-6">
+                                    অটোমেটিক অ্যাটেনডেন্স এবং সিকিউর সাবমিশনের জন্য শিক্ষার্থীর মুখ স্ক্যান করে রেজিস্টার করুন।
+                                </p>
+
+                                {student.faceDescriptor && student.faceDescriptor.length > 0 ? (
+                                    <div className="w-full space-y-4">
+                                        <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                                            <Check size={14} />
+                                            রেজিস্ট্রেশন সম্পন্ন হয়েছে
+                                        </div>
+                                        <button
+                                            onClick={() => setShowEnrollment(true)}
+                                            className="w-full py-4 px-6 bg-white border-2 border-slate-200 text-slate-600 font-black rounded-2xl text-[12px] uppercase tracking-widest hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 flex items-center justify-center gap-2"
+                                        >
+                                            <RefreshCw size={16} />
+                                            আবার স্ক্যান করুন
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setShowEnrollment(true)}
+                                        className="w-full py-5 px-6 bg-[#045c84] text-white font-black rounded-[24px] text-[13px] uppercase tracking-widest shadow-xl shadow-blue-900/20 hover:bg-[#034a6b] hover:-translate-y-1 transition-all active:scale-95 flex items-center justify-center gap-3"
+                                    >
+                                        <Sparkles size={18} />
+                                        ফেস রেজিস্ট্রেশন শুরু করুন
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="p-5 bg-amber-50 rounded-2xl border border-amber-100 flex items-start gap-4">
+                                <AlertCircle size={20} className="text-amber-500 shrink-0 mt-0.5" />
+                                <div className="space-y-1">
+                                    <p className="text-[11px] font-black text-amber-700 uppercase tracking-widest">রেজিস্ট্রেশন টিপস</p>
+                                    <p className="text-[12px] font-medium text-amber-600/80 leading-relaxed">
+                                        স্ক্যান করার সময় পর্যাপ্ত আলো থাকা নিশ্চিত করুন এবং শিক্ষার্থীর মুখ ক্যামেরার মাঝখানে রাখুন।
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Footer Actions */}
@@ -739,6 +794,18 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
                             </div>
                         </PrintLayout>
                     </div>
+                )}
+
+                {showEnrollment && (
+                    <FaceEnrollment
+                        studentId={student.id}
+                        studentName={student.name || 'শিক্ষার্থী'}
+                        profilePhoto={student.metadata?.studentPhoto}
+                        onClose={() => setShowEnrollment(false)}
+                        onSuccess={() => {
+                            onUpdate?.();
+                        }}
+                    />
                 )}
             </div>
         </div>,

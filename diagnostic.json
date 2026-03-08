@@ -1,0 +1,109 @@
+{
+  "students": [
+    {
+      "id": "699843d1faf9634cc57ca1a3",
+      "name": "naim",
+      "metadata": {
+        "studentId": "0104",
+        "studentPhoto": "/uploads/IMG_0952-1771586336872-86096297.JPG",
+        "fathersName": "habib",
+        "mothersName": "mayeda ",
+        "fathersPhone": "01870186441",
+        "guardianPhone": "01870186441",
+        "presentAddress": "kamaldia",
+        "classId": "6990cff15ee42088f73370ba",
+        "groupId": "6993cd1e589698a3741d3f55",
+        "rollNumber": "2",
+        "admissionDate": "2026-02-20",
+        "studentPhone": "01870186441",
+        "guardianName": "yakub",
+        "guardianRelation": "ভাই",
+        "guardianId": "699843d1faf9634cc57ca1a3",
+        "childrenIds": [
+          "699843d1faf9634cc57ca1a3"
+        ]
+      }
+    }
+  ],
+  "guardians": [
+    {
+      "id": "6990835351ab03d764c14413",
+      "name": "Guardian User",
+      "metadata": null
+    },
+    {
+      "id": "699167fefaf9634cc57ba74e",
+      "name": "dfvxc xcv ",
+      "metadata": {
+        "childrenIds": [
+          "69908476e5f0040ce1af0616"
+        ]
+      }
+    },
+    {
+      "id": "69916a17faf9634cc57ba757",
+      "name": "mahina ",
+      "metadata": {
+        "childrenIds": [
+          "69916a17faf9634cc57ba756"
+        ]
+      }
+    },
+    {
+      "id": "69921a21faf9634cc57ba8c9",
+      "name": "d",
+      "metadata": {
+        "childrenIds": [
+          "69921a21faf9634cc57ba8c8"
+        ]
+      }
+    },
+    {
+      "id": "69921af4faf9634cc57ba8cb",
+      "name": "sdfsdf",
+      "metadata": {
+        "childrenIds": [
+          "69921af4faf9634cc57ba8ca"
+        ]
+      }
+    }
+  ],
+  "classes": [
+    {
+      "id": "6990cff15ee42088f73370ba",
+      "name": "দ্বিতীয় শ্রেণি"
+    },
+    {
+      "id": "6990cff15ee42088f73370b8",
+      "name": "প্রথম শ্রেণি"
+    },
+    {
+      "id": "6990cff15ee42088f73370b9",
+      "name": "তৃতীয় শ্রেণি"
+    },
+    {
+      "id": "69916776764bc8eaf3d89113",
+      "name": "class 5"
+    },
+    {
+      "id": "69919e1247d441fd3b8c05ba",
+      "name": "class 6"
+    },
+    {
+      "id": "6991b36e47d441fd3b8c05c5",
+      "name": "calss 4"
+    },
+    {
+      "id": "6991b36e47d441fd3b8c05c6",
+      "name": "class44"
+    },
+    {
+      "id": "6991b36e47d441fd3b8c05c7",
+      "name": "calssrdsd"
+    },
+    {
+      "id": "6991d0d55328abb2025ddb65",
+      "name": "asdsad"
+    }
+  ]
+}

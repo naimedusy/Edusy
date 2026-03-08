@@ -54,7 +54,7 @@ export default function LoginPage() {
     };
 
     return (
-        <AuthLayout title="স্বাগতম!" subtitle="আপনার একাউন্টে লগ ইন করুন">
+        <AuthLayout title="স্বাগতম!" subtitle="শিক্ষক, শিক্ষার্থী ও অভিভাবকদের জন্য স্মার্ট লগইন">
 
             {error && (
                 <div className="bg-blue-50 border-l-4 border-[#047cac] text-[#045c84] p-4 mb-6 rounded-r-xl shadow-sm animate-fade-in-up items-center flex gap-3" role="alert">

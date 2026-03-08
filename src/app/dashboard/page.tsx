@@ -13,34 +13,41 @@ import {
     Loader2,
     Calendar,
     Bell,
-    Settings,
-    Camera,
     Activity,
     Server,
-    Globe,
     AlertCircle,
     MapPin,
     FileText,
-    BookOpen,
-    LogOut,
-    MoreVertical,
-    Clock,
-    ArrowRight,
     ClipboardList,
-    PenTool,
-    HeartPulse
+    MoreVertical,
+    LogOut
 } from 'lucide-react';
 import { useSession } from '@/components/SessionProvider';
 import { useUI } from '@/components/UIProvider';
 import InstituteProfileModal from '@/components/InstituteProfileModal';
 import InstituteSwitcher from '@/components/InstituteSwitcher';
 import StudentAssignmentProgress from '@/components/StudentAssignmentProgress';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
-    const { activeRole, activeInstitute, switchInstitute, user, setAllInstitutes } = useSession();
+    const { activeRole, activeInstitute, switchInstitute, user, setAllInstitutes, isLoading } = useSession();
+    const router = useRouter();
     const [statsData, setStatsData] = useState<any>(null);
     const [loading, setLoading] = useState(false);
     const hasFetchedInstitutes = React.useRef(false);
+
+    // Role-based redirection
+    useEffect(() => {
+        if (!isLoading && activeRole) {
+            if (activeRole === 'GUARDIAN') {
+                router.replace('/dashboard/guardian');
+            } else if (activeRole === 'STUDENT') {
+                router.replace('/dashboard/student');
+            } else if (activeRole === 'TEACHER') {
+                router.replace('/dashboard/teacher');
+            }
+        }
+    }, [activeRole, isLoading, router]);
 
     // Effect 1: Auto-fetch institutes if missing OR empty in session (Teachers initially have empty array)
     useEffect(() => {
@@ -91,584 +98,31 @@ export default function DashboardPage() {
         }
     }, [activeRole]);
 
-    if (activeRole === 'SUPER_ADMIN') {
-        return <SuperAdminDashboard statsData={statsData} loading={loading} />;
-    }
-
-    if (activeRole === 'STUDENT') {
-        return <StudentDashboard user={user} activeInstitute={activeInstitute} />;
-    }
-
-    if (activeRole === 'GUARDIAN') {
-        return <GuardianDashboard user={user} activeInstitute={activeInstitute} />;
-    }
-
-    if (activeRole === 'TEACHER') {
-        return <TeacherDashboard user={user} activeInstitute={activeInstitute} />;
-    }
-
-    return <AdminDashboard activeInstitute={activeInstitute} />;
-}
-
-// --- Student Dashboard ---
-function StudentDashboard({ user, activeInstitute }: { user: any, activeInstitute: any }) {
-    const [assignments, setAssignments] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const isPending = user?.metadata?.admissionStatus === 'PENDING';
-
-    useEffect(() => {
-        if (!activeInstitute?.id || isPending) return;
-
-        const fetchAssignments = async () => {
-            try {
-                const res = await fetch(`/api/assignments?instituteId=${activeInstitute.id}&role=STUDENT&userId=${user.id}&classId=${user.metadata?.classId}`);
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    setAssignments(data.slice(0, 5)); // Just show recent 5
-                }
-            } catch (error) {
-                console.error('Fetch student assignments error:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchAssignments();
-    }, [activeInstitute?.id, user.id, isPending, user.metadata?.classId]);
-
-    if (isPending) {
+    if (isLoading || !activeRole) {
         return (
-            <div className="min-h-[80vh] flex items-center justify-center p-4 md:p-8 animate-fade-in font-bengali">
-                <div className="max-w-2xl w-full bg-white rounded-[32px] shadow-2xl border border-blue-100 overflow-hidden text-center relative">
-                    {/* Decorative Background */}
-                    <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-r from-blue-50 to-indigo-50 -z-0" />
-
-                    <div className="p-10 space-y-8 relative z-10">
-                        <div className="w-24 h-24 bg-blue-100/50 rounded-full flex items-center justify-center mx-auto text-[#045c84] mb-6 animate-pulse">
-                            <Clock className="w-12 h-12" />
-                        </div>
-
-                        <div className="space-y-4">
-                            <h2 className="text-3xl font-black text-slate-800 tracking-tight">আপনার আবেদনটি বর্তমানে <span className="text-[#045c84]">পেন্ডিং</span> আছে!</h2>
-                            <p className="text-slate-500 text-lg font-medium leading-relaxed max-w-lg mx-auto">
-                                আপনার ভর্তি আবেদনটি সফলভাবে গৃহীত হয়েছে এবং বর্তমানে প্রতিষ্ঠান কর্তৃপক্ষের অনুমোদনের অপেক্ষায় আছে। অনুমোদন সম্পন্ন হলে আপনি ড্যাশবোর্ড এর সমস্ত ফিচার ব্যবহার করতে পারবেন।
-                            </p>
-                        </div>
-
-                        <div className="bg-slate-50 border border-slate-200 rounded-[24px] p-6 text-left space-y-4">
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest border-b pb-2">আবেদন তথ্যের সারাংশ</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">নাম</p>
-                                    <p className="font-bold text-slate-800">{user.name}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">মোবাইল</p>
-                                    <p className="font-bold text-slate-800">{user.phone}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">ইনস্টিটিউট</p>
-                                    <p className="font-bold text-slate-800">{activeInstitute?.name || 'লোডিং...'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase">স্ট্যাটাস</p>
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-700 border border-amber-200">
-                                        অপেক্ষমাণ (Pending)
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="pt-4 border-t border-slate-100 text-slate-400 text-sm font-medium">
-                            প্রতিষ্ঠান কর্তৃপক্ষ শীঘ্রই আপনার সাথে যোগাযোগ করবে। যেকোনো প্রয়োজনে প্রতিষ্ঠানের সাথে সরাসরি যোগাযোগ করুন।
-                        </div>
-                    </div>
-                </div>
+            <div className="min-h-screen flex items-center justify-center bg-slate-50">
+                <Loader2 className="animate-spin text-primary" size={40} />
             </div>
         );
     }
 
-    if (!activeInstitute) {
-        return <OnboardingRouter role="STUDENT" user={user} onComplete={() => window.location.reload()} />;
+    if (activeRole === 'SUPER_ADMIN') {
+        return <SuperAdminDashboard statsData={statsData} loading={loading} />;
     }
 
-    // Mock Data for now
-    const notices = [
-        { id: 1, title: 'Upcoming Exam Schedule', date: '2024-03-20', type: 'Exam' },
-        { id: 2, title: 'School Closed for Eid', date: '2024-04-10', type: 'Holiday' },
-        { id: 3, title: 'Annual Sports Day Registration', date: '2024-02-25', type: 'Event' },
-    ];
-
-    const attendancePercentage = 85;
+    if (activeRole === 'ADMIN' || activeRole === 'ACCOUNTANT') {
+        return <AdminDashboard activeInstitute={activeInstitute} />;
+    }
 
     return (
-        <div className="p-4 md:p-8 space-y-8 animate-fade-in-up font-bengali">
-            {/* 1. Madrasa Cover & Profile Header */}
-            <div className="relative rounded-[32px] overflow-hidden shadow-lg bg-slate-800 text-white group">
-                {/* Cover Image */}
-                <div className="h-48 md:h-64 bg-slate-700 relative overflow-hidden">
-                    {activeInstitute?.coverImage || activeInstitute?.metadata?.coverImage ? (
-                        <img
-                            src={activeInstitute.coverImage || activeInstitute.metadata.coverImage}
-                            alt="Cover"
-                            className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700"
-                        />
-                    ) : (
-                        <div className="w-full h-full bg-gradient-to-r from-[#045c84] to-[#034a6b] opacity-90 relative">
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-30"></div>
-                        </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-                </div>
-
-                {/* Profile Info Overlay */}
-                <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8 flex items-end gap-6 translate-y-4 md:translate-y-0">
-                    <div className="w-24 h-24 md:w-32 md:h-32 bg-white rounded-2xl p-1 shadow-2xl -mb-10 md:-mb-12 shrink-0 border-4 border-white/20 backdrop-blur-sm z-10 transition-transform hover:scale-105">
-                        {activeInstitute?.logo ? (
-                            <img src={activeInstitute.logo} alt="Logo" className="w-full h-full object-contain rounded-xl bg-white" />
-                        ) : (
-                            <div className="w-full h-full bg-slate-50 rounded-xl flex items-center justify-center text-slate-300">
-                                <Building2 size={40} />
-                            </div>
-                        )}
-                    </div>
-                    <div className="mb-4 md:mb-6 z-10">
-                        <h1 className="text-2xl md:text-4xl font-bold mb-2 text-white shadow-sm tracking-tight text-shadow-md">
-                            {activeInstitute?.name || 'আপনার শিক্ষা প্রতিষ্ঠান'}
-                        </h1>
-                        <p className="text-white/90 text-sm md:text-base font-medium flex items-center gap-2 drop-shadow-sm">
-                            <MapPin size={16} className="text-red-400" />
-                            {activeInstitute?.address || 'ঠিকানা দেওয়া নেই'}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            {/* Spacing for overlapping logo */}
-            <div className="h-8 md:h-10" />
-
-            {/* 2. Stats & Attendance */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Attendance Summary */}
-                <div className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-md transition-all flex items-center gap-6 group">
-                    <div className="relative w-24 h-24 flex items-center justify-center">
-                        {/* SVG Progress Circle */}
-                        <svg className="w-full h-full transform -rotate-90">
-                            <circle cx="48" cy="48" r="40" stroke="#f1f5f9" strokeWidth="8" fill="transparent" />
-                            <circle
-                                cx="48" cy="48" r="40"
-                                stroke="#10b981"
-                                strokeWidth="8"
-                                fill="transparent"
-                                strokeDasharray={251.2}
-                                strokeDashoffset={251.2 * (1 - attendancePercentage / 100)}
-                                className="transition-all duration-1000 ease-out"
-                                strokeLinecap="round"
-                            />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                            <span className="text-xl font-bold text-slate-700">{attendancePercentage}%</span>
-                        </div>
-                    </div>
-                    <div>
-                        <h3 className="text-lg font-bold text-slate-800">উপস্থিতি</h3>
-                        <p className="text-slate-500 text-xs font-medium mb-3">এই মাসের সারাংশ</p>
-                        <div className="flex gap-2 text-[10px] font-bold uppercase tracking-wider">
-                            <span className="text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-100">P: 20</span>
-                            <span className="text-red-700 bg-red-50 px-2.5 py-1 rounded-full border border-red-100">A: 3</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Quick Action: My Class */}
-                <a href="/dashboard/classes" className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-lg transition-all group flex items-center gap-5 relative overflow-hidden">
-                    <div className="absolute right-0 bottom-0 opacity-5 group-hover:opacity-10 transition-opacity transform translate-x-4 translate-y-4">
-                        <GraduationCap size={120} />
-                    </div>
-                    <div className="w-16 h-16 bg-blue-50 text-[#045c84] rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                        <GraduationCap size={32} />
-                    </div>
-                    <div className="relative z-10">
-                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#045c84] transition-colors">আমার ক্লাস</h3>
-                        <p className="text-slate-500 text-xs font-medium mt-1">রুটিন ও কাস সম্পর্কে জানুন</p>
-                    </div>
-                </a>
-
-                {/* Quick Action: Teachers */}
-                <a href="/dashboard/teachers" className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-lg transition-all group flex items-center gap-5 relative overflow-hidden">
-                    <div className="absolute right-0 bottom-0 opacity-5 group-hover:opacity-10 transition-opacity transform translate-x-4 translate-y-4">
-                        <Users size={120} />
-                    </div>
-                    <div className="w-16 h-16 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                        <Users size={32} />
-                    </div>
-                    <div className="relative z-10">
-                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-purple-600 transition-colors">শিক্ষক মন্ডলী</h3>
-                        <p className="text-slate-500 text-xs font-medium mt-1">শিক্ষকদের তালিকা দেখুন</p>
-                    </div>
-                </a>
-            </div>
-
-            {/* 3. Content Grid: Notices & Assignments */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Notices */}
-                <div className="space-y-5">
-                    <div className="flex items-center justify-between px-2">
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
-                            <div className="p-2 bg-amber-50 text-amber-600 rounded-xl">
-                                <Bell size={20} />
-                            </div>
-                            <span>নোটিশ বোর্ড</span>
-                        </h2>
-                        <button className="text-xs font-bold text-[#045c84] hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">সব দেখুন →</button>
-                    </div>
-                    <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden">
-                        {notices.map((notice, i) => (
-                            <div key={notice.id} className={`p-5 flex items-start gap-4 hover:bg-slate-50 transition-colors cursor-pointer group ${i !== notices.length - 1 ? 'border-b border-slate-100' : ''}`}>
-                                <div className="w-14 h-14 bg-amber-50 border border-amber-100 text-amber-700 rounded-2xl flex flex-col items-center justify-center shrink-0 shadow-sm group-hover:shadow-md transition-all">
-                                    <span className="text-lg font-black leading-none">{notice.date.split('-')[2]}</span>
-                                    <span className="text-[10px] uppercase font-bold tracking-wider">{new Date(notice.date).toLocaleString('default', { month: 'short' })}</span>
-                                </div>
-                                <div className="flex-1 py-1">
-                                    <h4 className="font-bold text-slate-800 text-sm mb-1 group-hover:text-[#045c84] transition-colors line-clamp-2">{notice.title}</h4>
-                                    <span className="inline-flex items-center px-2 py-0.5 bg-slate-100 text-slate-500 text-[10px] rounded-md font-bold uppercase tracking-wider">
-                                        {notice.type}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Assignments */}
-                <div className="space-y-5">
-                    <div className="flex items-center justify-between px-2">
-                        <h2 className="text-xl font-bold text-slate-800 flex items-center gap-3">
-                            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
-                                <BookOpen size={20} />
-                            </div>
-                            <span>অ্যাসাইনমেন্ট</span>
-                        </h2>
-                        <button className="text-xs font-bold text-[#045c84] hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors">সব দেখুন →</button>
-                    </div>
-                    <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden min-h-[200px] flex flex-col justify-center">
-                        {loading ? (
-                            <div className="py-10 text-center">
-                                <Loader2 className="animate-spin text-indigo-600 mx-auto mb-2" />
-                                <p className="text-xs text-slate-400">অ্যাসাইনমেন্ট লোড হচ্ছে...</p>
-                            </div>
-                        ) : assignments.length > 0 ? (
-                            assignments.map((assignment, i) => (
-                                <div key={assignment.id} className={`p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors cursor-pointer group ${i !== assignments.length - 1 ? 'border-b border-slate-100' : ''}`}>
-                                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center shrink-0 border border-indigo-100 group-hover:scale-110 transition-transform shadow-sm">
-                                        <FileText size={20} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="font-bold text-slate-800 text-sm mb-0.5 group-hover:text-indigo-600 transition-colors line-clamp-1">{assignment.title}</h4>
-                                        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                                            <span className="text-slate-700">{assignment.book?.name || assignment.subject}</span>
-                                            <span>•</span>
-                                            <span className="text-red-500 font-bold">
-                                                {new Date(assignment.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' })}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="py-20 text-center">
-                                <ClipboardList className="mx-auto text-slate-200 mb-2" size={32} />
-                                <p className="text-slate-400 text-xs font-bold">কোনো অ্যাসাইনমেন্ট নেই</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+            <Loader2 className="animate-spin text-primary" size={40} />
         </div>
     );
 }
 
-// --- Guardian Dashboard ---
-function GuardianDashboard({ user, activeInstitute }: { user: any, activeInstitute: any }) {
-    const [children, setChildren] = useState<any[]>([]);
-    const [assignments, setAssignments] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (!activeInstitute?.id || !user?.metadata) return;
 
-        const fetchChildrenData = async () => {
-            try {
-                const childrenIds = user.metadata.childrenIds || (user.metadata.studentId ? [user.metadata.studentId] : []);
-                if (childrenIds.length > 0) {
-                    const res = await fetch(`/api/admin/users?ids=${childrenIds.join(',')}`);
-                    const data = await res.json();
-                    if (Array.isArray(data)) {
-                        setChildren(data);
-                        if (data.length > 0) setSelectedChildId(data[0].id);
-                    }
-                }
-            } catch (error) {
-                console.error('Fetch children error:', error);
-            }
-        };
-
-        fetchChildrenData();
-    }, [activeInstitute?.id, user?.id]);
-
-    useEffect(() => {
-        if (!activeInstitute?.id || !selectedChildId) return;
-
-        const fetchChildAssignments = async () => {
-            setLoading(true);
-            try {
-                const child = children.find(c => c.id === selectedChildId);
-                const res = await fetch(`/api/assignments?instituteId=${activeInstitute.id}&role=STUDENT&userId=${selectedChildId}&classId=${child?.metadata?.classId}`);
-                const data = await res.json();
-                if (Array.isArray(data)) {
-                    setAssignments(data.slice(0, 5));
-                }
-            } catch (error) {
-                console.error('Fetch child assignments error:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchChildAssignments();
-    }, [selectedChildId, activeInstitute?.id, children]);
-
-    if (!activeInstitute) {
-        return <OnboardingRouter role="GUARDIAN" user={user} onComplete={() => window.location.reload()} />;
-    }
-
-    return (
-        <div className="p-4 md:p-8 space-y-8 animate-fade-in-up font-bengali">
-            {/* Header */}
-            <div className="relative rounded-[32px] overflow-hidden shadow-lg bg-[#045c84] text-white">
-                <div className="h-40 md:h-56 relative overflow-hidden bg-gradient-to-r from-[#045c84] to-[#034a6b]">
-                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mt-10"></div>
-                </div>
-                <div className="absolute inset-x-0 bottom-0 p-6 md:p-8 flex items-center justify-between gap-6 bg-gradient-to-t from-black/60 to-transparent pt-20">
-                    <div className="flex items-center gap-5">
-                        <div className="w-20 h-20 md:w-24 md:h-24 bg-white/20 backdrop-blur-md rounded-2xl border border-white/30 flex items-center justify-center">
-                            <HeartPulse size={40} />
-                        </div>
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-black">অভিভাবক ড্যাশবোর্ড</h1>
-                            <p className="text-blue-100/80 font-bold uppercase tracking-widest text-[10px] md:text-xs">
-                                {activeInstitute.name} • {user.name}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Children Selector */}
-            <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm space-y-4">
-                <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">সন্তান নির্বাচন করুন</h3>
-                <div className="flex flex-wrap gap-3">
-                    {children.map(child => (
-                        <button
-                            key={child.id}
-                            onClick={() => setSelectedChildId(child.id)}
-                            className={`px-6 py-3 rounded-2xl text-sm font-black transition-all border ${selectedChildId === child.id ? 'bg-[#045c84] text-white border-[#045c84] shadow-lg shadow-blue-200' : 'bg-slate-50 text-slate-500 border-slate-100 hover:border-blue-200'}`}
-                        >
-                            {child.name}
-                        </button>
-                    ))}
-                    {children.length === 0 && <p className="text-slate-400 italic text-sm">কোন সন্তান যুক্ত নেই</p>}
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Child Progress Stats (Mock for now) */}
-                <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-black text-slate-800 tracking-tight">শিক্ষা অগ্রগতি</h2>
-                        <div className="px-4 py-1.5 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-100">৮৫% উপস্থিত</div>
-                    </div>
-
-                    <div className="space-y-4">
-                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                            <div className="flex justify-between items-center mb-2">
-                                <span className="text-xs font-bold text-slate-600">সিলেবাস সম্পন্ন</span>
-                                <span className="text-xs font-black text-[#045c84]">৬৫%</span>
-                            </div>
-                            <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                                <div className="h-full bg-[#045c84]" style={{ width: '65%' }}></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <a href="/dashboard/calendar" className="block w-full py-4 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-black text-center rounded-2xl transition-all border border-slate-100 uppercase tracking-widest">
-                        রুটিন ও পরীক্ষার সূচি দেখুন
-                    </a>
-                </div>
-
-                {/* Recent Assignments */}
-                <div className="space-y-5">
-                    <div className="flex items-center justify-between px-2">
-                        <h2 className="text-xl font-black text-slate-800 flex items-center gap-3 tracking-tight">
-                            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl shadow-sm">
-                                <ClipboardList size={20} />
-                            </div>
-                            <span>সাম্প্রতিক অ্যাসাইনমেন্ট</span>
-                        </h2>
-                        <a href="/dashboard/assignments" className="text-[10px] font-black text-[#045c84] uppercase tracking-widest hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-all border border-transparent hover:border-blue-100">সব দেখুন →</a>
-                    </div>
-                    <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden min-h-[200px] flex flex-col justify-center">
-                        {loading ? (
-                            <div className="py-10 text-center">
-                                <Loader2 className="animate-spin text-indigo-600 mx-auto mb-2" />
-                                <p className="text-xs text-slate-400">লোড হচ্ছে...</p>
-                            </div>
-                        ) : assignments.length > 0 ? (
-                            assignments.map((assignment, i) => (
-                                <div key={assignment.id} className={`p-5 flex items-center gap-4 hover:bg-slate-50 transition-colors cursor-pointer group ${i !== assignments.length - 1 ? 'border-b border-slate-100' : ''}`}>
-                                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center shrink-0 border border-indigo-100 group-hover:scale-110 transition-transform shadow-sm">
-                                        <FileText size={20} />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h4 className="font-bold text-slate-800 text-sm mb-0.5 group-hover:text-indigo-600 transition-colors line-clamp-1">{assignment.title}</h4>
-                                        <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-                                            <span className="text-slate-700">{assignment.book?.name}</span>
-                                            <span>•</span>
-                                            <span className="text-red-500 font-bold">
-                                                {new Date(assignment.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' })}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))
-                        ) : (
-                            <div className="py-20 text-center">
-                                <ClipboardList className="mx-auto text-slate-200 mb-2" size={32} />
-                                <p className="text-slate-400 text-xs font-bold">কোনো অ্যাসাইনমেন্ট নেই</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// --- Teacher Dashboard ---
-function TeacherDashboard({ user, activeInstitute }: { user: any, activeInstitute: any }) {
-    const { openAssignmentModal } = useUI();
-    if (!activeInstitute) {
-        return <OnboardingRouter role="TEACHER" user={user} onComplete={() => window.location.reload()} />;
-    }
-
-    const stats = [
-        { name: 'আমার ক্লাস', value: '০৫', icon: GraduationCap, color: 'blue' },
-        { name: 'আজকের উপস্থিত', value: '৯২%', icon: TrendingUp, color: 'emerald' },
-        { name: 'নতুন মেসেজ', value: '০৩', icon: Bell, color: 'amber' },
-    ];
-
-    return (
-        <div className="p-4 md:p-8 space-y-8 animate-fade-in-up font-bengali">
-            {/* 1. Header with Cover and Quick Info */}
-            <div className="relative rounded-[32px] overflow-hidden shadow-lg bg-[#045c84] text-white">
-                <div className="h-40 md:h-56 relative overflow-hidden bg-gradient-to-r from-[#045c84] to-[#034a6b]">
-                    <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mt-10"></div>
-                </div>
-                <div className="absolute inset-x-0 bottom-0 p-6 md:p-8 flex items-center justify-between gap-6 bg-gradient-to-t from-black/60 to-transparent pt-20">
-                    <div className="flex items-center gap-5">
-                        <div className="w-20 h-20 md:w-24 md:h-24 bg-white/20 backdrop-blur-md rounded-2xl border border-white/30 flex items-center justify-center text-3xl font-black">
-                            {user.name?.[0]}
-                        </div>
-                        <div>
-                            <h1 className="text-2xl md:text-3xl font-black">{user.name}</h1>
-                            <p className="text-blue-100/80 font-bold uppercase tracking-widest text-[10px] md:text-xs">
-                                {activeInstitute.name} • {user.role}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* 2. Quick Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {stats.map((stat) => (
-                    <div key={stat.name} className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm flex items-center gap-5 group hover:shadow-md transition-all">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center bg-${stat.color}-50 text-${stat.color}-600 group-hover:scale-110 transition-transform`}>
-                            <stat.icon size={28} />
-                        </div>
-                        <div>
-                            <p className="text-slate-500 font-bold uppercase text-[10px] tracking-wider">{stat.name}</p>
-                            <h3 className="text-2xl font-black text-slate-800">{stat.value}</h3>
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            {/* 3. Shortcuts & Quick Actions */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Assignment Entry Shortcut */}
-                <div className="space-y-6">
-                    <a href="/dashboard/assignments" className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-lg transition-all group flex items-center gap-5 relative overflow-hidden">
-                        <div className="w-16 h-16 bg-blue-50 text-[#045c84] rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:bg-[#045c84] group-hover:text-white transition-all shadow-sm">
-                            <ClipboardList size={32} />
-                        </div>
-                        <div className="relative z-10">
-                            <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#045c84] transition-colors">অ্যাসাইনমেন্ট এন্ট্রি</h3>
-                            <p className="text-slate-500 text-xs font-medium mt-1">আজকের পড়া ও এইচডব্লিউ এন্ট্রি করুন</p>
-                        </div>
-                    </a>
-
-                    {/* Routine / Notice Shortcut */}
-                    <a href="/dashboard/routine" className="bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-lg transition-all group flex items-center gap-5 relative overflow-hidden">
-                        <div className="w-16 h-16 bg-blue-50 text-[#045c84] rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:bg-[#045c84] group-hover:text-white transition-all shadow-sm">
-                            <Calendar size={32} />
-                        </div>
-                        <div className="relative z-10">
-                            <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#045c84] transition-colors">রুটিন ম্যানেজমেন্ট</h3>
-                            <p className="text-slate-500 text-xs font-medium mt-1">ব্যক্তিগত ও ক্লাসের রুটিন দেখুন</p>
-                        </div>
-                    </a>
-                </div>
-
-                {/* Assignment Progress Section */}
-                <div>
-                    <StudentAssignmentProgress teacherId={user.id} />
-                </div>
-            </div>
-
-            {/* 4. Recent Notices */}
-            <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-slate-800">প্রতিষ্ঠানের নোটিশ</h2>
-                    <button className="text-xs font-bold text-[#045c84] hover:underline">সব দেখুন</button>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex gap-4 items-start">
-                        <div className="bg-white p-2 rounded-xl shadow-sm text-center min-w-[60px]">
-                            <span className="block text-xl font-black text-slate-800">২০</span>
-                            <span className="block text-[10px] font-bold text-slate-400 uppercase">FEB</span>
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-slate-700">আগামীকাল স্কুল ছুটি থাকবে</p>
-                            <p className="text-[10px] text-slate-400 mt-1">জাতীয় দিবস উপলক্ষে সাধারণ ছুটি।</p>
-                        </div>
-                    </div>
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex gap-4 items-start">
-                        <div className="bg-white p-2 rounded-xl shadow-sm text-center min-w-[60px]">
-                            <span className="block text-xl font-black text-slate-800">১৮</span>
-                            <span className="block text-[10px] font-bold text-slate-400 uppercase">FEB</span>
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-slate-700">বার্ষিক ক্রীড়া প্রতিযোগিতার প্রস্তুতি</p>
-                            <p className="text-[10px] text-slate-400 mt-1">সকল শিক্ষার্থীকে উপস্থিত থাকার নির্দেশ।</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-}
 
 
 // --- Super Admin Dashboard (System Oversight) ---
@@ -792,7 +246,6 @@ function SuperAdminDashboard({ statsData, loading }: { statsData: any, loading: 
 
 import InstituteOnboarding from '@/components/InstituteOnboarding';
 import PublicInstituteSearch from '@/components/PublicInstituteSearch';
-import { useRouter } from 'next/navigation';
 import { Briefcase, School, UserPlus } from 'lucide-react';
 
 function OnboardingRouter({ role, user, onComplete }: { role: string, user: any, onComplete: () => void }) {

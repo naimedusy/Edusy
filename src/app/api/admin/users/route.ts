@@ -6,6 +6,7 @@ export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
+        const ids = searchParams.get('ids');
         const role = searchParams.get('role');
         const search = searchParams.get('search');
         const classId = searchParams.get('classId');
@@ -36,8 +37,9 @@ export async function GET(req: Request) {
                 password: user.password || '',
                 role: user.role || 'USER',
                 createdAt: user.createdAt,
-                institute: user.institutes?.[0] ? { name: user.institutes[0].name } : null,
-                metadata: user.metadata || {}
+                institute: user.institutes?.[0] ? { name: (user.institutes[0] as any).name } : null,
+                metadata: user.metadata || {},
+                faceDescriptor: (user as any).faceDescriptor || []
             };
 
             return NextResponse.json(formattedUser);
@@ -48,6 +50,14 @@ export async function GET(req: Request) {
         // Filter by role if provided
         const match: any = {};
         if (role) match.role = role;
+
+        // Support filtering by multiple IDs
+        if (ids) {
+            const idList = ids.split(',').filter(Boolean);
+            if (idList.length > 0) {
+                match._id = { $in: idList.map(i => ({ $oid: i })) };
+            }
+        }
 
         // Filter by Institute - check if the institute ObjectId exists in the array
         if (instituteId) {
@@ -115,8 +125,31 @@ export async function GET(req: Request) {
             role: user.role || 'USER',
             createdAt: user.createdAt?.$date || user.createdAt,
             institute: user.institute ? { name: user.institute.name } : null,
-            metadata: user.metadata || {}
+            metadata: user.metadata || {},
+            faceDescriptor: user.faceDescriptor || []
         }));
+
+        // --- Server-side Class/Group Name Resolution ---
+        const studentUsers = users.filter((u: any) => u.role === 'STUDENT' && u.metadata?.classId);
+        if (studentUsers.length > 0) {
+            const classIds = [...new Set(studentUsers.map((u: any) => u.metadata.classId))] as string[];
+            const classes = await prisma.class.findMany({
+                where: { id: { in: classIds } },
+                include: { groups: true }
+            }) as any[];
+
+            studentUsers.forEach((user: any) => {
+                const cls = classes.find((c: any) => c.id === user.metadata.classId);
+                if (cls) {
+                    user.metadata.className = cls.name;
+                    if (user.metadata.groupId) {
+                        const grp = cls.groups?.find((g: any) => g.id === user.metadata.groupId);
+                        if (grp) user.metadata.groupName = grp.name;
+                    }
+                }
+            });
+        }
+        // ----------------------------------------------
 
         return NextResponse.json(users);
     } catch (error) {

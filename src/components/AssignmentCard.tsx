@@ -23,6 +23,7 @@ import { useUI } from './UIProvider';
 
 interface AssignmentCardProps {
     assignment: any;
+    dayAssignments?: any[];
     role: 'ADMIN' | 'TEACHER' | 'STUDENT' | 'GUARDIAN';
     onAction?: (assignment: any) => void;
     onRevert?: (assignment: any) => void;
@@ -32,6 +33,7 @@ interface AssignmentCardProps {
 
 export default function AssignmentCard({
     assignment,
+    dayAssignments,
     role,
     onAction,
     onRevert,
@@ -82,89 +84,79 @@ export default function AssignmentCard({
 
     const statusInfo = getStatusInfo(assignment.status, assignment.userStatus);
 
-    const renderPersonalCard = () => (
-        <div
-            onClick={() => onAction?.(assignment)}
-            className={`group bg-white rounded-[32px] border-2 ${isPinned ? 'border-[#045c84] shadow-2xl shadow-blue-900/10' : 'border-slate-100'} p-5 hover:border-[#045c84]/30 hover:shadow-xl transition-all cursor-pointer relative overflow-hidden flex flex-col justify-between h-[200px]`}
-        >
-            {/* Top Bar: Subject & Pin */}
-            <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-2xl bg-blue-50 text-[#045c84] flex items-center justify-center border border-blue-100 shrink-0">
-                        <BookOpen size={16} />
-                    </div>
-                    <div className="min-w-0">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">বিষয়</p>
-                        <h4 className="text-xs font-black text-[#045c84] mt-1 truncate">{assignment.book?.name || 'অজানা বিষয়'}</h4>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <div className={`px-2 py-0.5 ${statusInfo.color} text-[8px] font-black rounded-lg border uppercase tracking-wider`}>
-                        {statusInfo.label}
+    const renderPersonalCard = () => {
+        const date = new Date(assignment.createdAt);
+        const dayNameBangla = date.toLocaleDateString('bn-BD', { weekday: 'long' });
+        const dateBangla = date.toLocaleDateString('bn-BD', { day: 'numeric', month: 'long' });
+
+        return (
+            <div
+                onClick={() => onAction?.(assignment)}
+                className={`group bg-white/95 backdrop-blur-2xl rounded-3xl border ${isPinned ? 'border-[#045c84] shadow-xl shadow-[#045c84]/10' : 'border-white shadow-md'} p-6 hover:shadow-2xl hover:border-[#045c84]/30 transition-all duration-300 cursor-pointer relative overflow-hidden flex flex-col gap-6 min-h-[170px]`}
+            >
+                {/* Header: Bangla Day & Date */}
+                <div className="flex justify-between items-start">
+                    <div className="space-y-1.5">
+                        <h2 className="text-xl font-bold text-slate-900 leading-tight tracking-tight">
+                            {dayNameBangla}
+                        </h2>
+                        <div className="flex items-center gap-2 text-slate-400">
+                            <Calendar size={13} className="shrink-0" />
+                            <p className="text-[13px] font-semibold font-sans">
+                                {dateBangla}
+                            </p>
+                        </div>
                     </div>
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             togglePinAssignment(assignment);
                         }}
-                        className={`p-2 rounded-xl transition-all ${isPinned ? 'bg-[#045c84] text-white shadow-lg' : 'bg-slate-50 text-slate-300 hover:bg-slate-100 hover:text-slate-500'}`}
+                        className={`p-2.5 rounded-xl transition-all duration-200 ${isPinned ? 'bg-[#045c84] text-white shadow-lg' : 'bg-slate-50/50 text-slate-300 hover:text-[#045c84] hover:bg-white border border-slate-100 shadow-sm'}`}
                     >
-                        {isPinned ? <PinOff size={14} /> : <Pin size={14} className="rotate-45" />}
+                        {isPinned ? <PinOff size={16} /> : <Pin size={16} className="rotate-45" />}
                     </button>
                 </div>
-            </div>
 
-            {/* Title & Teacher */}
-            <div>
-                <h3 className="text-base font-black text-slate-800 leading-tight mb-2 group-hover:text-[#045c84] transition-colors line-clamp-1">
-                    {assignment.title}
-                </h3>
-                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-50 rounded-[16px] border border-slate-100/50 w-fit">
-                    <div className="w-5 h-5 rounded-full overflow-hidden bg-white border border-slate-200 shrink-0">
-                        {assignment.teacher?.metadata?.photo ? (
-                            <img src={assignment.teacher.metadata.photo} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                            <div className="w-full h-full flex items-center justify-center text-[8px] font-bold text-[#045c84] bg-blue-50">
-                                {assignment.teacher?.name?.charAt(0)}
-                            </div>
-                        )}
-                    </div>
-                    <span className="text-[9px] font-bold text-slate-600 italic truncate max-w-[100px]">{assignment.teacher?.name || 'শিক্ষক'}</span>
-                </div>
-            </div>
-
-            {/* Task Types Labels */}
-            <div className="flex flex-wrap gap-1.5">
-                {taskTypes.map((type: string) => {
-                    let style = 'bg-slate-100 text-slate-500 border-slate-200';
-                    if (type === 'ক্লাসের কাজ' || type === 'সি.ডব্লিউ') style = 'bg-blue-50 text-blue-600 border-blue-100';
-                    if (type === 'প্রস্তুতি') style = 'bg-purple-50 text-purple-600 border-purple-100';
-                    if (type === 'বাড়ির কাজ' || type === 'এইচ.ডব্লিউ') style = 'bg-orange-50 text-orange-600 border-orange-100';
-
-                    return (
-                        <div key={type} className={`px-2 py-1 ${style} text-[8px] font-black rounded-lg border flex items-center gap-1`}>
-                            <div className={`w-1 h-1 rounded-full ${style.split(' ')[1].replace('text-', 'bg-')}`}></div>
-                            {type}
+                {/* Content: Subjects */}
+                <div className="flex flex-col gap-3 mt-auto">
+                    {dayAssignments && dayAssignments.length > 0 ? (
+                        <div className="flex flex-wrap gap-2.5">
+                            {dayAssignments.map((a, idx) => (
+                                <div
+                                    key={idx}
+                                    className="flex items-center gap-2.5 px-3.5 py-2 bg-slate-50/50 rounded-2xl border border-slate-100/50 group-hover:bg-white group-hover:border-[#045c84]/10 transition-all shadow-sm"
+                                >
+                                    <div className="w-5 h-5 rounded-full bg-[#045c84]/10 flex items-center justify-center">
+                                        <BookOpen size={10} className="text-[#045c84]" />
+                                    </div>
+                                    <span className="text-[14px] font-bold text-slate-700 tracking-tight">
+                                        {a.book?.name || a.title}
+                                    </span>
+                                </div>
+                            ))}
                         </div>
-                    );
-                })}
-            </div>
+                    ) : (
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-[#045c84] text-white flex items-center justify-center shadow-lg shadow-[#045c84]/10 shrink-0">
+                                <BookOpen size={20} />
+                            </div>
+                            <div className="min-w-0">
+                                <h4 className="text-[15px] font-bold text-slate-800 truncate">{assignment.book?.name || assignment.title}</h4>
+                            </div>
+                        </div>
+                    )}
+                </div>
 
-            {/* Bottom Info: Date & Action */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1 text-slate-400">
-                    <Calendar size={10} />
-                    <span className="text-[9px] font-black uppercase tracking-tighter">
-                        {new Date(assignment.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' })}
-                    </span>
-                </div>
-                <div className="px-3 py-1.5 bg-[#045c84] text-white text-[9px] font-black uppercase tracking-widest rounded-xl flex items-center gap-1.5 group-hover:scale-105 transition-transform shadow-lg shadow-blue-900/10 active:scale-95">
-                    দেখুন
-                    <ChevronRight size={12} />
+                {/* Refined Arrow */}
+                <div className="absolute top-1/2 -translate-y-1/2 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                    <div className="w-8 h-8 rounded-full bg-[#045c84]/5 flex items-center justify-center">
+                        <ChevronRight size={18} className="text-[#045c84]" />
+                    </div>
                 </div>
             </div>
-        </div>
-    );
+        );
+    };
 
     if (isStudent || isGuardian) return renderPersonalCard();
 
@@ -253,11 +245,11 @@ export default function AssignmentCard({
                 <div className="flex flex-wrap gap-1">
                     {taskTypes.length > 0 ? (
                         taskTypes.map((type: string) => {
-                            let color = 'bg-slate-100 text-slate-500 border-slate-200';
-                            if (type === 'সি.ডব্লিউ') color = 'bg-blue-50 text-blue-600 border-blue-100';
-                            if (type === 'প্রস্তুতি') color = 'bg-purple-50 text-purple-600 border-purple-100';
-                            if (type === 'এইচ.ডব্লিউ') color = 'bg-orange-50 text-orange-600 border-orange-100';
-                            if (type === 'মন্তব্য') color = 'bg-emerald-50 text-emerald-600 border-emerald-100';
+                            let color = 'bg-slate-50 text-slate-500 border-slate-100';
+                            if (type === 'সি.ডব্লিউ') color = 'bg-slate-50 text-slate-500 border-slate-100';
+                            if (type === 'প্রস্তুতি') color = 'bg-slate-50 text-slate-500 border-slate-100';
+                            if (type === 'এইচ.ডব্লিউ') color = 'bg-slate-50 text-slate-500 border-slate-100';
+                            if (type === 'মন্তব্য') color = 'bg-slate-50 text-slate-500 border-slate-100';
 
                             return (
                                 <span key={type} className={`px-1.5 py-0.5 ${color} text-[8px] font-black rounded border uppercase tracking-tighter`}>

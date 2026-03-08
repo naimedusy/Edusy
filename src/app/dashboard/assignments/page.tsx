@@ -14,7 +14,10 @@ import {
     PenTool,
     History,
     LayoutGrid,
-    Calendar as CalendarIcon
+    Calendar as CalendarIcon,
+    ChevronLeft,
+    ChevronRight,
+    List
 } from 'lucide-react';
 import AssignmentCalendar from '@/components/AssignmentCalendar';
 import { useSession } from '@/components/SessionProvider';
@@ -22,6 +25,7 @@ import AssignmentCard from '@/components/AssignmentCard';
 import AssignmentDetailsModal from '@/components/AssignmentDetailsModal';
 import Toast from '@/components/Toast';
 import TeacherAssignmentPanel from '@/components/TeacherAssignmentPanel';
+import SubmissionReviewPanel from '@/components/SubmissionReviewPanel';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useUI } from '@/components/UIProvider';
 
@@ -117,9 +121,8 @@ function AssignmentsPageContent() {
                     const classIds = childrenData.map((c: any) => c.metadata?.classId).filter(Boolean);
                     const filteredClasses = classesData.filter((c: any) => classIds.includes(c.id));
                     setClasses(filteredClasses);
-                    if (!selectedClassId && filteredClasses.length > 0) {
-                        setSelectedClassId(filteredClasses[0].id);
-                    }
+                    // For guardians, we default to null (All) to show everything initially
+                    setSelectedClassId(null);
                 }
             } else {
                 setClasses(classesData);
@@ -279,250 +282,180 @@ function AssignmentsPageContent() {
         }
     };
 
-    // If Teacher, default tab logic could be improved, but respecting prompt:
-    // User wants "Entry" tab to render TeacherAssignmentPanel.
+    // Group assignments by date for the "Day Cards" view
+    const groupedAssignments = React.useMemo(() => {
+        const groups: { [key: string]: any[] } = {};
+        filteredAssignments.forEach(a => {
+            const date = new Date(a.createdAt).toISOString().split('T')[0];
+            if (!groups[date]) groups[date] = [];
+            groups[date].push(a);
+        });
+        return groups;
+    }, [filteredAssignments]);
+
+    const [selectedDayAssignments, setSelectedDayAssignments] = useState<any[] | null>(null);
+    const [mobilePanel, setMobilePanel] = useState<'task' | 'review'>('task');
 
     return (
-        <div className="px-4 md:px-8 pt-2 space-y-0 animate-fade-in-up font-bengali min-h-screen pb-20">
+        <div className="px-4 md:px-8 pt-2 animate-fade-in-up font-bengali min-h-screen pb-20">
 
-            {/* Dashboard / Panel Section (Dynamic based on Tab) */}
-            {(isTeacher || isAdmin) && (
-                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <TeacherAssignmentPanel
-                        activeTab={currentTab}
-                        onTabChange={setTab}
-                        viewMode={viewMode}
-                        onViewModeChange={setViewMode}
-                        initialEditingAssignment={editingAssignment}
-                        onEditComplete={() => {
-                            setEditingAssignment(null);
-                            fetchData();
-                        }}
-                    />
+            {/* ── Mobile two-tab switcher (hidden on lg+) ── */}
+            {isAdminOrTeacher && (
+                <div className="flex lg:hidden mb-4 p-1 bg-white/60 backdrop-blur-xl rounded-2xl border border-white/30 shadow-sm gap-1">
+                    <button
+                        onClick={() => setMobilePanel('task')}
+                        className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${mobilePanel === 'task' ? 'bg-[#045c84] text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'
+                            }`}>
+                        📋 টাস্ক
+                    </button>
+                    <button
+                        onClick={() => setMobilePanel('review')}
+                        className={`flex-1 py-3 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${mobilePanel === 'review' ? 'bg-[#045c84] text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'
+                            }`}>
+                        📥 জমা দেওয়া
+                    </button>
                 </div>
             )}
 
-            {/* Content Based on Tab */}
-            {currentTab === 'history' && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-4">
-                    {/* History Tab Controls */}
-                    {currentTab === 'history' && (
-                        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-                            <div className="flex overflow-x-auto pb-2 md:pb-0 gap-2 w-full md:w-auto font-black no-scrollbar">
-                                {isStudent || isGuardian ? (
-                                    <>
-                                        <button
-                                            onClick={() => setSelectedSubjectId(null)}
-                                            className={`px-6 py-3 rounded-2xl text-xs whitespace-nowrap transition-all border ${!selectedSubjectId ? 'bg-[#045c84] text-white border-[#045c84] shadow-lg shadow-[#045c84]/20' : 'bg-white text-slate-500 border-slate-200 hover:border-[#045c84]'}`}
-                                        >
-                                            সব বিষয় ({isGuardian ? 'সকল সন্তান' : 'আমার সব'})
-                                        </button>
-                                        {(isStudent ? filterSubjects : books.filter(b => classes.some(c => c.id === b.classId))).map(book => (
-                                            <button
-                                                key={book.id}
-                                                onClick={() => setSelectedSubjectId(book.id)}
-                                                className={`px-6 py-3 rounded-2xl text-xs whitespace-nowrap transition-all border ${selectedSubjectId === book.id ? 'bg-[#045c84] text-white border-[#045c84] shadow-lg shadow-[#045c84]/20' : 'bg-white text-slate-500 border-slate-200 hover:border-[#045c84]'}`}
-                                            >
-                                                {book.name}
-                                            </button>
-                                        ))}
-                                    </>
-                                ) : (
-                                    classes.map(cls => (
-                                        <button
-                                            key={cls.id}
-                                            onClick={() => {
-                                                setSelectedClassId(cls.id);
-                                                setSelectedSubjectId(null);
-                                            }}
-                                            className={`px-6 py-3 rounded-2xl text-xs whitespace-nowrap transition-all border ${selectedClassId === cls.id ? 'bg-[#045c84] text-white border-[#045c84] shadow-lg shadow-[#045c84]/20' : 'bg-white text-slate-500 border-slate-200 hover:border-[#045c84]'}`}
-                                        >
-                                            {cls.name}
-                                        </button>
-                                    ))
-                                )}
-                            </div>
+            {/* ── Main Layout ── */}
+            <div className={`flex flex-col lg:flex-row gap-6 items-stretch ${isAdminOrTeacher ? '' : ''}`}>
 
-                            <div className="flex items-center gap-4 w-full md:w-auto">
-                                <div className="bg-white p-2 rounded-2xl border border-slate-200 flex items-center gap-3 w-full md:w-auto shadow-sm">
-                                    <span className="text-xs font-black text-slate-400 pl-2 uppercase tracking-widest leading-none">তারিখ</span>
-                                    <input
-                                        type="date"
-                                        value={selectedDate}
-                                        onChange={(e) => setSelectedDate(e.target.value)}
-                                        className="flex-1 md:flex-none px-4 py-2 bg-slate-50 border-none rounded-xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-black text-[#045c84] cursor-pointer text-sm"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* View Modes */}
-                    {currentTab === 'history' && viewMode === 'calendar' ? (
-                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                            <AssignmentCalendar
-                                assignments={monthAssignments}
-                                selectedDate={selectedDate}
-                                onDateSelect={(date) => {
-                                    setSelectedDate(date);
-                                    // Optionally switch to list view on selection if preferred, 
-                                    // but user asked for calendar view specifically to "see" info.
-                                    // For now, staying in calendar but highlighting.
+                {/* Left Column: Task Panel */}
+                <div className={`flex-1 w-full space-y-4 ${isAdminOrTeacher ? (mobilePanel === 'task' ? 'block' : 'hidden') : 'block'
+                    } lg:block`}>
+                    {(isTeacher || isAdmin) && (
+                        <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <TeacherAssignmentPanel
+                                activeTab={currentTab}
+                                onTabChange={setTab}
+                                viewMode={viewMode}
+                                onViewModeChange={setViewMode}
+                                initialEditingAssignment={editingAssignment}
+                                onEditComplete={() => {
+                                    setEditingAssignment(null);
+                                    fetchData();
                                 }}
                             />
                         </div>
-                    ) : (
-                        <>
-                            {/* Search & Global View Filters (Only in List View) */}
-                            {!isTeacher && (
-                                <div className="bg-white p-4 rounded-[28px] border border-slate-200 shadow-sm flex flex-col md:flex-row gap-4">
-                                    <div className="relative flex-1">
-                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-                                        <input
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border-none rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-bold text-slate-800 placeholder:text-slate-300"
-                                            placeholder={isStudent ? "বিষয় বা শিরোনাম দিয়ে খোঁজো..." : "শিরোনাম দিয়ে খুঁজুন..."}
-                                        />
-                                    </div>
-                                </div>
-                            )}
-                        </>
                     )}
 
+                    {currentTab === 'history' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="flex flex-col xl:flex-row gap-6 items-start xl:items-center justify-between mb-8">
+                                <div className="flex flex-wrap gap-2 p-1.5 bg-white/40 backdrop-blur-xl rounded-[28px] border border-white/30 shadow-sm">
+                                    {(isAdmin || isTeacher) && (
+                                        <>
+                                            <button onClick={() => setSelectedClassId('all')}
+                                                className={`px-6 py-3 rounded-2xl text-[13px] font-black uppercase tracking-widest transition-all ${selectedClassId === 'all' || !selectedClassId ? 'bg-[#045c84] text-white shadow-lg shadow-blue-900/10 scale-105' : 'text-slate-500 hover:bg-white/50'}`}>
+                                                সব ক্লাস
+                                            </button>
+                                            {classes.map(c => (
+                                                <button key={c.id} onClick={() => setSelectedClassId(c.id)}
+                                                    className={`px-6 py-3 rounded-2xl text-[13px] font-black uppercase tracking-widest transition-all ${selectedClassId === c.id ? 'bg-[#045c84] text-white shadow-lg shadow-blue-900/10 scale-105' : 'text-slate-500 hover:bg-white/50'}`}>
+                                                    {c.name}
+                                                </button>
+                                            ))}
+                                        </>
+                                    )}
+                                    {isStudent && (
+                                        <div className="px-6 py-3 text-[13px] font-black uppercase tracking-widest text-[#045c84]">
+                                            আমার ক্লাস: {classes[0]?.name || 'লোড হচ্ছে...'}
+                                        </div>
+                                    )}
+                                </div>
 
-                    {/* Assignments Grid */}
-                    {loading ? (
-                        <div className="py-20 text-center">
-                            <div className="w-12 h-12 border-4 border-[#045c84]/20 border-t-[#045c84] rounded-full animate-spin mx-auto mb-4"></div>
-                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">অ্যাসাইনমেন্ট লোড হচ্ছে...</p>
-                        </div>
-                    ) : filteredAssignments.length > 0 ? (
-                        <div className="space-y-12">
-                            {/* Drafts Section */}
-                            {filteredAssignments.some(a => a.status === 'DRAFT') && (
-                                <div className="space-y-6 bg-amber-50/30 p-6 rounded-[32px] border border-amber-100/50">
-                                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_12px_rgba(245,158,11,0.5)] animate-pulse"></div>
-                                            <div>
-                                                <h3 className="text-xl font-black text-amber-900 uppercase tracking-tighter leading-none">কাজ তৈরি করা হয়েছে (Waiting for Release)</h3>
-                                                <p className="text-[10px] font-bold text-amber-600/70 mt-1 uppercase tracking-widest">এই কাজগুলো এখনো শিক্ষার্থীদের কাছে পৌঁছায়নি</p>
+                                <div className="flex flex-wrap items-center gap-4">
+                                    <div className="flex items-center gap-2 p-1.5 bg-white/40 backdrop-blur-xl rounded-[24px] border border-white/30 shadow-sm">
+                                        <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() - 1); setSelectedDate(d.toISOString().split('T')[0]); }}
+                                            className="p-3 rounded-xl bg-white/50 text-slate-400 hover:bg-white hover:text-[#045c84] transition-all border border-white/20 active:scale-90">
+                                            <ChevronLeft size={18} />
+                                        </button>
+                                        <div className="px-4 flex items-center gap-2">
+                                            <CalendarIcon size={16} className="text-[#045c84]" />
+                                            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}
+                                                className="bg-transparent border-none outline-none font-bold text-slate-700 text-sm focus:ring-0 w-[130px]" />
+                                        </div>
+                                        <button onClick={() => { const d = new Date(selectedDate); d.setDate(d.getDate() + 1); setSelectedDate(d.toISOString().split('T')[0]); }}
+                                            className="p-3 rounded-xl bg-white/50 text-slate-400 hover:bg-white hover:text-[#045c84] transition-all border border-white/20 active:scale-90">
+                                            <ChevronRight size={18} />
+                                        </button>
+                                    </div>
+                                    <div className="flex p-1.5 bg-white/40 backdrop-blur-xl rounded-[24px] border border-white/30 shadow-sm">
+                                        <button onClick={() => setViewMode('list')}
+                                            className={`p-3 rounded-xl transition-all ${viewMode === 'list' ? 'bg-[#045c84] text-white shadow-lg' : 'text-slate-400 hover:text-[#045c84]'}`} title="তালিকা ভিউ">
+                                            <LayoutGrid size={20} />
+                                        </button>
+                                        <button onClick={() => setViewMode('calendar')}
+                                            className={`p-3 rounded-xl transition-all ${viewMode === 'calendar' ? 'bg-[#045c84] text-white shadow-lg' : 'text-slate-400 hover:text-[#045c84]'}`} title="ক্যালেন্ডার ভিউ">
+                                            <CalendarIcon size={20} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {viewMode === 'calendar' ? (
+                                <div className="animate-in zoom-in-95 duration-500">
+                                    <AssignmentCalendar assignments={monthAssignments} selectedDate={selectedDate}
+                                        onDateSelect={(date) => { setSelectedDate(date); setViewMode('list'); }} />
+                                </div>
+                            ) : (
+                                <>
+                                    {!isTeacher && (
+                                        <div className="bg-white/40 backdrop-blur-xl p-4 rounded-[28px] border border-white/30 shadow-sm flex flex-col md:flex-row gap-4 mb-4">
+                                            <div className="relative flex-1">
+                                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                                                <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                                                    className="w-full pl-12 pr-4 py-4 bg-white/50 border-none rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-bold text-slate-800 placeholder:text-slate-300"
+                                                    placeholder={isStudent ? 'বিষয় বা শিরোনাম দিয়ে খোঁজো...' : 'শিরোনাম দিয়ে খুঁজুন...'} />
                                             </div>
                                         </div>
-
-                                        <div className="flex items-center gap-3">
-                                            {selectedHistoryIds.length > 0 ? (
-                                                <div className="flex items-center gap-2 animate-in slide-in-from-right-2">
-                                                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-100">
-                                                        {selectedHistoryIds.length} Selected
-                                                    </span>
-                                                    <button
-                                                        onClick={() => setSelectedHistoryIds([])}
-                                                        className="text-[10px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-widest"
-                                                    >
-                                                        Clear
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleBulkHistoryRelease()}
-                                                        disabled={isBulkReleasing}
-                                                        className="bg-[#045c84] text-white text-[10px] font-black px-4 py-2 rounded-xl shadow-lg shadow-blue-900/10 hover:bg-[#034a6b] transition-all flex items-center gap-2 disabled:opacity-50"
-                                                    >
-                                                        {isBulkReleasing ? <Activity className="animate-spin" size={12} /> : <TrendingUp size={12} />}
-                                                        রিলিজ করুন
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={() => {
-                                                        const draftIds = filteredAssignments
-                                                            .filter(a => a.status === 'DRAFT')
-                                                            .map(a => a.id);
-                                                        handleBulkHistoryRelease(draftIds);
-                                                    }}
-                                                    disabled={isBulkReleasing}
-                                                    className="text-[#045c84] border border-[#045c84]/20 bg-white hover:bg-blue-50 text-[10px] font-black px-4 py-2 rounded-xl transition-all flex items-center gap-2 disabled:opacity-50 shadow-sm"
-                                                >
-                                                    {isBulkReleasing ? <Activity className="animate-spin" size={12} /> : <PenTool size={12} />}
-                                                    সব রilিজ (Release All)
-                                                </button>
-                                            )}
+                                    )}
+                                    {loading ? (
+                                        <div className="py-20 text-center">
+                                            <div className="w-12 h-12 border-4 border-[#045c84]/20 border-t-[#045c84] rounded-full animate-spin mx-auto mb-4" />
+                                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">অ্যাসাইনমেন্ট লোড হচ্ছে...</p>
                                         </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                        {filteredAssignments.filter(a => a.status === 'DRAFT').map((assignment) => (
-                                            <AssignmentCard
-                                                key={assignment.id}
-                                                assignment={assignment}
-                                                role={activeRole as any}
-                                                isSelected={selectedHistoryIds.includes(assignment.id)}
-                                                onSelect={(id, selected) => {
-                                                    setSelectedHistoryIds(prev =>
-                                                        selected
-                                                            ? [...prev, id]
-                                                            : prev.filter(sid => sid !== id)
-                                                    );
-                                                }}
-                                                onAction={(a) => setSelectedAssignment(a)}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Released Section */}
-                            {filteredAssignments.some(a => a.status !== 'DRAFT') && (
-                                <div className="space-y-6 bg-emerald-50/20 p-6 rounded-[32px] border border-emerald-100/30">
-                                    <div className="flex items-center gap-3 px-2">
-                                        <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_12px_rgba(16,185,129,0.3)]"></div>
-                                        <div>
-                                            <h3 className="text-xl font-black text-emerald-900 uppercase tracking-tighter leading-none">
-                                                {isStudent ? 'আজকের পড়া' : 'রিলিজ করা হয়েছে'}
-                                            </h3>
-                                            <p className="text-[10px] font-bold text-emerald-600/70 mt-1 uppercase tracking-widest">
-                                                {isStudent ? 'আজকের ডায়েরির পড়াগুলো নিচে দেখ' : 'এই কাজগুলো শিক্ষার্থীরা দেখতে পাচ্ছে'}
-                                            </p>
+                                    ) : Object.keys(groupedAssignments).length > 0 ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {Object.entries(groupedAssignments)
+                                                .sort(([a], [b]) => new Date(b).getTime() - new Date(a).getTime())
+                                                .map(([date, dayAssignments]) => (
+                                                    <AssignmentCard key={date} assignment={dayAssignments[0]} dayAssignments={dayAssignments}
+                                                        role={activeRole as any} onAction={() => setSelectedDayAssignments(dayAssignments)}
+                                                        onRevert={handleRevert} />
+                                                ))}
                                         </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                        {filteredAssignments.filter(a => a.status !== 'DRAFT').map((assignment) => (
-                                            <AssignmentCard
-                                                key={assignment.id}
-                                                assignment={assignment}
-                                                role={activeRole as any}
-                                                onAction={(a) => setSelectedAssignment(a)}
-                                                onRevert={handleRevert}
-                                            />
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="bg-white rounded-[40px] border border-slate-200 p-20 text-center">
-                            <div className="w-24 h-24 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200">
-                                <ClipboardList size={48} />
-                            </div>
-                            <h3 className="text-2xl font-black text-slate-600">কোনো অ্যাসাইনমেন্ট পাওয়া যায়নি</h3>
-                            <p className="text-slate-400 font-bold mt-2">অন্য তারিখ বা ফিল্টার নির্বাচন করে চেষ্টা করুন।</p>
-                            {(isTeacher || isAdmin) && (
-                                <button
-                                    onClick={() => setTab('entry')}
-                                    className="mt-6 px-6 py-3 bg-[#045c84] text-white rounded-xl font-bold shadow-lg shadow-blue-900/20 hover:bg-[#034a6b] transition-all"
-                                >
-                                    স্ট্যাটাস প্যানেলে যান
-                                </button>
+                                    ) : (
+                                        <div className="bg-white/40 backdrop-blur-xl rounded-[40px] border border-white/30 p-20 text-center">
+                                            <div className="w-24 h-24 bg-white/50 rounded-full flex items-center justify-center mx-auto mb-6 text-slate-200">
+                                                <ClipboardList size={48} />
+                                            </div>
+                                            <h3 className="text-2xl font-black text-slate-600">কোনো অ্যাসাইনমেন্ট পাওয়া যায়নি</h3>
+                                            <p className="text-slate-400 font-bold mt-2">অন্য তারিখ বা ফিল্টার নির্বাচন করে চেষ্টা করুন।</p>
+                                        </div>
+                                    )}
+                                </>
                             )}
                         </div>
                     )}
                 </div>
-            )}
+
+                {/* Right Column: Submission Review – always visible on lg+, mobile-tab-controlled below */}
+                {(isTeacher || isAdmin) && (
+                    <div className={`w-full lg:w-[350px] xl:w-[420px] shrink-0 lg:sticky lg:top-4 xl:top-6 lg:h-[calc(100vh-6rem)] ${mobilePanel === 'review' ? 'block' : 'hidden'
+                        } lg:block`}>
+                        <div className="animate-in fade-in slide-in-from-right-4 duration-500 h-full">
+                            <SubmissionReviewPanel />
+                        </div>
+                    </div>
+                )}
+
+            </div>
 
             <AssignmentDetailsModal
-                isOpen={!!selectedAssignment}
-                onClose={() => setSelectedAssignment(null)}
-                assignment={selectedAssignment}
+                isOpen={!!selectedDayAssignments}
+                onClose={() => setSelectedDayAssignments(null)}
+                assignments={selectedDayAssignments || []}
                 onEdit={handleEdit}
                 onRevert={handleRevert}
             />

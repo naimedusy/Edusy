@@ -9,10 +9,12 @@ export async function POST(req: Request) {
             studentId,
             taskId,
             attachments,
-            content // Optional text note
+            content, // Optional text note
+            completed = true, // Default to true if not provided for backward compatibility
+            skipNotification = false // Default to false
         } = body;
 
-        if (!assignmentId || !studentId || !taskId) {
+        if (!assignmentId || !studentId) {
             return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
         }
 
@@ -25,13 +27,19 @@ export async function POST(req: Request) {
 
         let taskProgress: any = existingSubmission?.taskProgress || {};
 
-        // 2. Update task progress
-        taskProgress[taskId] = {
-            status: 'DONE',
-            submittedAt: new Date(),
-            attachments: attachments || [],
-            content: content || ''
-        };
+        // 2. Update task progress if taskId provided
+        if (taskId) {
+            taskProgress[taskId] = {
+                status: completed ? 'DONE' : 'PENDING',
+                submittedAt: new Date(),
+                attachments: attachments || [],
+                content: content || ''
+            };
+        }
+
+        const newStatus = (existingSubmission?.status === 'APPROVED' || existingSubmission?.status === 'GRADED')
+            ? existingSubmission.status
+            : 'SUBMITTED';
 
         const submission = await (prisma as any).submission.upsert({
             where: {
@@ -39,14 +47,16 @@ export async function POST(req: Request) {
             },
             update: {
                 taskProgress,
-                status: 'SUBMITTED',
-                updatedAt: new Date()
+                status: newStatus,
+                updatedAt: new Date(),
+                submittedAt: existingSubmission?.submittedAt || new Date()
             },
             create: {
                 assignmentId,
                 studentId,
                 taskProgress,
-                status: 'SUBMITTED'
+                status: 'SUBMITTED',
+                submittedAt: new Date()
             },
             include: {
                 student: { select: { name: true } },
@@ -60,10 +70,10 @@ export async function POST(req: Request) {
         });
 
         // 3. Notify Stakeholders
-        if (submission.assignment && submission.student) {
+        if (!skipNotification && submission.assignment && submission.student) {
             const assignmentName = submission.assignment.book?.name || submission.assignment.title;
             const studentName = submission.student.name;
-            const instituteId = submission.assignment.instituteId;
+            const instituteId = (submission.assignment as any).instituteId;
 
             // 1. Notify Teacher
             if (submission.assignment.teacherId) {
@@ -71,8 +81,8 @@ export async function POST(req: Request) {
                     data: {
                         userId: submission.assignment.teacherId,
                         type: 'TASK_COMPLETED',
-                        title: 'টাস্ক সম্পন্ন হয়েছে',
-                        message: `${studentName} "${assignmentName}"-এর একটি টাস্ক সম্পন্ন করেছেন।`,
+                        title: completed ? 'টাস্ক সম্পন্ন হয়েছে' : 'টাস্ক আপডেট করা হয়েছে',
+                        message: `${studentName} "${assignmentName}"-এর একটি টাস্ক ${completed ? 'সম্পন্ন করেছেন' : 'অসম্পূর্ণ হিসেবে পরিবর্তন করেছেন'}।`,
                         metadata: { assignmentId, studentId, taskId, instituteId }
                     }
                 });
@@ -80,7 +90,7 @@ export async function POST(req: Request) {
 
             // 2. Notify Owner (Admins of the institute)
             const staffProfiles = await prisma.teacherProfile.findMany({
-                where: { instituteId, isAdmin: true, status: 'ACTIVE' },
+                where: { instituteId: instituteId as string, isAdmin: true, status: 'ACTIVE' },
                 select: { userId: true }
             });
 
@@ -90,52 +100,29 @@ export async function POST(req: Request) {
                         userId: profile.userId,
                         type: 'TASK_COMPLETED',
                         title: 'শিক্ষার্থীর আপডেট',
-                        message: `${studentName} "${assignmentName}"-এর একটি টাস্ক সম্পন্ন করেছেন।`,
+                        message: `${studentName} "${assignmentName}"-এর একটি টাস্ক আপডেট করেছেন।`,
                         metadata: { assignmentId, studentId, taskId, instituteId }
                     }
                 });
             }
 
             // 3. Notify Guardian
-            const student = await prisma.user.findUnique({
+            const studentDoc = await prisma.user.findUnique({
                 where: { id: studentId },
-                select: {
-                    metadata: true,
-                    // Note: If using a link table as seen in some parts of code
-                    // But schema.prisma shows User.submissions, doesn't show guardians relation directly on User
-                    // Looking at route.ts for /api/submissions (PATCH), it uses student.guardians
-                }
+                select: { name: true, metadata: true }
             }) as any;
 
-            // Attempting to find guardians via metadata or relations if they exist
-            // Based on previous view of submissions/route.ts, it uses submission.student.guardians
-            const studentWithGuardians = await prisma.user.findUnique({
-                where: { id: studentId },
-                include: {
-                    // @ts-ignore - guardians might be a relation or in metadata
-                    guardians: {
-                        include: {
-                            // @ts-ignore
-                            guardian: { select: { userId: true } }
-                        }
+            const guardianId = studentDoc?.metadata?.guardianId;
+            if (guardianId) {
+                await (prisma as any).notification.create({
+                    data: {
+                        userId: guardianId,
+                        type: 'TASK_COMPLETED',
+                        title: 'সন্তানের পড়া আপডেট',
+                        message: `আপনার সন্তান ${studentName} "${assignmentName}"-এর একটি টাস্ক আপডেট করেছে।`,
+                        metadata: { assignmentId, studentId, taskId, instituteId }
                     }
-                }
-            }) as any;
-
-            if (studentWithGuardians?.guardians?.length > 0) {
-                for (const gLink of studentWithGuardians.guardians) {
-                    if (gLink.guardian?.userId) {
-                        await (prisma as any).notification.create({
-                            data: {
-                                userId: gLink.guardian.userId,
-                                type: 'TASK_COMPLETED',
-                                title: 'সন্তানের পড়া আপডেট',
-                                message: `আপনার সন্তান ${studentName} "${assignmentName}"-এর একটি টাস্ক সম্পন্ন করেছে।`,
-                                metadata: { assignmentId, studentId, taskId, instituteId }
-                            }
-                        });
-                    }
-                }
+                });
             }
         }
 

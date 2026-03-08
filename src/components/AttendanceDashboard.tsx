@@ -1,0 +1,230 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+    Users,
+    Camera,
+    QrCode,
+    ChevronRight,
+    ChevronLeft,
+    CheckCircle2,
+    Clock,
+    XCircle,
+    UserCheck,
+    Calendar as CalendarIcon,
+    LayoutGrid,
+    Search
+} from 'lucide-react';
+import { useSession } from './SessionProvider';
+import dynamic from 'next/dynamic';
+
+const FRSAttendanceScanner = dynamic<{ classId?: string, selectedDate?: string }>(() => import('@/components/FRSAttendanceScanner'), { ssr: false });
+const ManualAttendance = dynamic<{ classId: string; selectedDate: string }>(() => import('@/components/ManualAttendance'), { ssr: false });
+
+type AttendanceMode = 'MANUAL' | 'FRS' | 'QR';
+
+export default function AttendanceDashboard() {
+    const { activeInstitute } = useSession();
+    const [classes, setClasses] = useState<any[]>([]);
+    const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+    const [activeMode, setActiveMode] = useState<AttendanceMode>('MANUAL');
+    const [selectedDate, setSelectedDate] = useState(() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    });
+    const scrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (activeInstitute) {
+            fetchClasses();
+        }
+    }, [activeInstitute]);
+
+    const fetchClasses = async () => {
+        try {
+            const res = await fetch(`/api/admin/classes?instituteId=${activeInstitute?.id}`);
+            if (res.ok) {
+                const data = await res.json();
+                setClasses(data);
+                if (selectedClassId === null) {
+                    setSelectedClassId('');
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching classes:', err);
+        }
+    };
+
+    const scroll = (direction: 'left' | 'right') => {
+        if (scrollRef.current) {
+            const scrollAmount = 200;
+            scrollRef.current.scrollBy({
+                left: direction === 'left' ? -scrollAmount : scrollAmount,
+                behavior: 'smooth'
+            });
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-[#f8fafc] font-bengali">
+            {/* Header */}
+            <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-6 py-4 shadow-sm">
+                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-[#045c84] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-900/20">
+                            <UserCheck size={24} />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-black text-slate-800 tracking-tight leading-none mb-1">হাজিরা ড্যাশবোর্ড</h1>
+                            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest italic">{activeInstitute?.name || 'Education System'}</p>
+                        </div>
+                    </div>
+
+                    {/* Date & Mode Switcher Row */}
+                    <div className="flex flex-wrap items-center gap-4">
+                        <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="bg-transparent border-none outline-none text-xs font-black text-slate-600 px-3 py-1 cursor-pointer focus:ring-0"
+                            />
+                        </div>
+
+                        <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                            {[
+                                { id: 'MANUAL', label: 'ম্যানুয়াল', icon: LayoutGrid },
+                                { id: 'FRS', label: 'ফেস রিডিং', icon: Camera },
+                                { id: 'QR', label: 'কিউআর কোড', icon: QrCode },
+                            ].map((mode) => (
+                                <button
+                                    key={mode.id}
+                                    onClick={() => setActiveMode(mode.id as AttendanceMode)}
+                                    className={`px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all duration-300 ${activeMode === mode.id
+                                        ? 'bg-white text-[#045c84] shadow-sm font-black ring-1 ring-slate-200'
+                                        : 'text-slate-500 hover:text-slate-700 font-bold opacity-70'
+                                        }`}
+                                >
+                                    <mode.icon size={18} />
+                                    <span className="text-[13px]">{mode.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Class Tabs - Horizontal Scrolling */}
+            <div className="bg-white border-b border-slate-200 relative group overflow-hidden">
+                <div className="max-w-7xl mx-auto px-10 py-3 relative">
+                    <button
+                        onClick={() => scroll('left')}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white border border-slate-100 shadow-md flex items-center justify-center text-slate-400 hover:text-slate-900 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+
+                    <div
+                        ref={scrollRef}
+                        className="flex items-center gap-3 overflow-x-auto no-scrollbar scroll-smooth whitespace-nowrap"
+                    >
+                        <button
+                            onClick={() => setSelectedClassId('')}
+                            className={`px-6 py-2.5 rounded-full text-[14px] transition-all duration-300 relative ${selectedClassId === ''
+                                ? 'bg-[#045c84]/10 text-[#045c84] font-black border-2 border-[#045c84]/40'
+                                : 'bg-[#f1f5f9] text-slate-500 font-bold border-2 border-transparent hover:bg-slate-200 hover:text-slate-700'
+                                }`}
+                        >
+                            সব ক্লাস
+                            {selectedClassId === '' && (
+                                <motion.div
+                                    layoutId="activeTab"
+                                    className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#045c84] rounded-full"
+                                />
+                            )}
+                        </button>
+                        {classes.map((cls) => (
+                            <button
+                                key={cls.id}
+                                onClick={() => setSelectedClassId(cls.id)}
+                                className={`px-6 py-2.5 rounded-full text-[14px] transition-all duration-300 relative ${selectedClassId === cls.id
+                                    ? 'bg-[#045c84]/10 text-[#045c84] font-black border-2 border-[#045c84]/40'
+                                    : 'bg-[#f1f5f9] text-slate-500 font-bold border-2 border-transparent hover:bg-slate-200 hover:text-slate-700'
+                                    }`}
+                            >
+                                {cls.name}
+                                {selectedClassId === cls.id && (
+                                    <motion.div
+                                        layoutId="activeTab"
+                                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#045c84] rounded-full"
+                                    />
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    <button
+                        onClick={() => scroll('right')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white border border-slate-100 shadow-md flex items-center justify-center text-slate-400 hover:text-slate-900 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                        <ChevronRight size={20} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="max-w-7xl mx-auto p-6">
+                <AnimatePresence mode="wait">
+                    {activeMode === 'MANUAL' && (
+                        <motion.div
+                            key="manual"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                        >
+                            <ManualAttendance classId={selectedClassId || ''} selectedDate={selectedDate} />
+                        </motion.div>
+                    )}
+
+                    {activeMode === 'FRS' && (
+                        <motion.div
+                            key="frs"
+                            initial={{ opacity: 0, scale: 0.98 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.98 }}
+                        >
+                            <FRSAttendanceScanner classId={selectedClassId || ''} selectedDate={selectedDate} />
+                        </motion.div>
+                    )}
+
+                    {activeMode === 'QR' && (
+                        <motion.div
+                            key="qr"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="bg-white rounded-[40px] border-4 border-white shadow-2xl p-20 flex flex-col items-center justify-center text-center"
+                        >
+                            <div className="w-32 h-32 bg-slate-50 rounded-[40px] flex items-center justify-center text-slate-200 mb-8 ring-8 ring-slate-50/50">
+                                <QrCode size={64} />
+                            </div>
+                            <h2 className="text-3xl font-black text-slate-800 mb-4 italic uppercase tracking-tighter">কিউআর কোড স্ক্যানার</h2>
+                            <p className="text-slate-400 font-bold max-w-md mx-auto leading-relaxed">এই মোডটি বর্তমানে ডেভেলপমেন্ট পর্যায়ে আছে। শীঘ্রই আপনি আইডি কার্ড স্ক্যান করে হাজিরা নিতে পারবেন।</p>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            <style jsx global>{`
+                .no-scrollbar::-webkit-scrollbar {
+                    display: none;
+                }
+                .no-scrollbar {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+            `}</style>
+        </div>
+    );
+}

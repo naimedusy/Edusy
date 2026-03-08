@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, GraduationCap, Search, Plus, MoreVertical, Shield, Settings, Trash2, ChevronDown } from 'lucide-react';
+import { Search, Plus, MoreVertical, Shield, Settings, Trash2, ChevronDown, GraduationCap } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/SessionProvider';
 import AddTeacherModal from '@/components/AddTeacherModal';
 import TeacherPermissionModal from '@/components/TeacherPermissionModal';
@@ -10,6 +11,17 @@ import TeacherCard from '@/components/TeacherCard';
 
 export default function TeachersPage() {
     const { user, activeInstitute, activeRole } = useSession();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (activeRole && activeRole !== 'ADMIN' && activeRole !== 'SUPER_ADMIN') {
+            if (activeRole === 'TEACHER') window.location.replace('/dashboard/teacher');
+            else if (activeRole === 'GUARDIAN') window.location.replace('/dashboard/guardian');
+            else if (activeRole === 'STUDENT') window.location.replace('/dashboard/student');
+            else window.location.replace('/dashboard');
+        }
+    }, [activeRole]);
+
     const [teachers, setTeachers] = useState<any[]>([]);
     const [classes, setClasses] = useState<any[]>([]);
     const [books, setBooks] = useState<any[]>([]);

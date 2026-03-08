@@ -22,7 +22,8 @@ import {
     Presentation, // Classroom
     Library,      // Library
     ClipboardList,// Assignment
-    Megaphone     // Notice
+    Megaphone,    // Notice
+    Zap           // Attendance
 } from 'lucide-react';
 
 import { useSession } from '@/components/SessionProvider';
@@ -53,8 +54,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex h-screen w-full items-center justify-center bg-slate-50">
                 <div className="flex flex-col items-center gap-4">
                     <div className="relative">
-                        <div className="w-16 h-16 border-4 border-[#045c84]/20 border-t-[#045c84] rounded-full animate-spin"></div>
-                        <GraduationCap className="absolute inset-0 m-auto text-[#045c84] animate-pulse" size={24} />
+                        <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+                        <GraduationCap className="absolute inset-0 m-auto text-primary animate-pulse" size={24} />
                     </div>
                     <p className="text-slate-500 font-black text-xs uppercase tracking-[0.3em] animate-pulse">EDUSY লোড হচ্ছে...</p>
                 </div>
@@ -74,9 +75,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // ...
     const menuItems = [
         { name: 'ড্যাশবোর্ড', icon: LayoutDashboard, href: '/dashboard' },
+        { name: 'হাজিরা', icon: Zap, href: '/dashboard/attendance/scan', roles: ['ADMIN', 'TEACHER'] },
         { name: 'প্রতিষ্ঠান', icon: Building2, href: '/dashboard/institute', adminOnly: true },
         { name: 'শিক্ষক', icon: GraduationCap, href: '/dashboard/teachers' },
-        { name: 'শিক্ষার্থী / বই', icon: Users, href: '/dashboard/students' },
+        {
+            name: activeRole === 'GUARDIAN' ? 'আমার সন্তান' : 'শিক্ষার্থী / বই',
+            icon: Users,
+            href: activeRole === 'GUARDIAN' ? '/dashboard/guardian/children' : '/dashboard/students'
+        },
         { name: 'অভিভাবক', icon: HeartPulse, href: '/dashboard/guardians' },
         { name: 'হিসাব', icon: CreditCard, href: '/dashboard/accounts' },
         { name: 'ক্লাস রুম', icon: Presentation, href: '/dashboard/classroom' },
@@ -101,6 +107,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
         if (activeRole === 'STUDENT') {
             return ['/dashboard', '/dashboard/notices', '/dashboard/classroom', '/dashboard/library', '/dashboard/assignments'].includes(item.href);
+        }
+        if (activeRole === 'GUARDIAN') {
+            return ['/dashboard', '/dashboard/guardian/children', '/dashboard/assignments', '/dashboard/settings'].includes(item.href);
         }
         if ((item as any).adminOnly) {
             return activeRole === 'ADMIN';
@@ -130,11 +139,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {/* Sidebar */}
             <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 text-black transition-transform duration-300 lg:translate-x-0 shadow-lg ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="flex flex-col h-full">
-                    <div className="p-8 flex items-center gap-4 bg-[#045c84] text-white">
+                    <div className="p-8 flex items-center gap-4 bg-primary text-white">
                         <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md shadow-inner">
                             <GraduationCap size={24} className="text-white" />
                         </div>
-                        <h1 className="text-2xl font-black tracking-widest flex-1">EDUSY</h1>
+                        <h1 className="text-2xl font-black tracking-widest flex-1">
+                            {activeRole === 'GUARDIAN' ? 'অভিভাবক' : 'EDUSY'}
+                        </h1>
                         <button className="lg:hidden text-white/80 hover:text-white transition-colors" onClick={() => setIsSidebarOpen(false)}>
                             <X size={24} />
                         </button>
@@ -152,15 +163,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 return (
                                     <Link
                                         key={item.href}
-                                        href={item.href}
+                                        href={
+                                            activeRole === 'GUARDIAN' && item.href === '/dashboard' ? '/dashboard/guardian' :
+                                                activeRole === 'GUARDIAN' && item.href === '/dashboard/guardian/children' ? '/dashboard/guardian/children' :
+                                                    activeRole === 'STUDENT' && item.href === '/dashboard/students' ? '/dashboard/student' :
+                                                        activeRole === 'TEACHER' && item.href === '/dashboard/teachers' ? '/dashboard/teacher' :
+                                                            item.href
+                                        }
                                         onClick={() => setIsSidebarOpen(false)}
                                         className={`flex items-center gap-5 px-5 py-4 rounded-2xl transition-all font-medium group text-lg ${isActive
-                                            ? 'bg-[#045c84] text-white shadow-lg shadow-blue-200'
+                                            ? 'bg-primary text-white shadow-lg shadow-primary/20'
                                             : 'text-zinc-900 hover:bg-slate-100'
                                             }`}
                                     >
-                                        <item.icon size={24} className={`transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-[#045c84]'}`} />
-                                        <span>{item.name}</span>
+                                        <item.icon size={24} className={`transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-primary'}`} />
+                                        <span>{activeRole === 'GUARDIAN' && item.name === 'শিক্ষার্থী / বই' ? 'আমার সন্তান' : item.name}</span>
                                     </Link>
                                 );
                             })}
@@ -168,7 +185,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
                         {activeRole === 'SUPER_ADMIN' && (
                             <div className="px-4 mb-4">
-                                <div className="px-5 mb-2 flex items-center gap-2 text-[#045c84]">
+                                <div className="px-5 mb-2 flex items-center gap-2 text-primary">
                                     <ShieldCheck size={16} />
                                     <span className="text-[10px] font-black uppercase tracking-[0.2em]">অ্যাডমিন ওভারসাইট</span>
                                 </div>
@@ -181,11 +198,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                                 href={item.href}
                                                 onClick={() => setIsSidebarOpen(false)}
                                                 className={`flex items-center gap-4 px-5 py-3 rounded-xl transition-all font-medium group text-sm ${isActive
-                                                    ? 'bg-[#045c84]/10 text-[#045c84] font-bold'
-                                                    : 'text-slate-600 hover:bg-[#045c84]/5'
+                                                    ? 'bg-primary/10 text-primary font-bold'
+                                                    : 'text-slate-600 hover:bg-primary/5'
                                                     }`}
                                             >
-                                                <item.icon size={18} className={`transition-opacity ${isActive ? 'opacity-100 text-[#045c84]' : 'opacity-70 group-hover:opacity-100 text-[#045c84]'}`} />
+                                                <item.icon size={18} className={`transition-opacity ${isActive ? 'opacity-100 text-primary' : 'opacity-70 group-hover:opacity-100 text-primary'}`} />
                                                 <span>{item.name}</span>
                                             </Link>
                                         );
@@ -225,15 +242,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         {/* Page Title */}
                         <div className="flex items-center min-w-0">
                             <h2 className="text-xl font-black text-slate-800 font-bengali">
-                                {pathname?.includes('/dashboard/students') ? 'শিক্ষার্থী / বই' :
-                                    pathname?.includes('/dashboard/teachers') ? 'শিক্ষক' :
-                                        pathname?.includes('/dashboard/institute') ? 'প্রতিষ্ঠানসমূহ' :
-                                            pathname?.includes('/dashboard/accounts') ? 'হিসাব' :
-                                                pathname?.includes('/dashboard/settings') ? 'সেটিংস' :
-                                                    pathname?.includes('/dashboard/guardians') ? 'অভিভাবক' :
-                                                        pathname?.includes('/dashboard/calendar') ? 'ক্যালেন্ডার' :
-                                                            pathname?.includes('/dashboard/assignments') ? 'অ্যাসাইনমেন্ট' :
-                                                                pathname?.includes('/dashboard') ? 'ড্যাশবোর্ড' : ''}
+                                {pathname === '/dashboard/guardian' ? 'অভিভাবক ড্যাশবোর্ড' :
+                                    pathname?.includes('/dashboard/students') ? (activeRole === 'GUARDIAN' ? 'আমার সন্তান' : 'শিক্ষার্থী / বই') :
+                                        pathname?.includes('/dashboard/teachers') ? 'শিক্ষক' :
+                                            pathname?.includes('/dashboard/institute') ? 'প্রতিষ্ঠানসমূহ' :
+                                                pathname?.includes('/dashboard/accounts') ? 'হিসাব' :
+                                                    pathname?.includes('/dashboard/settings') ? 'সেটিংস' :
+                                                        pathname?.includes('/dashboard/guardians') ? 'অভিভাবক' :
+                                                            pathname?.includes('/dashboard/calendar') ? 'ক্যালেন্ডার' :
+                                                                pathname?.includes('/dashboard/assignments') ? 'অ্যাসাইনমেন্ট' :
+                                                                    pathname?.includes('/dashboard/attendance') ? 'হাজিরা' :
+                                                                        pathname?.includes('/dashboard') ? 'ড্যাশবোর্ড' : ''}
                             </h2>
                         </div>
                     </div>
@@ -251,10 +270,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             className="flex items-center gap-3 pl-2 border-l border-slate-200 cursor-pointer group hover:bg-slate-50 p-1 rounded-xl transition-all"
                         >
                             <div className="hidden sm:block text-right">
-                                <p className="text-sm font-medium text-black group-hover:text-[#045c84] transition-colors">{user?.name || 'ব্যবহারকারী'}</p>
-                                <p className="text-xs text-slate-500 uppercase tracking-tighter">{activeRole?.replace('_', ' ')}</p>
+                                <p className="text-sm font-medium text-black group-hover:text-primary transition-colors">{user?.name || 'ব্যবহারকারী'}</p>
+                                <p className="text-xs text-slate-500 uppercase tracking-tighter">
+                                    {activeRole === 'SUPER_ADMIN' ? 'সুপার অ্যাডমিন' :
+                                        activeRole === 'ADMIN' ? 'অ্যাডমিন' :
+                                            activeRole === 'TEACHER' ? 'শিক্ষক' :
+                                                activeRole === 'STUDENT' ? 'শিক্ষার্থী' :
+                                                    activeRole === 'GUARDIAN' ? 'অভিভাবক' :
+                                                        activeRole?.replace('_', ' ')}
+                                </p>
                             </div>
-                            <div className="w-10 h-10 bg-gradient-to-tr from-[#045c84] to-[#047cac] rounded-xl shadow-lg shadow-blue-200 flex items-center justify-center text-white font-black group-hover:scale-105 transition-transform">
+                            <div className="w-10 h-10 bg-gradient-to-tr from-primary to-secondary rounded-xl shadow-lg shadow-primary/20 flex items-center justify-center text-white font-black group-hover:scale-105 transition-transform">
                                 {user?.name ? user.name[0] : 'U'}
                             </div>
                         </div>

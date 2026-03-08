@@ -30,8 +30,8 @@ export default function RoleSwitcher() {
     if (user?.role !== 'SUPER_ADMIN') return null;
 
     return (
-        <div className="mx-4 mb-4 p-4 bg-[#045c84]/5 rounded-2xl border border-[#045c84]/10">
-            <div className="flex items-center gap-2 mb-3 text-[#045c84]">
+        <div className="mx-4 mb-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+            <div className="flex items-center gap-2 mb-3 text-primary">
                 <Eye size={18} />
                 <span className="text-xs font-bold uppercase tracking-wider">ভিউ মোড পরিবর্তন</span>
             </div>
@@ -40,7 +40,7 @@ export default function RoleSwitcher() {
                 <select
                     value={activeRole || 'SUPER_ADMIN'}
                     onChange={(e) => switchRole(e.target.value as Role)}
-                    className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium appearance-none cursor-pointer focus:ring-2 focus:ring-[#045c84]/20 outline-none transition-all"
+                    className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-medium appearance-none cursor-pointer focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                 >
                     {Object.entries(roleMeta).map(([role, meta]) => (
                         <option key={role} value={role}>
@@ -48,7 +48,7 @@ export default function RoleSwitcher() {
                         </option>
                     ))}
                 </select>
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#045c84]">
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-primary">
                     {activeRole && React.createElement(roleMeta[activeRole].icon, { size: 18 })}
                 </div>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">

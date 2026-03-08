@@ -24,18 +24,21 @@ export async function GET(req: Request) {
             where,
             include: {
                 student: {
-                    select: { name: true, phone: true }
+                    select: { name: true, phone: true, metadata: true }
                 },
                 assignment: {
-                    include: {
+                    select: {
+                        id: true,
+                        title: true,
+                        createdAt: true,
                         book: { select: { name: true } },
                         teacher: { select: { id: true, name: true } },
                         class: { select: { id: true, name: true } },
-                        group: { select: { id: true, name: true } }
+                        group: { select: { id: true, name: true } },
                     }
                 }
             },
-            orderBy: { submittedAt: 'desc' }
+            orderBy: { updatedAt: 'desc' }
         });
 
         return NextResponse.json(submissions);
@@ -77,7 +80,8 @@ export async function POST(req: Request) {
                 studentId,
                 content,
                 attachments,
-                status: 'SUBMITTED'
+                status: 'SUBMITTED',
+                submittedAt: new Date()
             },
             include: {
                 student: { select: { name: true } },
@@ -162,131 +166,135 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
     try {
         const body = await req.json();
-        const { id, status, grade, feedback, taskId, taskStatus } = body;
+        const { id, ids, status, grade, feedback, taskId, taskStatus, action } = body;
 
-        if (!id) {
-            return NextResponse.json({ message: 'Submission ID is required' }, { status: 400 });
+        if (!id && (!ids || !Array.isArray(ids) || ids.length === 0)) {
+            return NextResponse.json({ message: 'Submission ID or IDs array is required' }, { status: 400 });
         }
 
-        const existingSubmission = await (prisma as any).submission.findUnique({
-            where: { id },
-            include: {
-                assignment: {
-                    select: { title: true, book: { select: { name: true } } }
-                }
-            }
-        });
+        const targetIds = ids || [id];
+        const results = [];
 
-        if (!existingSubmission) {
-            return NextResponse.json({ message: 'Submission not found' }, { status: 404 });
-        }
-
-        let data: any = {
-            updatedAt: new Date()
-        };
-
-        if (status) data.status = status;
-        if (grade !== undefined) data.grade = grade;
-        if (feedback !== undefined) data.feedback = feedback;
-
-        // Granular Task Update
-        if (taskId && taskStatus) {
-            let taskProgress = (existingSubmission.taskProgress as any) || {};
-            if (taskProgress[taskId]) {
-                taskProgress[taskId].status = taskStatus;
-                taskProgress[taskId].reviewedAt = new Date();
-                if (feedback) taskProgress[taskId].feedback = feedback; // Add feedback to subtask
-                data.taskProgress = taskProgress;
-
-                // Auto-update global status if needed
-                // If any task is rejected or needs retry, keep it SUBMITTED to indicate it's still being worked on
-                // Only if the whole assignment isn't already being approved
-                if (!status && (taskStatus === 'RETRY' || taskStatus === 'REJECTED')) {
-                    data.status = 'SUBMITTED';
-                }
-            }
-        }
-
-        const submission = await (prisma as any).submission.update({
-            where: { id },
-            data,
-            include: {
-                assignment: {
-                    select: { title: true, book: { select: { name: true } } }
-                }
-            }
-        });
-
-        // Notification Logic
-        if (status === 'APPROVED' || (taskId && taskStatus)) {
-            // Fetch student and guardians separately to avoid complex nested includes in update
-            const studentDoc = await (prisma as any).user.findUnique({
-                where: { id: submission.studentId },
-                select: { id: true, name: true, metadata: true }
-            });
-
-            const assignmentName = submission.assignment?.book?.name || submission.assignment?.title;
-            let notifTitle = 'অ্যাসাইনমেন্ট আপডেট';
-            let notifMessage = `আপনার "${assignmentName}" অ্যাসাইনমেন্টটিতে আপডেট এসেছে।`;
-            let guardMessage = `আপনার সন্তানের "${assignmentName}" অ্যাসাইনমেন্টটিতে আপডেট এসেছে।`;
-
-            if (status === 'APPROVED') {
-                notifTitle = 'অ্যাসাইনমেন্ট অনুমোদিত';
-                notifMessage = `আপনার "${assignmentName}" অ্যাসাইনমেন্টটি শিক্ষক অনুমোদন করেছেন।`;
-                guardMessage = `আপনার সন্তানের "${assignmentName}" অ্যাসাইনমেন্টটি শিক্ষক অনুমোদন করেছেন।`;
-            } else if (taskId && taskStatus === 'APPROVED') {
-                notifTitle = 'টাস্ক অনুমোদিত';
-                notifMessage = `আপনার "${assignmentName}"-এর একটি টাস্ক শিক্ষক অনুমোদন করেছেন।`;
-                guardMessage = `আপনার সন্তানের "${assignmentName}"-এর একটি টাস্ক শিক্ষক অনুমোদন করেছেন।`;
-            } else if (taskId && taskStatus === 'RETRY') {
-                notifTitle = 'আবার চেষ্টা করুন (Retry)';
-                notifMessage = `আপনার "${assignmentName}"-এর একটি টাস্ক পুনরায় করার জন্য শিক্ষক অনুরোধ করেছেন।`;
-                guardMessage = `আপনার সন্তানের "${assignmentName}"-এর একটি টাস্ক পুনরায় করার জন্য শিক্ষক অনুরোধ করেছেন।`;
-            } else if (taskId && taskStatus === 'REJECTED') {
-                notifTitle = 'টাস্ক বাতিল';
-                notifMessage = `আপনার "${assignmentName}"-এর একটি টাস্ক শিক্ষক গ্রহণ করেননি।`;
-                guardMessage = `আপনার সন্তানের "${assignmentName}"-এর একটি টাস্ক শিক্ষক গ্রহণ করেননি।`;
-            }
-
-            // 1. Notify Student
-            await (prisma as any).notification.create({
-                data: {
-                    userId: submission.studentId,
-                    type: 'SUBMISSION_REVIEWED',
-                    title: notifTitle,
-                    message: notifMessage,
-                    metadata: { submissionId: id, taskId, taskStatus }
+        for (const targetId of targetIds) {
+            const existingSubmission = await (prisma as any).submission.findUnique({
+                where: { id: targetId },
+                include: {
+                    assignment: {
+                        select: { title: true, book: { select: { name: true } } }
+                    }
                 }
             });
 
-            // 2. Notify Guardian
-            if (studentDoc?.metadata?.guardianId) {
-                const guardian = await prisma.user.findUnique({
-                    where: { id: studentDoc.metadata.guardianId },
-                    select: { id: true }
+            if (action === 'REVERT') {
+                await (prisma as any).submission.delete({
+                    where: { id: targetId }
+                });
+                results.push({ id: targetId, action: 'REVERTED' });
+                continue;
+            }
+
+            let data: any = {
+                updatedAt: new Date()
+            };
+
+            if (status) data.status = status;
+            if (grade !== undefined) data.grade = grade;
+            if (feedback !== undefined) data.feedback = feedback;
+
+            // Granular Task Update
+            if (taskId && taskStatus) {
+                let taskProgress = (existingSubmission.taskProgress as any) || {};
+                if (taskProgress[taskId]) {
+                    taskProgress[taskId].status = taskStatus;
+                    taskProgress[taskId].reviewedAt = new Date();
+                    if (feedback) taskProgress[taskId].feedback = feedback;
+                    data.taskProgress = taskProgress;
+
+                    if (!status && (taskStatus === 'RETRY' || taskStatus === 'REJECTED')) {
+                        data.status = 'SUBMITTED';
+                    }
+                }
+            }
+
+            const submission = await (prisma as any).submission.update({
+                where: { id: targetId },
+                data,
+                include: {
+                    assignment: {
+                        select: { title: true, book: { select: { name: true } } }
+                    }
+                }
+            });
+
+            // Notification Logic
+            if (status === 'APPROVED' || (taskId && taskStatus)) {
+                const studentDoc = await (prisma as any).user.findUnique({
+                    where: { id: submission.studentId },
+                    select: { id: true, name: true, metadata: true }
                 });
 
-                if (guardian) {
-                    await (prisma as any).notification.create({
-                        data: {
-                            userId: guardian.id,
-                            type: 'SUBMISSION_REVIEWED',
-                            title: notifTitle,
-                            message: guardMessage,
-                            metadata: {
-                                submissionId: id,
-                                studentId: submission.studentId,
-                                studentName: studentDoc.name,
-                                taskId,
-                                taskStatus
-                            }
-                        }
+                const assignmentName = submission.assignment?.book?.name || submission.assignment?.title;
+                let notifTitle = 'ডায়েরি আপডেট';
+                let notifMessage = `তোমার "${assignmentName}" ডায়েরিতে আপডেট এসেছে।`;
+                let guardMessage = `আপনার সন্তানের "${assignmentName}" ডায়েরিতে আপডেট এসেছে।`;
+
+                if (status === 'APPROVED') {
+                    notifTitle = 'ডায়েরি অনুমোদিত';
+                    notifMessage = `তোমার "${assignmentName}" ডায়েরিটি শিক্ষক অনুমোদন করেছেন।`;
+                    guardMessage = `আপনার সন্তানের "${assignmentName}" ডায়েরিটি শিক্ষক অনুমোদন করেছেন।`;
+                } else if (taskId && taskStatus === 'APPROVED') {
+                    notifTitle = 'টাস্ক অনুমোদিত';
+                    notifMessage = `তোমার "${assignmentName}"-এর একটি টাস্ক শিক্ষক অনুমোদন করেছেন।`;
+                    guardMessage = `আপনার সন্তানের "${assignmentName}"-এর একটি টাস্ক শিক্ষক অনুমোদন করেছেন।`;
+                } else if (taskId && taskStatus === 'RETRY') {
+                    notifTitle = 'আবার চেষ্টা করো';
+                    notifMessage = `তোমার "${assignmentName}"-এর একটি টাস্ক পুনরায় করার জন্য শিক্ষক অনুরোধ করেছেন।`;
+                    guardMessage = `আপনার সন্তানের "${assignmentName}"-এর একটি টাস্ক পুনরায় করার জন্য শিক্ষক অনুরোধ করেছেন।`;
+                } else if (taskId && taskStatus === 'REJECTED') {
+                    notifTitle = 'টাস্ক বাতিল';
+                    notifMessage = `তোমার "${assignmentName}"-এর একটি টাস্ক শিক্ষক গ্রহণ করেননি।`;
+                    guardMessage = `আপনার সন্তানের "${assignmentName}"-এর একটি টাস্ক শিক্ষক গ্রহণ করেননি।`;
+                }
+
+                await (prisma as any).notification.create({
+                    data: {
+                        userId: submission.studentId,
+                        type: 'SUBMISSION_REVIEWED',
+                        title: notifTitle,
+                        message: notifMessage,
+                        metadata: { submissionId: targetId, taskId, taskStatus }
+                    }
+                });
+
+                if (studentDoc?.metadata?.guardianId) {
+                    const guardian = await prisma.user.findUnique({
+                        where: { id: studentDoc.metadata.guardianId },
+                        select: { id: true }
                     });
+
+                    if (guardian) {
+                        await (prisma as any).notification.create({
+                            data: {
+                                userId: guardian.id,
+                                type: 'SUBMISSION_REVIEWED',
+                                title: notifTitle,
+                                message: guardMessage,
+                                metadata: {
+                                    submissionId: targetId,
+                                    studentId: submission.studentId,
+                                    studentName: studentDoc.name,
+                                    taskId,
+                                    taskStatus
+                                }
+                            }
+                        });
+                    }
                 }
             }
+            results.push(submission);
         }
 
-        return NextResponse.json(submission);
+        return NextResponse.json(results.length === 1 && id ? results[0] : results);
     } catch (error) {
         console.error('Submissions PATCH Error:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

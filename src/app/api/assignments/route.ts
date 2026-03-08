@@ -39,49 +39,94 @@ export async function GET(req: Request) {
         }
 
         const ownOnly = searchParams.get('ownOnly') === 'true';
+        let guardian: any = null;
+        let guardianChildrenIds: string[] = [];
 
         if (role === 'TEACHER' && userId && ownOnly) {
             where.teacherId = userId;
         } else if (role === 'STUDENT') {
-            if (classId) where.classId = classId;
-            if (groupId) where.groupId = groupId;
             where.status = { in: ['PUBLISHED', 'RELEASED'] };
             // For students, only show assignments where releaseAt <= now
-            where.OR = [
-                { releaseAt: null },
-                { releaseAt: { lte: new Date() } }
-            ];
+            const releaseCondition = {
+                OR: [
+                    { releaseAt: null },
+                    { releaseAt: { lte: new Date() } }
+                ]
+            };
+
+            // Broaden the group filter: show assignments for their group OR assignments with no group (class-wide)
+            if (classId && groupId) {
+                where.AND = [
+                    { classId: classId },
+                    { OR: [{ groupId: groupId }, { groupId: null }] },
+                    releaseCondition
+                ];
+            } else if (classId) {
+                where.classId = classId;
+                where.groupId = null; // Only show class-wide if student has no group? Or let them see everything for the class?
+                // Usually students are assigned to a group if the class has groups. 
+                // If they don't have a group, they just see class-wide work.
+                where.AND = [where.AND || {}, releaseCondition];
+            } else {
+                where.AND = [where.AND || {}, releaseCondition];
+            }
         } else if (role === 'GUARDIAN' && userId) {
+            const childId = searchParams.get('childId');
+            let targetChildrenIds: string[] = [];
+
             // Find children from guardian metadata
-            const guardian = await prisma.user.findUnique({
+            guardian = await prisma.user.findUnique({
                 where: { id: userId },
                 select: { metadata: true }
             });
             const metadata = guardian?.metadata as any;
             const childrenIds = metadata?.childrenIds || (metadata?.studentId ? [metadata.studentId] : []);
+            guardianChildrenIds = childrenIds;
 
-            if (childrenIds.length > 0) {
-                const children = await prisma.user.findMany({
-                    where: { id: { in: childrenIds } },
+            // If childId is provided, verify it belongs to this guardian
+            targetChildrenIds = childrenIds;
+            if (childId) {
+                if (childrenIds.includes(childId)) {
+                    targetChildrenIds = [childId];
+                } else {
+                    // Unauthorized access to this child
+                    return NextResponse.json([]);
+                }
+            }
+
+            if (targetChildrenIds.length > 0) {
+                const targetChildren = await prisma.user.findMany({
+                    where: { id: { in: targetChildrenIds } },
                     select: { metadata: true }
                 });
 
-                const childrenClassIds = children.map(c => (c.metadata as any)?.classId).filter(Boolean);
-                const childrenGroupIds = children.map(c => (c.metadata as any)?.groupId).filter(Boolean);
+                const childrenClassIds = targetChildren.map(c => (c.metadata as any)?.classId).filter(Boolean);
+                const childrenGroupIds = targetChildren.map(c => (c.metadata as any)?.groupId).filter(Boolean);
 
-                where.OR = [
-                    { classId: { in: childrenClassIds } },
-                    { groupId: { in: childrenGroupIds } }
-                ];
+                // Guardians see assignments released for their children's classes OR specific groups
                 where.status = { in: ['PUBLISHED', 'RELEASED'] };
-                // Also apply releaseAt filter for guardians
+                const releaseCondition = {
+                    OR: [
+                        { releaseAt: null },
+                        { releaseAt: { lte: new Date() } }
+                    ]
+                };
+
                 where.AND = [
                     {
                         OR: [
-                            { releaseAt: null },
-                            { releaseAt: { lte: new Date() } }
+                            // 1. Assignments for any of their children's specific groups
+                            { groupId: { in: childrenGroupIds } },
+                            // 2. Class-wide assignments for any of their children's classes
+                            {
+                                AND: [
+                                    { classId: { in: childrenClassIds } },
+                                    { groupId: null }
+                                ]
+                            }
                         ]
-                    }
+                    },
+                    releaseCondition
                 ];
             } else {
                 // No children linked, return nothing
@@ -93,7 +138,7 @@ export async function GET(req: Request) {
             where,
             include: {
                 teacher: {
-                    select: { name: true, metadata: true }
+                    select: { name: true, role: true, metadata: true }
                 },
                 class: {
                     select: { name: true }
@@ -108,18 +153,47 @@ export async function GET(req: Request) {
                     select: { submissions: true }
                 },
                 submissions: {
-                    where: role === 'STUDENT' && userId ? { studentId: userId } : { status: 'SUBMITTED' as any },
-                    select: { id: true, status: true }
+                    where: (role === 'STUDENT' && userId) ? { studentId: userId } :
+                        (role === 'GUARDIAN' && userId) ? (
+                            searchParams.get('childId')
+                                ? { studentId: searchParams.get('childId') as string }
+                                : { studentId: { in: guardianChildrenIds } }
+                        ) : { status: 'SUBMITTED' },
+                    select: { id: true, studentId: true, status: true }
                 }
             },
             orderBy: { createdAt: 'desc' }
         });
 
         const formattedAssignments = assignments.map(a => {
-            const studentSubmission = role === 'STUDENT' ? a.submissions?.[0] : null;
+            let userStatus = 'NOT_STARTED';
+
+            if (role === 'STUDENT') {
+                userStatus = a.submissions?.[0]?.status || 'NOT_STARTED';
+            } else if (role === 'GUARDIAN') {
+                const childId = searchParams.get('childId');
+                if (childId) {
+                    // Status for specific child
+                    userStatus = a.submissions?.find(s => s.studentId === childId)?.status || 'NOT_STARTED';
+                } else {
+                    // Aggregated status for ALL children
+                    // Logic: If any child is APPROVED/GRADED, prioritize that.
+                    // If none approved but any SUBMITTED, show SUBMITTED.
+                    // If some SUBMITTED and some RETRY, etc...
+                    // For progress bar simplicity, if ANY child has done it, it's 'SUBMITTED' (or better)
+                    const statuses = a.submissions?.map(s => s.status) || [];
+                    if (statuses.includes('GRADED')) userStatus = 'GRADED';
+                    else if (statuses.includes('APPROVED')) userStatus = 'APPROVED';
+                    else if (statuses.includes('SUBMITTED')) userStatus = 'SUBMITTED';
+                    else if (statuses.includes('RETRY')) userStatus = 'RETRY';
+                    else if (statuses.includes('REJECTED')) userStatus = 'REJECTED';
+                    else userStatus = 'NOT_STARTED';
+                }
+            }
+
             return {
                 ...a,
-                userStatus: studentSubmission?.status || 'NOT_STARTED',
+                userStatus,
                 pendingCount: role === 'STUDENT' ? (a.submissions?.length || 0) : (a.submissions?.filter((s: any) => s.status === 'SUBMITTED').length || 0),
                 submissions: undefined
             };

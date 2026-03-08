@@ -43,6 +43,7 @@ interface ClassScheduleSettingsModalProps {
     classId: string;
     className: string;
     existingSchedule?: Partial<ClassSchedule> | null;
+    onSuccess?: () => void;
 }
 
 export default function ClassScheduleSettingsModal({
@@ -50,7 +51,8 @@ export default function ClassScheduleSettingsModal({
     onClose,
     classId,
     className,
-    existingSchedule
+    existingSchedule,
+    onSuccess
 }: ClassScheduleSettingsModalProps) {
     const [schedule, setSchedule] = useState<ClassSchedule>({ ...DEFAULT_SCHEDULE, ...existingSchedule });
     const [saving, setSaving] = useState(false);
@@ -107,6 +109,7 @@ export default function ClassScheduleSettingsModal({
             });
             if (res.ok) {
                 setSaved(true);
+                if (onSuccess) onSuccess();
                 setTimeout(() => {
                     setSaved(false);
                     onClose();
@@ -197,28 +200,36 @@ export default function ClassScheduleSettingsModal({
                             </div>
 
                             {!schedule.perDayStartTime ? (
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 relative group/input">
                                     <span className="text-xs text-slate-500 font-bold w-20">সব দিন</span>
-                                    <input
-                                        type="time"
-                                        value={schedule.globalStartTime}
-                                        onChange={e => setSchedule(p => ({ ...p, globalStartTime: e.target.value }))}
-                                        className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-[#045c84]/20 focus:border-[#045c84] transition-all"
-                                    />
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="time"
+                                            value={schedule.globalStartTime}
+                                            onChange={e => setSchedule(p => ({ ...p, globalStartTime: e.target.value }))}
+                                            onClick={(e) => e.currentTarget.showPicker()}
+                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-[#045c84]/20 focus:border-[#045c84] transition-all cursor-pointer appearance-none"
+                                        />
+                                        <Clock size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within/input:text-[#045c84]" />
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
                                     {DAYS.filter(d => schedule.activeDays.includes(d.key)).map(day => (
-                                        <div key={day.key} className="flex items-center gap-3">
+                                        <div key={day.key} className="flex items-center gap-3 relative group/input">
                                             <span className="text-xs font-black text-slate-600 w-14 text-center px-2 py-1 bg-white rounded-lg border border-slate-200">
                                                 {day.label}
                                             </span>
-                                            <input
-                                                type="time"
-                                                value={schedule.daySchedules[day.key]?.startTime || schedule.globalStartTime}
-                                                onChange={e => updateDaySchedule(day.key, 'startTime', e.target.value)}
-                                                className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-[#045c84]/20 focus:border-[#045c84] transition-all"
-                                            />
+                                            <div className="relative flex-1">
+                                                <input
+                                                    type="time"
+                                                    value={schedule.daySchedules[day.key]?.startTime || schedule.globalStartTime}
+                                                    onChange={e => updateDaySchedule(day.key, 'startTime', e.target.value)}
+                                                    onClick={(e) => e.currentTarget.showPicker()}
+                                                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-[#045c84]/20 focus:border-[#045c84] transition-all cursor-pointer appearance-none"
+                                                />
+                                                <Clock size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within/input:text-[#045c84]" />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -245,28 +256,36 @@ export default function ClassScheduleSettingsModal({
                             </div>
 
                             {!schedule.perDayReleaseTime ? (
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 relative group/input">
                                     <span className="text-xs text-slate-500 font-bold w-20">সব দিন</span>
-                                    <input
-                                        type="time"
-                                        value={schedule.globalReleaseTime}
-                                        onChange={e => setSchedule(p => ({ ...p, globalReleaseTime: e.target.value }))}
-                                        className="flex-1 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition-all"
-                                    />
+                                    <div className="relative flex-1">
+                                        <input
+                                            type="time"
+                                            value={schedule.globalReleaseTime}
+                                            onChange={e => setSchedule(p => ({ ...p, globalReleaseTime: e.target.value }))}
+                                            onClick={(e) => e.currentTarget.showPicker()}
+                                            className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition-all cursor-pointer appearance-none"
+                                        />
+                                        <Clock size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within/input:text-amber-500" />
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
                                     {DAYS.filter(d => schedule.activeDays.includes(d.key)).map(day => (
-                                        <div key={day.key} className="flex items-center gap-3">
+                                        <div key={day.key} className="flex items-center gap-3 relative group/input">
                                             <span className="text-xs font-black text-slate-600 w-14 text-center px-2 py-1 bg-white rounded-lg border border-slate-200">
                                                 {day.label}
                                             </span>
-                                            <input
-                                                type="time"
-                                                value={schedule.daySchedules[day.key]?.releaseTime || schedule.globalReleaseTime}
-                                                onChange={e => updateDaySchedule(day.key, 'releaseTime', e.target.value)}
-                                                className="flex-1 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition-all"
-                                            />
+                                            <div className="relative flex-1">
+                                                <input
+                                                    type="time"
+                                                    value={schedule.daySchedules[day.key]?.releaseTime || schedule.globalReleaseTime}
+                                                    onChange={e => updateDaySchedule(day.key, 'releaseTime', e.target.value)}
+                                                    onClick={(e) => e.currentTarget.showPicker()}
+                                                    className="w-full px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 transition-all cursor-pointer appearance-none"
+                                                />
+                                                <Clock size={14} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within/input:text-amber-500" />
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
@@ -296,6 +315,20 @@ export default function ClassScheduleSettingsModal({
                     </button>
                 </div>
             </div>
+            <style jsx global>{`
+                input[type="time"]::-webkit-calendar-picker-indicator {
+                    background: transparent;
+                    bottom: 0;
+                    color: transparent;
+                    cursor: pointer;
+                    height: auto;
+                    left: 0;
+                    position: absolute;
+                    right: 0;
+                    top: 0;
+                    width: auto;
+                }
+            `}</style>
         </div>,
         document.body
     );

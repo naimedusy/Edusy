@@ -1,0 +1,158 @@
+[
+  {
+    "id": "6990835351ab03d764c14413",
+    "name": "Guardian User",
+    "role": "GUARDIAN",
+    "metadata": null,
+    "instituteIds": []
+  },
+  {
+    "id": "6990835351ab03d764c14414",
+    "name": "Student User",
+    "role": "STUDENT",
+    "metadata": null,
+    "instituteIds": []
+  },
+  {
+    "id": "699167fefaf9634cc57ba74e",
+    "name": "dfvxc xcv ",
+    "role": "GUARDIAN",
+    "metadata": {
+      "childrenIds": [
+        "69908476e5f0040ce1af0616"
+      ]
+    },
+    "instituteIds": [
+      "699127f5df2f51a5b757bb56"
+    ]
+  },
+  {
+    "id": "69916a17faf9634cc57ba757",
+    "name": "mahina ",
+    "role": "GUARDIAN",
+    "metadata": {
+      "childrenIds": [
+        "69916a17faf9634cc57ba756"
+      ]
+    },
+    "instituteIds": [
+      "699127f5df2f51a5b757bb56"
+    ]
+  },
+  {
+    "id": "69921a21faf9634cc57ba8c9",
+    "name": "d",
+    "role": "GUARDIAN",
+    "metadata": {
+      "childrenIds": [
+        "69921a21faf9634cc57ba8c8"
+      ]
+    },
+    "instituteIds": [
+      "699098a96efcaf26224df245"
+    ]
+  },
+  {
+    "id": "69921af4faf9634cc57ba8cb",
+    "name": "sdfsdf",
+    "role": "GUARDIAN",
+    "metadata": {
+      "childrenIds": [
+        "69921af4faf9634cc57ba8ca"
+      ]
+    },
+    "instituteIds": [
+      "699098a96efcaf26224df245"
+    ]
+  },
+  {
+    "id": "69945278faf9634cc57c9e5d",
+    "name": "নাইম ",
+    "role": "STUDENT",
+    "metadata": {
+      "studentPhone": "01870186441",
+      "fathersName": "idrris ",
+      "guardianName": "idrris ",
+      "guardianPhone": "01870186443",
+      "guardianRelation": "বাবা",
+      "classId": "6990cff15ee42088f73370ba",
+      "groupId": "",
+      "rollNumber": "1",
+      "studentId": "0001",
+      "admissionDate": "2026-02-17",
+      "guardianPassword": "1219",
+      "studentPhoto": "/uploads/WhatsApp Image 2026-02-10 at 07.50.19-1771327965544-727009688.jpeg",
+      "admissionStatus": "APPROVED"
+    },
+    "instituteIds": [
+      "699098a96efcaf26224df245"
+    ]
+  },
+  {
+    "id": "699510d7da91596bd092757d",
+    "name": "Naim User",
+    "role": "STUDENT",
+    "metadata": {
+      "classId": "6990cff15ee42088f73370b8",
+      "studentId": "101",
+      "studentPhoto": "/uploads/Untitled-1-1772815473431-623373203.png"
+    },
+    "instituteIds": [
+      "699098a96efcaf26224df245"
+    ]
+  },
+  {
+    "id": "699510d8da91596bd092757e",
+    "name": "Minhaz User",
+    "role": "STUDENT",
+    "metadata": {
+      "classId": "6990cff15ee42088f73370b8",
+      "studentId": "102"
+    },
+    "instituteIds": [
+      "699098a96efcaf26224df245"
+    ]
+  },
+  {
+    "id": "699510d8da91596bd092757f",
+    "name": "Developer User",
+    "role": "STUDENT",
+    "metadata": {
+      "classId": "6990cff15ee42088f73370b8",
+      "studentId": "103",
+      "classroomCoverImage": "/uploads/cover-1771430446659-407464790.png"
+    },
+    "instituteIds": [
+      "699098a96efcaf26224df245"
+    ]
+  },
+  {
+    "id": "699843d1faf9634cc57ca1a3",
+    "name": "naim",
+    "role": "STUDENT",
+    "metadata": {
+      "studentId": "0104",
+      "studentPhoto": "/uploads/IMG_0952-1771586336872-86096297.JPG",
+      "fathersName": "habib",
+      "mothersName": "mayeda ",
+      "fathersPhone": "01870186441",
+      "guardianPhone": "01870186441",
+      "presentAddress": "kamaldia",
+      "classId": "6990cff15ee42088f73370ba",
+      "groupId": "6993cd1e589698a3741d3f55",
+      "rollNumber": "2",
+      "admissionDate": "2026-02-20",
+      "studentPhone": "01870186441",
+      "guardianName": "yakub",
+      "guardianRelation": "ভাই",
+      "guardianId": "699843d1faf9634cc57ca1a3",
+      "childrenIds": [
+        "699843d1faf9634cc57ca1a3"
+      ]
+    },
+    "instituteIds": [
+      "699098a96efcaf26224df245",
+      "699098a96efcaf26224df245"
+    ]
+  }
+]
