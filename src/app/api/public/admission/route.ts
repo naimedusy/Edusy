@@ -12,11 +12,12 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Institute ID is required' }, { status: 400 });
         }
 
-        // Use studentPhone from metadata if top-level phone is missing (fallback)
-        if (!phone && metadata?.studentPhone) phone = metadata.studentPhone;
+        const skipAccountSetup = body.skipAccountSetup || metadata?.skipAccountSetup;
+        const gPhone = guardianPhone?.trim();
+        const studentEmail = email?.trim();
 
-        if (!phone) {
-            return NextResponse.json({ message: 'শিক্ষার্থীর মোবাইল নম্বর অবশ্যই দিতে হবে।' }, { status: 400 });
+        if (!skipAccountSetup && !phone && !studentEmail && !gPhone) {
+            return NextResponse.json({ message: 'শিক্ষার্থীর মোবাইল, ইমেইল অথবা অভিভাবকের মোবাইল নম্বর - যেকোনো একটি অবশ্যই দিতে হবে।' }, { status: 400 });
         }
 
         // --- Rigorous Duplicate Checks ---
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Check Guardian duplicate phone/email
-        const gPhone = guardianPhone?.trim();
+        const studentEmailNormalized = studentEmail; // Already trimmed above
         const gEmail = metadata?.guardianEmail?.trim();
 
         if (gPhone) {
@@ -73,15 +74,19 @@ export async function POST(req: NextRequest) {
             finalMetadata.rollNumber = await getNextRollNumber(instituteId, finalMetadata.classId);
         }
 
-        const password = studentPassword || finalMetadata.studentId; // Default student password
+        if (!phone && metadata?.studentPhone) phone = metadata.studentPhone;
+
+        const password = studentPassword || (skipAccountSetup ? Math.random().toString(36).slice(-10) : finalMetadata.studentId);
+        if (skipAccountSetup) finalMetadata.skipAccountSetup = true;
+
         const instIds = [instituteId];
 
         // Create Student
         const newStudent = await prisma.user.create({
             data: {
                 name: String(name || ''),
-                phone: String(phone),
-                email: email && email.trim() !== '' ? email.trim() : null,
+                phone: phone ? String(phone) : null,
+                email: studentEmail && studentEmail !== '' ? studentEmail : null,
                 password: String(password),
                 role: 'STUDENT',
                 instituteIds: instIds,

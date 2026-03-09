@@ -139,6 +139,10 @@ export default function StudentManagementPage() {
     const [isExcelMode, setIsExcelMode] = useState(false);
     const [excelData, setExcelData] = useState<string[][]>([]);
     const [columnMappings, setColumnMappings] = useState<{ [key: number]: string }>({});
+    const [bulkClassId, setBulkClassId] = useState('');
+    const [bulkGroupId, setBulkGroupId] = useState('');
+    const [bulkGroups, setBulkGroups] = useState<any[]>([]);
+    const [previewIds, setPreviewIds] = useState<{ studentId: string, rollNumber: number }[]>([]);
     const [importFails, setImportFails] = useState<any[]>([]);
     const [isImportSummaryOpen, setIsImportSummaryOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
@@ -153,6 +157,41 @@ export default function StudentManagementPage() {
         setMounted(true);
         loadFaceModels();
     }, []);
+
+    useEffect(() => {
+        const generatePreviewIds = async () => {
+            if (!bulkClassId || excelData.length === 0 || !activeInstitute?.id) {
+                setPreviewIds([]);
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/admin/students/next-ids?instituteId=${activeInstitute.id}&classId=${bulkClassId}`);
+                if (!res.ok) return;
+                const startingData = await res.json();
+
+                let currentStudentId = startingData.nextStudentId;
+                let currentRollNumber = startingData.nextRollNumber;
+
+                const newPreviewIds = excelData.map(() => {
+                    const idObj = { studentId: currentStudentId, rollNumber: currentRollNumber };
+
+                    // Increment logic for next iteration
+                    const nextIdStr = (parseInt(currentStudentId.replace(/\D/g, '')) + 1).toString().padStart(currentStudentId.length - (currentStudentId.startsWith('S') ? 1 : 0), '0');
+                    currentStudentId = currentStudentId.startsWith('S') ? 'S' + nextIdStr : nextIdStr;
+                    currentRollNumber++;
+
+                    return idObj;
+                });
+
+                setPreviewIds(newPreviewIds);
+            } catch (error) {
+                console.error("Failed to fetch initial IDs for preview:", error);
+            }
+        };
+
+        generatePreviewIds();
+    }, [bulkClassId, excelData, activeInstitute?.id]);
 
     const loadFaceModels = async () => {
         try {
@@ -613,10 +652,11 @@ export default function StudentManagementPage() {
             delete cleanedMetadata.password;
             delete cleanedMetadata.phone; // Top level phone is preferred
 
-            const finalPhone = formData.metadata?.guardianPhone || formData.metadata?.studentPhone || formData.phone;
+            const finalPhone = formData.metadata?.studentPhone || formData.phone;
+            const gPhone = formData.metadata?.guardianPhone;
 
-            if (!finalEmail) {
-                setToast({ message: 'ইমেইল অবশ্যই দিতে হবে (Email is required)।', type: 'error' });
+            if (!finalEmail && !finalPhone && !gPhone) {
+                setToast({ message: 'ইমেইল, শিক্ষার্থীর মোবাইল অথবা অভিভাবকের মোবাইল নম্বর - যেকোনো একটি অবশ্যই দিতে হবে।', type: 'error' });
                 setActionLoading(false);
                 return;
             }
@@ -625,9 +665,9 @@ export default function StudentManagementPage() {
                 ...formData,
                 id: editingStudent?.id, // include ID for PATCH
                 name: finalName,
-                email: finalEmail,
+                email: finalEmail || null,
                 password: finalPassword,
-                phone: formData.metadata?.guardianPhone || formData.metadata?.studentPhone || formData.phone,
+                phone: finalPhone || null,
                 role: 'STUDENT',
                 metadata: editingStudent?.metadata?.admissionStatus === 'PENDING'
                     ? { ...cleanedMetadata, admissionStatus: 'APPROVED' }
@@ -1701,14 +1741,98 @@ export default function StudentManagementPage() {
                     )}
                     {isExcelMode ? (
                         /* Excel Paste Mode */
-                        <div className="space-y-4">
+                        <div className="space-y-6">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-emerald-50 p-4 rounded-2xl border border-emerald-100">
+                                <div className="space-y-1">
+                                    <h4 className="text-sm font-black text-emerald-900 flex items-center gap-2">
+                                        <CheckCircle2 size={16} className="text-emerald-600" />
+                                        আবশ্যকীয় কলামসমূহ (Required Columns)
+                                    </h4>
+                                    <p className="text-xs font-bold text-emerald-700/80">
+                                        অবশ্যই থাকতে হবে: <span className="text-emerald-900">শিক্ষার্থীর নাম</span>
+                                        {!formData.skipAccountSetup && <span>, এবং <span className="text-emerald-900">মোবাইল বা ইমেইল</span></span>}
+                                    </p>
+                                </div>
+                                <label className="flex items-center gap-3 cursor-pointer group bg-white/50 px-3 py-2 rounded-xl">
+                                    <span className="text-xs font-black text-slate-600 group-hover:text-amber-600 transition-colors">লগইন অ্যাকাউন্ট স্কিপ করুন</span>
+                                    <div className="relative">
+                                        <input
+                                            type="checkbox"
+                                            className="sr-only"
+                                            checked={!!formData.skipAccountSetup}
+                                            onChange={(e) => setFormData({ ...formData, skipAccountSetup: e.target.checked })}
+                                        />
+                                        <div className={`w-10 h-5 rounded-full transition-colors ${formData.skipAccountSetup ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                                        <div className={`absolute top-1 left-1 w-3 h-3 rounded-full bg-white transition-transform ${formData.skipAccountSetup ? 'translate-x-5' : ''}`} />
+                                    </div>
+                                </label>
+                            </div>
+
+                            {/* Class and Group Dropdowns for Bulk import */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-800 uppercase tracking-wider"><span className="text-rose-500 mr-1">*</span>শ্রেণী নির্বাচন করুন (সবার জন্য)</label>
+                                    <div className="relative">
+                                        <select
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-bold text-slate-900 appearance-none"
+                                            value={bulkClassId}
+                                            onChange={(e) => {
+                                                const classId = e.target.value;
+                                                setBulkClassId(classId);
+                                                setBulkGroupId('');
+                                                if (classId) {
+                                                    fetchGroups(classId).then(res => {
+                                                        // Update bulk groups state correctly as fetchGroups updates 'groups' state
+                                                        // To not affect the main form's group list, we should fetch manually or use the already fetched classes since we need independent state
+                                                    });
+                                                    // We can just fetch it again safely for bulk
+                                                    fetch(`/api/admin/groups?classId=${classId}`)
+                                                        .then(res => res.json())
+                                                        .then(data => setBulkGroups(Array.isArray(data) ? data : []));
+                                                } else {
+                                                    setBulkGroups([]);
+                                                }
+                                            }}
+                                            required
+                                        >
+                                            <option value="">শ্রেণী নির্বাচন করুন</option>
+                                            {classes.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                            <ChevronDown size={18} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-800 uppercase tracking-wider">গ্রুপ (ঐচ্ছিক)</label>
+                                    <div className="relative">
+                                        <select
+                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-bold text-slate-900 appearance-none disabled:opacity-50 disabled:cursor-not-allowed"
+                                            value={bulkGroupId}
+                                            onChange={(e) => setBulkGroupId(e.target.value)}
+                                            disabled={!bulkClassId || bulkGroups.length === 0}
+                                        >
+                                            <option value="">গ্রুপ নির্বাচন করুন</option>
+                                            {bulkGroups.map(g => (
+                                                <option key={g.id} value={g.id}>{g.name}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                                            <ChevronDown size={18} />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div className="space-y-2">
                                 <label className="block text-sm font-black text-slate-900">
                                     Excel থেকে ডাটা Paste করুন
                                 </label>
                                 <textarea
                                     className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-4 focus:ring-[#045c84]/10 focus:border-[#045c84] resize-none font-mono text-sm text-slate-900 placeholder:text-slate-300"
-                                    rows={6}
+                                    rows={8}
                                     placeholder="Excel থেকে কপি করে এখানে Paste করুন (Ctrl+V)..."
                                     onPaste={(e) => {
                                         const pastedText = e.clipboardData.getData('text');
@@ -1727,13 +1851,19 @@ export default function StudentManagementPage() {
                                     </div>
 
                                     {/* Table Preview with Column Mapping */}
-                                    <div className="border border-slate-200 rounded-xl overflow-hidden">
-                                        <div className="overflow-x-auto">
+                                    <div className="border border-slate-200 rounded-xl overflow-hidden relative">
+                                        <div className="overflow-x-auto max-h-[400px] overflow-y-auto custom-scrollbar">
                                             <table className="w-full text-sm">
-                                                <thead>
-                                                    <tr className="bg-slate-50">
+                                                <thead className="sticky top-0 z-10 bg-slate-50 shadow-sm">
+                                                    <tr>
+                                                        <th className="px-3 py-2 text-left border-b border-slate-200 bg-emerald-50/80 text-emerald-800 font-black whitespace-nowrap">
+                                                            স্টুডেন্ট আইডি (Auto)
+                                                        </th>
+                                                        <th className="px-3 py-2 text-left border-b border-slate-200 bg-emerald-50/80 text-emerald-800 font-black whitespace-nowrap">
+                                                            রোল (Auto)
+                                                        </th>
                                                         {excelData[0]?.map((_, colIndex) => (
-                                                            <th key={colIndex} className="px-3 py-2 text-left border-b border-slate-200">
+                                                            <th key={colIndex} className="px-3 py-2 text-left border-b border-slate-200 bg-slate-50">
                                                                 <select
                                                                     value={columnMappings[colIndex] || ''}
                                                                     onChange={(e) => setColumnMappings({
@@ -1743,7 +1873,7 @@ export default function StudentManagementPage() {
                                                                     className="w-full px-2 py-1 text-xs font-black bg-white border border-slate-300 text-slate-900 rounded-lg focus:ring-2 focus:ring-[#045c84] focus:border-[#045c84]"
                                                                 >
                                                                     <option value="">ফিল্ড নির্বাচন করুন</option>
-                                                                    {formConfig.map(field => (
+                                                                    {formConfig.filter(f => !['classId', 'groupId'].includes(f.id)).map(field => (
                                                                         <option key={field.id} value={field.id}>
                                                                             {field.label}
                                                                         </option>
@@ -1754,8 +1884,14 @@ export default function StudentManagementPage() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {excelData.slice(0, 5).map((row, rowIndex) => (
+                                                    {excelData.map((row, rowIndex) => (
                                                         <tr key={rowIndex} className="hover:bg-slate-50">
+                                                            <td className="px-3 py-2 border-b border-slate-100 text-emerald-700 font-bold whitespace-nowrap bg-emerald-50/30">
+                                                                {previewIds[rowIndex]?.studentId || '-'}
+                                                            </td>
+                                                            <td className="px-3 py-2 border-b border-slate-100 text-emerald-700 font-bold whitespace-nowrap bg-emerald-50/30">
+                                                                {previewIds[rowIndex]?.rollNumber || '-'}
+                                                            </td>
                                                             {row.map((cell, cellIndex) => (
                                                                 <td key={cellIndex} className="px-3 py-2 border-b border-slate-100 text-slate-900 font-medium">
                                                                     {cell || '-'}
@@ -1766,11 +1902,6 @@ export default function StudentManagementPage() {
                                                 </tbody>
                                             </table>
                                         </div>
-                                        {excelData.length > 5 && (
-                                            <div className="px-3 py-2 bg-slate-50 text-xs text-slate-800 font-bold text-center border-t border-slate-200">
-                                                প্রথম 5 সারি দেখানো হচ্ছে। মোট {excelData.length} সারি Import হবে।
-                                            </div>
-                                        )}
                                     </div>
 
                                     <button
@@ -1778,6 +1909,11 @@ export default function StudentManagementPage() {
                                         onClick={async () => {
                                             if (!activeInstitute?.id) {
                                                 setToast({ message: 'সক্রিয় প্রতিষ্ঠান পাওয়া যায়নি।', type: 'error' });
+                                                return;
+                                            }
+
+                                            if (!bulkClassId) {
+                                                setToast({ message: 'অনুগ্রহ করে শ্রেণী নির্বাচন করুন।', type: 'error' });
                                                 return;
                                             }
 
@@ -1813,11 +1949,15 @@ export default function StudentManagementPage() {
                                                     return data;
                                                 };
 
-                                                for (const row of excelData) {
+                                                for (let rowIndex = 0; rowIndex < excelData.length; rowIndex++) {
+                                                    const row = excelData[rowIndex];
                                                     const studentData: any = {
                                                         role: 'STUDENT',
                                                         instituteIds: [activeInstitute.id],
-                                                        metadata: {}
+                                                        metadata: {
+                                                            classId: bulkClassId,
+                                                            groupId: bulkGroupId || undefined
+                                                        }
                                                     };
 
                                                     // Map columns to fields
@@ -1832,32 +1972,53 @@ export default function StudentManagementPage() {
                                                         }
                                                     });
 
+                                                    if (formData.skipAccountSetup) {
+                                                        studentData.skipAccountSetup = true;
+                                                        studentData.metadata.skipAccountSetup = true;
+                                                        if (!studentData.password) {
+                                                            studentData.password = Math.random().toString(36).slice(-10); // Random password to satisfy DB
+                                                        }
+                                                    }
+
                                                     const studentName = studentData.name || 'Unknown';
 
                                                     // 1. Validation: Name is mandatory
                                                     if (!studentData.name) {
-                                                        fails.push({ name: studentName, reason: 'নাম নেই', data: row });
+                                                        fails.push({ name: studentName, reason: "নাম দেওয়া হয়নি" });
                                                         continue;
                                                     }
 
-                                                    // 2. Set default password if missing
+                                                    // 2. Validation: Identify missing core fields
+                                                    const hasPhone = !!studentData.phone || !!studentData.metadata.studentPhone;
+                                                    const hasEmail = !!studentData.email;
+                                                    const hasGuardian = !!studentData.metadata.guardianPhone;
+                                                    const skipLogin = !!studentData.skipAccountSetup;
+
+                                                    if (!skipLogin && !hasPhone && !hasEmail && !hasGuardian) {
+                                                        fails.push({ name: studentName, reason: "লগইন করার জন্য মোবাইল, ইমেইল বা অভিভাবকের মোবাইল নম্বর দিন" });
+                                                        continue;
+                                                    }
+
+                                                    // 3. Set default password if missing
                                                     if (!studentData.password) {
                                                         studentData.password = '123456'; // Default password
                                                     }
 
-                                                    // 3. Auto-generate ID and Roll if missing
-                                                    const classId = studentData.metadata.classId || '';
-                                                    if (!studentData.metadata.studentId || (classId && !studentData.metadata.rollNumber)) {
-                                                        const ids = await getNextIds(classId);
+                                                    // 4. Use pre-calculated IDs from preview (or fall back to API)
+                                                    const previewId = previewIds[rowIndex];
+                                                    if (previewId) {
+                                                        if (!studentData.metadata.studentId) studentData.metadata.studentId = previewId.studentId;
+                                                        if (!studentData.metadata.rollNumber) studentData.metadata.rollNumber = previewId.rollNumber;
+                                                    } else {
+                                                        // Fallback: re-fetch from API if preview IDs aren't available
+                                                        const ids = await getNextIds(bulkClassId);
                                                         if (!studentData.metadata.studentId) studentData.metadata.studentId = ids.nextStudentId;
-                                                        if (classId && !studentData.metadata.rollNumber) studentData.metadata.rollNumber = ids.nextRollNumber;
-                                                        // Increment for next iteration
-                                                        await getNextIds(classId);
+                                                        if (!studentData.metadata.rollNumber) studentData.metadata.rollNumber = ids.nextRollNumber;
                                                     }
 
                                                     // 4. Deduplication Check
                                                     const isDuplicateId = students.some(s => s.metadata?.studentId === studentData.metadata.studentId);
-                                                    const isDuplicateRoll = classId && students.some(s => s.metadata?.classId === classId && s.metadata?.rollNumber == studentData.metadata.rollNumber);
+                                                    const isDuplicateRoll = bulkClassId && students.some(s => s.metadata?.classId === bulkClassId && s.metadata?.rollNumber == studentData.metadata.rollNumber);
 
                                                     if (isDuplicateId) {
                                                         fails.push({ name: studentName, reason: `ID (${studentData.metadata.studentId}) ইতিমধ্যে আছে`, data: row });
@@ -1937,7 +2098,7 @@ export default function StudentManagementPage() {
                         <>
                             <div className="space-y-4">
                                 {(() => {
-                                    const LOGIN_FIELD_IDS = ['studentId', 'rollNumber', 'email', 'password', 'studentPhone', 'guardianPhone', 'guardianPassword', 'guardianName', 'guardianRelation'];
+                                    const LOGIN_FIELD_IDS = ['classId', 'groupId', 'studentId', 'rollNumber', 'email', 'password', 'studentPhone', 'guardianPhone', 'guardianPassword', 'guardianName', 'guardianRelation'];
                                     const alwaysShowFields = ['studentId', 'rollNumber'];
                                     const effectiveFields = (editingStudent
                                         ? [
@@ -1961,6 +2122,20 @@ export default function StudentManagementPage() {
                                         const fieldValue = isTopLevel ? (formData as any)[field.id] : formData.metadata[field.id];
                                         const isRequired = forceRequired || field.required;
 
+                                        const isEmailField = field.id === 'email';
+                                        const isStudentPhoneField = field.id === 'studentPhone';
+                                        const isGuardianPhoneField = field.id === 'guardianPhone';
+                                        const isLoginField = isEmailField || isStudentPhoneField || isGuardianPhoneField;
+
+                                        const hasGuardian = !!formData.metadata?.guardianPhone;
+                                        const hasEmail = !!(formData.email || formData.metadata?.email);
+                                        const hasStudentPhone = !!(formData.metadata?.studentPhone || formData.phone);
+
+                                        const isOptionalLogin =
+                                            (isEmailField && (hasGuardian || hasStudentPhone)) ||
+                                            (isStudentPhoneField && (hasGuardian || hasEmail));
+
+
                                         return (
                                             <div key={field.id} className="space-y-2 group/field">
                                                 {!formConfig.some(cf => cf.id === field.id) && !LOGIN_FIELD_IDS.includes(field.id) && field.id !== 'name' && field.id !== 'phone' && (
@@ -1973,11 +2148,22 @@ export default function StudentManagementPage() {
                                                 )}
 
                                                 <label className="text-xs font-black text-slate-900 uppercase tracking-wider flex justify-between">
-                                                    <span>{field.label} {isRequired && <span className="text-red-600 font-black">*</span>}</span>
+                                                    <span>{field.label} {(isRequired || (isLoginField && !isOptionalLogin)) && <span className="text-red-600 font-black">*</span>}</span>
+                                                    {isOptionalLogin && (
+                                                        <span className="text-[10px] font-medium text-slate-400 font-sans ml-auto bg-slate-100 px-1.5 py-0.5 rounded uppercase">ঐচ্ছিক</span>
+                                                    )}
                                                     {field.id === 'password' && !editingStudent && (
                                                         <button
                                                             type="button"
-                                                            onClick={() => setFormData({ ...formData, password: Math.random().toString(36).slice(-8) })}
+                                                            onClick={() => {
+                                                                const sPhone = formData.metadata?.studentPhone || formData.phone;
+                                                                if (sPhone && sPhone.length >= 4) {
+                                                                    const last4 = sPhone.slice(-4);
+                                                                    setFormData({ ...formData, password: last4 });
+                                                                } else {
+                                                                    setToast({ message: 'শিক্ষার্থীর মোবাইল নম্বর (কমপক্ষে ৪ ডিজিট) দিন।', type: 'error' });
+                                                                }
+                                                            }}
                                                             className="text-[10px] text-[#045c84] hover:underline"
                                                         >
                                                             জেনারেট করুন
@@ -1995,7 +2181,7 @@ export default function StudentManagementPage() {
                                                                 if (isTopLevel) setFormData({ ...formData, [field!.id]: val });
                                                                 else setFormData({ ...formData, metadata: { ...formData.metadata, [field!.id]: val } });
                                                             }}
-                                                            required={isRequired}
+                                                            required={isRequired && !isOptionalLogin}
                                                         >
                                                             <option value="">নির্বাচন করুন</option>
                                                             {field.options?.map((opt: string) => (
@@ -2013,7 +2199,7 @@ export default function StudentManagementPage() {
                                                                 type="file"
                                                                 className="absolute inset-0 opacity-0 cursor-pointer z-20"
                                                                 onChange={(e) => handleFileUpload(e, field!.id)}
-                                                                required={isRequired && !fieldValue}
+                                                                required={isRequired && !fieldValue && !isOptionalLogin}
                                                             />
 
                                                             {fieldValue ? (
@@ -2146,6 +2332,12 @@ export default function StudentManagementPage() {
                                                     {/* Name (Fixed at top) */}
                                                     {renderField('name')}
 
+                                                    {/* Default Academic Fields */}
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        {renderField('classId', true)}
+                                                        {renderField('groupId')}
+                                                    </div>
+
                                                     {/* Dynamic Profile Fields Section */}
                                                     {effectiveFields.length > 0 && (
                                                         <div className="space-y-6">
@@ -2215,33 +2407,62 @@ export default function StudentManagementPage() {
                                                 <div className="space-y-8">
                                                     {/* Login Credentials Section */}
                                                     <div className="bg-slate-50 p-6 rounded-[32px] border border-slate-100 space-y-6">
-                                                        <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
-                                                            <div className="w-8 h-8 rounded-xl bg-[#045c84] flex items-center justify-center text-white">
-                                                                <Key size={18} />
-                                                            </div>
-                                                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">লগইন তথ্য (Login Credentials)</h4>
-                                                        </div>
-
-                                                        <div className="grid grid-cols-1 gap-4">
-                                                            {renderField('studentId', true)}
-                                                            {renderField('rollNumber', true)}
-                                                            {renderField('email')}
-                                                            {renderField('password')}
-                                                            {renderField('studentPhone', true)}
-                                                        </div>
-
-                                                        <div className="pt-4 space-y-4">
+                                                        <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
                                                             <div className="flex items-center gap-2">
-                                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">অভিভাবকের লগইন</p>
+                                                                <div className="w-8 h-8 rounded-xl bg-[#045c84] flex items-center justify-center text-white">
+                                                                    <Key size={18} />
+                                                                </div>
+                                                                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">লগইন তথ্য (Login Credentials)</h4>
                                                             </div>
-                                                            <div className="grid grid-cols-1 gap-4">
-                                                                {renderField('guardianName', true)}
-                                                                {renderField('guardianRelation', true)}
-                                                                {renderField('guardianPhone', true)}
-                                                                {renderField('guardianPassword')}
-                                                            </div>
+                                                            <label className="flex items-center gap-2 cursor-pointer group">
+                                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-[#045c84] transition-colors">এড়িয়ে যান (Skip)</span>
+                                                                <div className="relative">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        className="sr-only"
+                                                                        checked={!!formData.skipAccountSetup}
+                                                                        onChange={(e) => setFormData({ ...formData, skipAccountSetup: e.target.checked })}
+                                                                    />
+                                                                    <div className={`w-10 h-5 rounded-full transition-colors ${formData.skipAccountSetup ? 'bg-amber-500' : 'bg-slate-200'}`} />
+                                                                    <div className={`absolute top-1 left-1 w-3 h-3 rounded-full bg-white transition-transform ${formData.skipAccountSetup ? 'translate-x-5' : ''}`} />
+                                                                </div>
+                                                            </label>
                                                         </div>
+
+                                                        {formData.skipAccountSetup ? (
+                                                            <div className="p-4 bg-amber-50 border border-amber-100 rounded-2xl flex gap-3 items-center">
+                                                                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                                                                    <Info size={20} />
+                                                                </div>
+                                                                <div className="space-y-0.5">
+                                                                    <p className="text-xs font-black text-amber-900">লগইন অ্যাকাউন্ট তৈরি হবে না</p>
+                                                                    <p className="text-[10px] font-bold text-amber-700/70">শুধুমাত্র শিক্ষার্থীর বেসিক প্রোফাইল ডাটাবেজে সংরক্ষিত হবে। পরে একাডেমিক সেকশন থেকে লগইন তথ্য যুক্ত করা যাবে।</p>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <div className="grid grid-cols-1 gap-4">
+                                                                    {renderField('studentId', true)}
+                                                                    {renderField('rollNumber', true)}
+                                                                    {renderField('studentPhone', true)}
+                                                                    {renderField('email')}
+                                                                    {renderField('password')}
+                                                                </div>
+
+                                                                <div className="pt-4 space-y-4">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">অভিভাবকের লগইন</p>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-1 gap-4">
+                                                                        {renderField('guardianName', true)}
+                                                                        {renderField('guardianRelation', true)}
+                                                                        {renderField('guardianPhone', true)}
+                                                                        {renderField('guardianPassword')}
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </div>
                                             )}

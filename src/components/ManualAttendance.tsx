@@ -41,6 +41,8 @@ export default function ManualAttendance({ classId, selectedDate }: { classId: s
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchFocused, setSearchFocused] = useState(false);
+    const [statusFilter, setStatusFilter] = useState<'ALL' | 'PRESENT' | 'ABSENT' | 'LATE'>('ALL');
     const [toast, setToast] = useState<{ message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' } | null>(null);
 
     const showToast = (message: string, type: 'SUCCESS' | 'ERROR' | 'INFO' = 'SUCCESS') => {
@@ -205,59 +207,100 @@ export default function ManualAttendance({ classId, selectedDate }: { classId: s
         }
     };
 
-    const filteredStudents = students.filter(s =>
-        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.rollNumber?.includes(searchQuery)
-    );
+    const filteredStudents = students.filter(s => {
+        const matchesSearch = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.rollNumber?.includes(searchQuery);
+        const matchesStatus = statusFilter === 'ALL' || s.attendance === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
 
     const hasChanges = students.some(s => s.attendance !== s.initialAttendance);
 
     return (
         <div className="space-y-6">
-            {/* Simplified Toolbar */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-white px-3 py-4 md:p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <div className="relative group flex-1">
-                    <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-[#045c84] transition-colors" />
-                    <input
-                        type="text"
-                        placeholder="নাম বা রোল দিয়ে খুঁজুন..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-slate-50 border border-slate-200 rounded-lg pl-11 pr-4 py-2.5 text-sm font-bold text-slate-700 outline-none focus:ring-2 ring-[#045c84]/20 w-full"
-                    />
-                </div>
+            {/* Redesigned Toolbar */}
+            <div className="flex flex-col gap-3 bg-white p-3 rounded-[24px] border border-slate-200 shadow-sm relative z-20">
+                <div className="flex items-center gap-3">
+                    {/* Expanding Search Bar */}
+                    <motion.div
+                        initial={false}
+                        animate={{ flex: searchFocused ? 5 : 1 }}
+                        className="relative group min-w-[50px]"
+                    >
+                        <Search
+                            size={18}
+                            className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors duration-300 ${searchFocused ? 'text-[#045c84]' : 'text-slate-400'}`}
+                        />
+                        <input
+                            type="text"
+                            placeholder={searchFocused ? "নাম বা রোল দিয়ে খুঁজুন..." : ""}
+                            value={searchQuery}
+                            onFocus={() => setSearchFocused(true)}
+                            onBlur={() => setSearchFocused(false)}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className={`bg-slate-50 border border-slate-100 rounded-[18px] pl-12 pr-4 py-3 text-sm font-bold text-slate-700 outline-none focus:ring-4 ring-[#045c84]/5 transition-all w-full cursor-pointer focus:cursor-text ${!searchFocused && !searchQuery ? 'placeholder-transparent' : ''}`}
+                        />
+                    </motion.div>
 
-                <div className="flex items-center gap-3 overflow-hidden w-full">
-                    <div className="flex bg-slate-100/50 p-1 rounded-lg border border-slate-200 shadow-inner flex-1 overflow-x-auto no-scrollbar min-w-0">
-                        {[
-                            { id: 'PRESENT', label: 'সব উপস্থিত', color: 'text-emerald-700', hover: 'hover:bg-emerald-100/50' },
-                            { id: 'ABSENT', label: 'সব অনুপস্থিত', color: 'text-rose-700', hover: 'hover:bg-rose-100/50' },
-                            { id: 'LEAVE', label: 'সব ছুটি', color: 'text-blue-700', hover: 'hover:bg-blue-100/50' },
-                            { id: 'RESET', label: 'হাজিরা রিসেট', color: 'text-slate-600', hover: 'hover:bg-slate-200/50' }
-                        ].map((btn) => (
-                            <button
-                                key={btn.id}
-                                onClick={() => bulkUpdate(btn.id as any)}
-                                className={`px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-black ${btn.color} ${btn.hover} transition-all uppercase tracking-tight whitespace-nowrap active:scale-95`}
-                            >
-                                {btn.label}
-                            </button>
-                        ))}
-                    </div>
-
+                    {/* Save Button */}
                     <button
                         onClick={handleSave}
                         disabled={saving || loading || !hasChanges}
-                        className={`px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg font-black text-[11px] sm:text-xs flex items-center justify-center gap-1.5 sm:gap-2 transition-all duration-300 shadow-md sm:shadow-lg active:scale-95 shrink-0 ${hasChanges
-                            ? 'bg-indigo-600 text-white shadow-indigo-900/20 hover:bg-indigo-700'
+                        className={`px-5 py-3 rounded-[18px] font-black text-xs flex items-center justify-center gap-2 transition-all duration-300 shadow-xl active:scale-95 shrink-0 ${hasChanges
+                            ? 'bg-[#045c84] text-white shadow-[#045c84]/20 hover:bg-[#034a6b]'
                             : 'bg-slate-100 text-slate-400 shadow-none cursor-not-allowed opacity-70'
                             }`}
                     >
-                        {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                        <span className="hidden sm:inline-block truncate">{hasChanges ? 'হাজিরা সেভ করুন' : 'হাজিরা সংরক্ষিত'}</span>
-                        <span className="sm:hidden">{hasChanges ? 'সেভ' : 'সেভড'}</span>
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        <span className={searchFocused ? 'hidden sm:inline' : 'inline'}>{hasChanges ? 'হাজিরা সেভ' : 'সেভড'}</span>
                     </button>
                 </div>
+
+                {/* Interactive Status Tabs - Always in one scrollable row */}
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+                    {[
+                        { id: 'ALL', label: 'সব', count: students.length, color: 'slate', activeBg: 'bg-slate-800', activeText: 'text-white' },
+                        { id: 'PRESENT', label: 'উপস্থিত', count: students.filter(s => s.attendance === 'PRESENT').length, color: 'emerald', activeBg: 'bg-emerald-500', activeText: 'text-white' },
+                        { id: 'ABSENT', label: 'অনুপস্থিত', count: students.filter(s => s.attendance === 'ABSENT').length, color: 'rose', activeBg: 'bg-rose-500', activeText: 'text-white' },
+                        { id: 'LATE', label: 'দেরি', count: students.filter(s => s.attendance === 'LATE').length, color: 'amber', activeBg: 'bg-amber-500', activeText: 'text-white' }
+                    ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setStatusFilter(tab.id as any)}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap border shrink-0 ${statusFilter === tab.id
+                                ? `${tab.activeBg} ${tab.activeText} border-transparent shadow-lg scale-105`
+                                : `bg-white text-slate-500 border-slate-100 hover:bg-slate-50`
+                                }`}
+                        >
+                            <span>{tab.label}</span>
+                            <span className={`px-1.5 py-0.5 rounded-md text-[9px] ${statusFilter === tab.id ? 'bg-white/20' : 'bg-slate-100'}`}>
+                                {tab.count.toLocaleString('bn-BD')}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {/* Bulk Actions (Quick Set) */}
+            <div className="flex flex-wrap items-center gap-2 px-2">
+                <button onClick={() => bulkUpdate('PRESENT')} className="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 text-[9px] font-black uppercase hover:bg-emerald-500 hover:text-white transition-all">উপস্থিত</button>
+                <button onClick={() => bulkUpdate('ABSENT')} className="px-3 py-1.5 rounded-full bg-rose-50 text-rose-600 border border-rose-100 text-[9px] font-black uppercase hover:bg-rose-500 hover:text-white transition-all">অনুপস্থিত</button>
+                <button onClick={() => bulkUpdate('LEAVE')} className="px-3 py-1.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[9px] font-black uppercase hover:bg-blue-500 hover:text-white transition-all">ছুটি</button>
+
+                <AnimatePresence>
+                    {hasChanges && (
+                        <div className="flex-1 flex justify-end">
+                            <motion.button
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                onClick={() => bulkUpdate('RESET')}
+                                className="px-4 py-1.5 rounded-full text-[9px] font-black uppercase text-rose-600 bg-rose-50 border border-rose-100 hover:bg-rose-500 hover:text-white transition-all active:scale-95 whitespace-nowrap shadow-sm"
+                            >
+                                সব বাতিল করুন
+                            </motion.button>
+                        </div>
+                    )}
+                </AnimatePresence>
             </div>
 
             {/* Student List - Card Grid */}
@@ -370,25 +413,6 @@ export default function ManualAttendance({ classId, selectedDate }: { classId: s
                 </AnimatePresence>
             </div>
 
-            {/* Footer Summary */}
-            {!loading && filteredStudents.length > 0 && (
-                <div className="flex flex-col md:flex-row md:items-center justify-end gap-6 py-6 px-8 bg-slate-100/50 rounded-2xl border border-slate-200/60">
-                    <div className="flex flex-wrap items-center gap-4">
-                        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm border border-slate-100">
-                            <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">উপস্থিত: {students.filter(s => s.attendance === 'PRESENT').length}</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm border border-slate-100">
-                            <div className="w-2 h-2 bg-rose-500 rounded-full" />
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">অনুপস্থিত: {students.filter(s => s.attendance === 'ABSENT').length}</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl shadow-sm border border-slate-100">
-                            <div className="w-2 h-2 bg-amber-500 rounded-full" />
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">দেরি: {students.filter(s => s.attendance === 'LATE').length}</span>
-                        </div>
-                    </div>
-                </div>
-            )}
             {/* Glassmorphism Toast */}
             <AnimatePresence>
                 {toast && (

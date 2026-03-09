@@ -542,7 +542,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                                     {stat.up ? <ArrowUpRight size={12} className="md:w-[14px] md:h-[14px]" /> : <ArrowDownRight size={12} className="md:w-[14px] md:h-[14px]" />}
                                 </div>
                             </div>
-                            <p className="text-slate-500 font-bold uppercase text-[10px] md:text-xs tracking-wider">{stat.name}</p>
+                            <p className="text-slate-600 font-bold uppercase text-[10px] md:text-xs tracking-wider">{stat.name}</p>
                             <h3 className="text-xl md:text-3xl font-black text-slate-800 mt-1 break-words">{stat.value}</h3>
                         </div>
                     ))}
@@ -564,9 +564,9 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                                             <TrendingUp className="text-[#045c84]" />
                                             ভর্তি সংক্রান্ত তথ্য
                                         </h3>
-                                        <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-widest">গত ৭ দিনের আপডেট</p>
+                                        <p className="text-slate-600 text-[10px] font-bold mt-1 uppercase tracking-widest">গত ৭ দিনের আপডেট</p>
                                     </div>
-                                    <select className="bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black px-4 py-2 outline-none text-slate-500 uppercase tracking-widest">
+                                    <select className="bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black px-4 py-2 outline-none text-slate-700 uppercase tracking-widest">
                                         <option>এই সপ্তাহ</option>
                                         <option>এই মাস</option>
                                     </select>
@@ -589,7 +589,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                                     </ResponsiveContainer>
                                 </div>
                                 <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest">
                                         মোট নতুন ভর্তি: {(statsData?.admissionTrends?.reduce((acc: number, curr: any) => acc + curr.value, 0) ?? 0).toLocaleString('bn-BD')} জন
                                     </span>
                                     <button className="text-[10px] font-black text-[#045c84] uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all">
@@ -606,7 +606,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                                             <Zap className="text-amber-500" />
                                             হাজিরা স্ট্যাটাস
                                         </h3>
-                                        <p className="text-slate-400 text-[10px] font-bold mt-1 uppercase tracking-widest">আজকের দিন</p>
+                                        <p className="text-slate-600 text-[10px] font-bold mt-1 uppercase tracking-widest">আজকের দিন</p>
                                     </div>
                                     <div className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-black uppercase tracking-widest">
                                         লাইভ
@@ -615,24 +615,24 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                                 <div className="flex-1 flex flex-col justify-center">
                                     <div className="flex items-center justify-around mb-8">
                                         <div className="text-center">
-                                            <p className="text-4xl font-black text-slate-800">{statsData?.attendance || '০%'}</p>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">উপস্থিতি হার</p>
+                                            <p className="text-4xl font-black text-slate-800">{(statsData?.attendance ?? 0).toLocaleString('bn-BD')}%</p>
+                                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-1">উপস্থিতি হার</p>
                                         </div>
                                         <div className="w-px h-12 bg-slate-100"></div>
                                         <div className="text-center">
                                             <p className="text-4xl font-black text-rose-500">
-                                                {statsData ? `${(100 - parseInt(statsData.attendance)).toLocaleString('bn-BD')}%` : '০%'}
+                                                {(100 - (statsData?.attendance ?? 0)).toLocaleString('bn-BD')}%
                                             </p>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">অনুপস্থিতি হার</p>
+                                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest mt-1">অনুপস্থিতি হার</p>
                                         </div>
                                     </div>
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between text-[11px] font-bold">
-                                            <span className="text-slate-500 uppercase">উপস্থিত শিক্ষার্থী</span>
+                                            <span className="text-slate-700 uppercase">উপস্থিত শিক্ষার্থী</span>
                                             <span className="text-slate-800">{(statsData?.presentCount ?? 0).toLocaleString('bn-BD')} জন</span>
                                         </div>
                                         <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                                            <div className="h-full bg-[#045c84]" style={{ width: statsData?.attendance || '0%' }}></div>
+                                            <div className="h-full bg-[#045c84]" style={{ width: `${statsData?.attendance ?? 0}%` }}></div>
                                         </div>
                                     </div>
                                 </div>
@@ -696,7 +696,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                             </h3>
                             <div className="space-y-6">
                                 <div className="space-y-2">
-                                    <div className="flex justify-between text-[10px] font-black uppercase text-slate-400 tracking-widest">
+                                    <div className="flex justify-between text-[10px] font-black uppercase text-slate-600 tracking-widest">
                                         <span>প্রোফাইল পূর্ণতা</span>
                                         <span>{(statsData?.profileHealth ?? 0).toLocaleString('bn-BD')}%</span>
                                     </div>

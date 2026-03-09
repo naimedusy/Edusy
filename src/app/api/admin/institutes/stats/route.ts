@@ -74,7 +74,7 @@ export async function GET(req: Request) {
         const presentCount = attendances.filter(a => a.status === 'PRESENT' || a.status === 'LATE').length;
         const totalPossible = studentCount || 1; // Prevent division by zero
         const rate = Math.round((presentCount / totalPossible) * 100);
-        const attendanceRate = `${rate.toLocaleString('bn-BD')}%`;
+        const attendanceRate = rate; // Return as number
 
         // --- Revenue (Keep as 0 for now until Billing is implemented) ---
         const totalRevenue = 0;

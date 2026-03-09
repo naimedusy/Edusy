@@ -54,7 +54,7 @@ function LoginContent() {
     };
 
     return (
-        <AuthLayout title="স্বাগতম!" subtitle="শিক্ষক, শিক্ষার্থী ও অভিভাবকদের জন্য স্মার্ট লগইন">
+        <AuthLayout title="লগ ইন" subtitle="অভিভাবক ও শিক্ষার্থীদের জন্য স্মার্ট পোর্টাল">
 
             {error && (
                 <div className="bg-blue-50 border-l-4 border-[#047cac] text-[#045c84] p-4 mb-6 rounded-r-xl shadow-sm animate-fade-in-up items-center flex gap-3" role="alert">
@@ -69,20 +69,18 @@ function LoginContent() {
 
             <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
-                    <label className="block text-sm text-slate-900 mb-2 uppercase tracking-wide" htmlFor="identifier">
-                        ইমেইল বা মোবাইল নম্বর
+                    <label className="block text-sm font-black text-slate-500 mb-2 uppercase tracking-tight" htmlFor="identifier">
+                        মোবাইল অথবা ইমেইল (অভিভাবক/শিক্ষার্থী)
                     </label>
                     <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#047cac] group-focus-within:text-[#045c84] transition-colors">
-
-                            <Mail size={20} />
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#045c84] transition-colors">
+                            <LogIn size={20} />
                         </div>
                         <input
-                            className="w-full pl-11 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-[#045c84] transition-all bg-slate-50 focus:bg-white text-black placeholder-slate-400 shadow-sm"
-
+                            className="w-full pl-11 pr-4 py-4 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-[#045c84]/5 focus:border-[#045c84] transition-all bg-slate-50/50 focus:bg-white text-black placeholder-slate-300 shadow-sm"
                             id="identifier"
                             type="text"
-                            placeholder="name@edusy.com বা 01XXXXXXXXX"
+                            placeholder="01XXXXXXXXX বা name@edusy.com"
                             value={identifier}
                             onChange={(e) => setIdentifier(e.target.value)}
                             required
@@ -92,22 +90,19 @@ function LoginContent() {
 
                 <div className="animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                     <div className="flex items-center justify-between mb-2">
-                        <label className="block text-sm text-slate-900 uppercase tracking-wide" htmlFor="password">
+                        <label className="block text-sm font-black text-slate-500 uppercase tracking-tight" htmlFor="password">
                             পাসওয়ার্ড
                         </label>
-                        <a href="#" className="text-xs font-medium text-[#045c84] hover:text-[#023c57] transition-colors">
-
-                            পাসওয়ার্ড ভুলে গেছেন?
+                        <a href="#" className="text-xs font-bold text-[#045c84] hover:underline transition-all">
+                            ভুলে গেছেন?
                         </a>
                     </div>
                     <div className="relative group">
-                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#047cac] group-focus-within:text-[#045c84] transition-colors">
-
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#045c84] transition-colors">
                             <Lock size={20} />
                         </div>
                         <input
-                            className="w-full pl-11 pr-4 py-4 border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-100 focus:border-[#045c84] transition-all bg-slate-50 focus:bg-white text-black placeholder-slate-400 shadow-sm"
-
+                            className="w-full pl-11 pr-4 py-4 border-2 border-slate-100 rounded-2xl focus:ring-4 focus:ring-[#045c84]/5 focus:border-[#045c84] transition-all bg-slate-50/50 focus:bg-white text-black placeholder-slate-300 shadow-sm"
                             id="password"
                             type="password"
                             placeholder="••••••••"

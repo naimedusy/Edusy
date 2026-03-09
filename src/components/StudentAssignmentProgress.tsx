@@ -199,7 +199,7 @@ export default function StudentAssignmentProgress({
         return (
             <div className="bg-white rounded-[32px] p-8 border border-slate-100 shadow-sm flex flex-col items-center justify-center min-h-[300px]">
                 <Loader2 className="animate-spin text-[#045c84] mb-2" size={32} />
-                <p className="text-slate-400 text-xs font-bold font-bengali">লোডিং করা হচ্ছে...</p>
+                <p className="text-slate-600 text-xs font-bold font-bengali">লোডিং করা হচ্ছে...</p>
             </div>
         );
     }
@@ -220,7 +220,7 @@ export default function StudentAssignmentProgress({
                         <>
                             <button
                                 onClick={allSelected ? deselectAll : selectAll}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-xl border transition-all bg-slate-50 text-slate-500 border-slate-100 hover:border-[#045c84] hover:text-[#045c84]"
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-xl border transition-all bg-slate-50 text-slate-600 border-slate-100 hover:border-[#045c84] hover:text-[#045c84]"
                             >
                                 {allSelected ? <Square size={12} /> : <CheckSquare size={12} />}
                                 {allSelected ? 'ডিসিলেক্ট' : 'সব সিলেক্ট'}
@@ -277,7 +277,7 @@ export default function StudentAssignmentProgress({
                                 </button>
                                 <button
                                     onClick={deselectAll}
-                                    className="px-3 py-2 rounded-xl bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
+                                    className="px-3 py-2 rounded-xl bg-slate-100 text-slate-600 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
                                 >
                                     বাতিল
                                 </button>
@@ -294,7 +294,7 @@ export default function StudentAssignmentProgress({
                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-4">
                             <ClipboardList size={32} />
                         </div>
-                        <p className="text-slate-400 text-xs font-bold">এখনো কোনো ক্লাস ডাইরি জমা পড়েনি</p>
+                        <p className="text-slate-600 text-xs font-bold">এখনো কোনো ক্লাস ডাইরি জমা পড়েনি</p>
                     </div>
                 ) : (
                     [...grouped.entries()].map(([studentId, { name, photo, items }]) => {
@@ -329,8 +329,8 @@ export default function StudentAssignmentProgress({
                                         )}
                                     </div>
                                     <p className="flex-1 text-[11px] font-black text-slate-700 uppercase tracking-widest">{name}</p>
-                                    <span className="text-[9px] font-bold text-slate-400">{items.length}টি</span>
-                                    <button onClick={() => toggleCollapse(studentId)} className="text-slate-300 hover:text-slate-500 transition-colors">
+                                    <span className="text-[9px] font-bold text-slate-600">{items.length}টি</span>
+                                    <button onClick={() => toggleCollapse(studentId)} className="text-slate-400 hover:text-slate-600 transition-colors">
                                         {collapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
                                     </button>
                                 </div>
@@ -402,7 +402,7 @@ export default function StudentAssignmentProgress({
                                                                     {delayText}
                                                                 </span>
                                                             </div>
-                                                            <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1.5 mt-1">
+                                                            <p className="text-[11px] text-slate-600 font-medium truncate flex items-center gap-1.5 mt-1">
                                                                 <span className="text-[#045c84] font-bold">{sub.assignment.book?.name || 'ক্লাস ডাইরি'}</span>
                                                                 <span className="opacity-30">•</span>
                                                                 <span className="line-clamp-1">{sub.assignment.title}</span>
@@ -413,7 +413,7 @@ export default function StudentAssignmentProgress({
                                                         <div className="shrink-0 flex flex-col items-end gap-1.5" onClick={e => e.stopPropagation()}>
                                                             <div className="text-right">
                                                                 <p className="text-[11px] font-bold text-slate-700 leading-none mb-1">{dayName}, {formattedDate}</p>
-                                                                <p className="text-[9px] font-bold text-slate-400">{formattedTime}</p>
+                                                                <p className="text-[9px] font-bold text-slate-600">{formattedTime}</p>
                                                             </div>
 
                                                             {isPending && (

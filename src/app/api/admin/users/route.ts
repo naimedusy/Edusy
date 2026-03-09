@@ -189,6 +189,15 @@ export async function POST(req: Request) {
             }
         }
 
+        const skipAccountSetup = body.skipAccountSetup || metadata?.skipAccountSetup;
+        const hasGuardian = role === 'STUDENT' && metadata?.guardianPhone;
+        const isEmailEmpty = !email || email?.trim() === '';
+        const isPhoneEmpty = !phone || phone?.trim() === '';
+
+        if (!skipAccountSetup && isEmailEmpty && isPhoneEmpty && !hasGuardian) {
+            return NextResponse.json({ message: 'ইমেইল অথবা মোবাইল নম্বর - যেকোনো একটি অবশ্যই দিতে হবে অথবা অভিভাবকের তথ্য দিন।' }, { status: 400 });
+        }
+
         // Default Password Logic
         if (!password) {
             if (role === 'STUDENT' && finalMetadata.studentId) {
@@ -197,11 +206,10 @@ export async function POST(req: Request) {
             } else if (phone) {
                 // For other roles (Guardian, etc.), use phone as password
                 password = phone;
+            } else if (skipAccountSetup) {
+                // If skipping setup, set a random password as it's required by DB schema
+                password = Math.random().toString(36).slice(-10);
             }
-        }
-
-        if ((!email || email?.trim() === '') && (!phone || phone?.trim() === '')) {
-            return NextResponse.json({ message: 'ইমেইল অথবা মোবাইল নম্বর - যেকোনো একটি অবশ্যই দিতে হবে।' }, { status: 400 });
         }
 
         if (!password || !role) {

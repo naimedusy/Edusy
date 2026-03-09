@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Save, CloudUpload, CheckCircle2, Building2, Printer, LogIn, Search } from 'lucide-react';
+import { Loader2, Save, CloudUpload, CheckCircle2, Building2, Printer, LogIn, Search, Info } from 'lucide-react';
 import { FieldDefinition, POSSIBLE_FIELDS } from '@/components/FieldLibrary';
 import Toast from '@/components/Toast';
 import PrintLayout from '@/components/PrintLayout';
@@ -261,10 +261,26 @@ export default function PublicAdmissionPage() {
         const isTopLevel = ['name', 'email', 'phone'].includes(field.id);
         const fieldValue = isTopLevel ? (formData as any)[field.id] : formData.metadata[field.id];
 
+        const isEmailField = field.id === 'email';
+        const isStudentPhoneField = field.id === 'phone';
+        const isGuardianPhoneField = field.id === 'guardianPhone';
+        const isLoginField = isEmailField || isStudentPhoneField || isGuardianPhoneField;
+
+        const hasGuardian = !!formData.guardianPhone;
+        const hasEmail = !!formData.email;
+        const hasStudentPhone = !!formData.phone;
+
+        const isOptionalLogin =
+            (isEmailField && (hasGuardian || hasStudentPhone)) ||
+            (isStudentPhoneField && (hasGuardian || hasEmail));
+
         return (
             <div key={field.id} className="space-y-2 group/field">
-                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">
-                    {field.label} {field.required && <span className="text-red-500">*</span>}
+                <label className="text-xs font-black text-slate-500 uppercase tracking-wider flex justify-between">
+                    <span>{field.label} {(field.required && !isOptionalLogin) && <span className="text-red-500">*</span>}</span>
+                    {isOptionalLogin && (
+                        <span className="text-[10px] font-medium text-slate-400 font-sans ml-auto bg-slate-100 px-1.5 py-0.5 rounded uppercase">ঐচ্ছিক</span>
+                    )}
                 </label>
 
                 {field.type === 'select' ? (
@@ -277,7 +293,7 @@ export default function PublicAdmissionPage() {
                                 if (isTopLevel) setFormData({ ...formData, [field!.id]: val });
                                 else setFormData({ ...formData, metadata: { ...formData.metadata, [field!.id]: val } });
                             }}
-                            required={field.required}
+                            required={(field.required && !isOptionalLogin)}
                         >
                             <option value="">নির্বাচন করুন</option>
                             {field.options?.map((opt: string) => (
@@ -292,7 +308,7 @@ export default function PublicAdmissionPage() {
                                 type="file"
                                 className="absolute inset-0 opacity-0 cursor-pointer z-20"
                                 onChange={(e) => handleFileUpload(e, field!.id)}
-                                required={field.required && !fieldValue}
+                                required={(field.required && !fieldValue && !isOptionalLogin)}
                             />
 
                             {fieldValue ? (
@@ -539,7 +555,7 @@ export default function PublicAdmissionPage() {
         );
     }
 
-    const LOGIN_FIELD_IDS = ['studentId', 'rollNumber', 'email', 'phone', 'studentPhone', 'guardianPhone', 'guardianPassword', 'password'];
+    const LOGIN_FIELD_IDS = ['studentId', 'rollNumber', 'email', 'phone', 'studentPhone', 'guardianPhone', 'guardianPassword', 'password', 'classId', 'groupId'];
     const effectiveFields = formConfig.filter((f: FieldDefinition) => !LOGIN_FIELD_IDS.includes(f.id) && f.id !== 'name');
 
     return (
@@ -585,7 +601,11 @@ export default function PublicAdmissionPage() {
                             <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 <div className="space-y-6">
                                     <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest border-b pb-2 cursor-default">শিক্ষার্থীর তথ্যাদি</h3>
-                                    {renderField('name')}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
+                                        <div className="md:col-span-2">{renderField('name')}</div>
+                                        {renderField('classId')}
+                                        {renderField('groupId')}
+                                    </div>
                                 </div>
                                 {effectiveFields.length > 0 && (
                                     <div className="space-y-6">
@@ -623,44 +643,93 @@ export default function PublicAdmissionPage() {
                             <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 <div className="bg-slate-50 p-6 md:p-8 rounded-[32px] border border-slate-100 space-y-8 shadow-inner">
                                     <div className="space-y-6">
-                                        <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
-                                            <div className="w-8 h-8 rounded-xl bg-[#045c84] flex items-center justify-center text-white"><LogIn size={18} /></div>
-                                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">শিক্ষার্থীর লগইন তথ্য</h4>
+                                        <div className="flex items-center justify-between pb-2 border-b border-slate-200/60">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-xl bg-[#045c84] flex items-center justify-center text-white"><LogIn size={18} /></div>
+                                                <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">শিক্ষার্থীর লগইন তথ্য</h4>
+                                            </div>
+                                            <label className="flex items-center gap-2 cursor-pointer group">
+                                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-[#045c84] transition-colors">এড়িয়ে যান (Skip)</span>
+                                                <div className="relative">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="sr-only"
+                                                        checked={!!formData.skipAccountSetup}
+                                                        onChange={(e) => setFormData({ ...formData, skipAccountSetup: e.target.checked })}
+                                                    />
+                                                    <div className={`w-10 h-5 rounded-full transition-colors ${formData.skipAccountSetup ? 'bg-amber-500' : 'bg-slate-200'}`} />
+                                                    <div className={`absolute top-1 left-1 w-3 h-3 rounded-full bg-white transition-transform ${formData.skipAccountSetup ? 'translate-x-5' : ''}`} />
+                                                </div>
+                                            </label>
                                         </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">মোবাইল নম্বর <span className="text-red-500">*</span></label>
-                                                <input type="text" required placeholder="শিক্ষার্থীর মোবাইল বা আইডি" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.phone || ''} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+
+                                        {formData.skipAccountSetup ? (
+                                            <div className="p-6 bg-amber-50 border border-amber-100 rounded-[24px] flex gap-4 items-center">
+                                                <div className="w-12 h-12 rounded-2xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
+                                                    <Info size={24} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="text-sm font-black text-amber-900">লগইন অ্যাকাউন্ট ছাড়াই আবেদন করুন</p>
+                                                    <p className="text-xs font-bold text-amber-700/70 leading-relaxed">আপনার কোনো লগইন অ্যাকাউন্ট তৈরি হবে না। ভর্তির সময় প্রতিষ্ঠান থেকে আপনাকে লগইন তথ্য প্রদান করা হবে।</p>
+                                                </div>
                                             </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">ইমেইল (ঐচ্ছিক)</label>
-                                                <input type="email" placeholder="শিক্ষার্থীর ইমেইল" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">শিক্ষার্থীর পাসওয়ার্ড <span className="text-red-500">*</span></label>
-                                                <input type="password" required placeholder="পাসওয়ার্ড সেট করুন" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.password || ''} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="pt-4 space-y-6">
-                                        <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
-                                            <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white"><CheckCircle2 size={18} /></div>
-                                            <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">অভিভাবকের অ্যাকাউন্ট (বাধ্যতামূলক)</h4>
-                                        </div>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">অভিভাবকের নাম <span className="text-red-500">*</span></label>
-                                                <input type="text" required placeholder="অভিভাবকের নাম লিখুন" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.guardianName || ''} onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">অভিভাবকের মোবাইল <span className="text-red-500">*</span></label>
-                                                <input type="text" required placeholder="অভিভাবকের মোবাইল নম্বর" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.guardianPhone || ''} onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-black text-slate-500 uppercase tracking-wider">লগইন পাসওয়ার্ড <span className="text-red-500">*</span></label>
-                                                <input type="password" required placeholder="পাসওয়ার্ড সেট করুন" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.guardianPassword || ''} onChange={(e) => setFormData({ ...formData, guardianPassword: e.target.value })} />
-                                            </div>
-                                        </div>
+                                        ) : (
+                                            <>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                    {(() => {
+                                                        const hasGuardian = !!formData.guardianPhone;
+                                                        const hasEmail = !!formData.email;
+                                                        const hasPhone = !!formData.phone;
+                                                        const isEmailOptional = hasGuardian || hasPhone;
+                                                        const isPhoneOptional = hasGuardian || hasEmail;
+
+                                                        return (
+                                                            <>
+                                                                <div className="space-y-2">
+                                                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider flex justify-between">
+                                                                        <span>মোবাইল নম্বর {!isPhoneOptional && <span className="text-red-500">*</span>}</span>
+                                                                        {isPhoneOptional && <span className="text-[10px] font-medium text-slate-400 font-sans ml-auto bg-white px-1.5 py-0.5 rounded uppercase">ঐচ্ছিক</span>}
+                                                                    </label>
+                                                                    <input type="text" required={!isPhoneOptional} placeholder="শিক্ষার্থীর মোবাইল বা আইডি" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.phone || ''} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <label className="text-xs font-black text-slate-500 uppercase tracking-wider flex justify-between">
+                                                                        <span>ইমেইল {!isEmailOptional && <span className="text-red-500">*</span>}</span>
+                                                                        {isEmailOptional && <span className="text-[10px] font-medium text-slate-400 font-sans ml-auto bg-white px-1.5 py-0.5 rounded uppercase">ঐচ্ছিক</span>}
+                                                                    </label>
+                                                                    <input type="email" required={!isEmailOptional} placeholder="শিক্ষার্থীর ইমেইল" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.email || ''} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    })()}
+                                                    <div className="space-y-2">
+                                                        <label className="text-xs font-black text-slate-500 uppercase tracking-wider">শিক্ষার্থীর পাসওয়ার্ড <span className="text-red-500">*</span></label>
+                                                        <input type="password" required placeholder="পাসওয়ার্ড সেট করুন" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.password || ''} onChange={(e) => setFormData({ ...formData, password: e.target.value })} />
+                                                    </div>
+                                                </div>
+
+                                                <div className="pt-4 space-y-6">
+                                                    <div className="flex items-center gap-2 pb-2 border-b border-slate-200/60">
+                                                        <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white"><CheckCircle2 size={18} /></div>
+                                                        <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">অভিভাবকের অ্যাকাউন্ট (বাধ্যতামূলক)</h4>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">অভিভাবকের নাম <span className="text-red-500">*</span></label>
+                                                            <input type="text" required placeholder="অভিভাবকের নাম লিখুন" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.guardianName || ''} onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })} />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">অভিভাবকের মোবাইল <span className="text-red-500">*</span></label>
+                                                            <input type="text" required placeholder="অভিভাবকের মোবাইল নম্বর" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.guardianPhone || ''} onChange={(e) => setFormData({ ...formData, guardianPhone: e.target.value })} />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <label className="text-xs font-black text-slate-500 uppercase tracking-wider">লগইন পাসওয়ার্ড <span className="text-red-500">*</span></label>
+                                                            <input type="password" required placeholder="পাসওয়ার্ড সেট করুন" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.guardianPassword || ''} onChange={(e) => setFormData({ ...formData, guardianPassword: e.target.value })} />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
                                 </div>
                             </div>

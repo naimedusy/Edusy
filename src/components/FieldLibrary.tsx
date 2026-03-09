@@ -42,9 +42,9 @@ export interface FieldDefinition {
 export const POSSIBLE_FIELDS: FieldDefinition[] = [
     // Core (New defaults)
     { id: 'name', label: 'শিক্ষার্থীর নাম', type: 'text', category: 'মৌলিক তথ্য', icon: UsersIcon, placeholder: 'পুরো নাম', required: true },
-    { id: 'email', label: 'ইমেইল (লগইন আইডি-আবশ্যিক)', type: 'text', category: 'মৌলিক তথ্য', icon: Mail, placeholder: 'পুরো ইমেইল অ্যাড্রেস দিন', required: true },
+    { id: 'email', label: 'ইমেইল (লগইন আইডি)', type: 'text', category: 'মৌলিক তথ্য', icon: Mail, placeholder: 'পুরো ইমেইল অ্যাড্রেস দিন', required: true },
     { id: 'password', label: 'পাসওয়ার্ড', type: 'text', category: 'মৌলিক তথ্য', icon: Fingerprint, placeholder: 'লগইন পাসওয়ার্ড (ফাঁকা রাখলে স্টুডেন্ট আইডি ব্যবহার হবে)' },
-    { id: 'studentPhone', label: 'শিক্ষার্থীর মোবাইল (লগইন আইডি - ঐচ্ছিক)', type: 'text', category: 'মৌলিক তথ্য', icon: Smartphone, placeholder: 'লগইন আইডি হিসেবে ব্যবহার হবে' },
+    { id: 'studentPhone', label: 'শিক্ষার্থীর মোবাইল (লগইন আইডি)', type: 'text', category: 'মৌলিক তথ্য', icon: Smartphone, placeholder: 'লগইন আইডি হিসেবে ব্যবহার হবে' },
 
     // Basic Info
     { id: 'fathersName', label: 'পিতার নাম', type: 'text', category: 'মৌলিক তথ্য', icon: UsersIcon, placeholder: 'বাবার পুরো নাম' },
