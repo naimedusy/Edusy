@@ -151,6 +151,48 @@ function LoginContent() {
                     )}
                 </button>
 
+                <div className="relative flex items-center gap-4 py-2 animate-fade-in-up" style={{ animationDelay: '0.45s' }}>
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">অথবা</span>
+                    <div className="h-px flex-1 bg-slate-200"></div>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={async () => {
+                        setLoading(true);
+                        setError('');
+                        try {
+                            const res = await fetch('/api/auth/login', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    email: 'demo@edusy.com',
+                                    password: 'demo_password'
+                                }),
+                            });
+                            const data = await res.json();
+                            if (res.ok) {
+                                login(data.user);
+                                router.push(redirectTo);
+                            } else {
+                                setError(data.message || 'Demo login failed');
+                            }
+                        } catch (err) {
+                            setError('An error occurred during demo login.');
+                        } finally {
+                            setLoading(false);
+                        }
+                    }}
+                    className="w-full py-4 px-4 bg-white border-2 border-[#047cac] text-[#047cac] font-extrabold text-lg rounded-2xl shadow-md hover:bg-slate-50 transition-all duration-300 transform hover:-translate-y-1 active:scale-95 animate-fade-in-up flex justify-center items-center gap-2"
+                    style={{ animationDelay: '0.5s' }}
+                    disabled={loading}
+                >
+                    <span className="flex items-center gap-2">
+                        ডেমো অ্যাকাউন্ট ট্রাই করুন 🚀
+                    </span>
+                </button>
+
             </form>
 
             <div className="mt-8 text-center animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
