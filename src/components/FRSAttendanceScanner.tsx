@@ -100,14 +100,17 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
         try {
             const successAudio = new Audio('/audio/success.mp3');
             const failAudio = new Audio('/audio/denied.mp3');
+            const alreadyAudio = new Audio('/audio/already_have.wav');
 
             // Preload
             successAudio.load();
             failAudio.load();
+            alreadyAudio.load();
 
             audioRefs.current = {
                 success: successAudio,
-                fail: failAudio
+                fail: failAudio,
+                already: alreadyAudio
             };
             console.log('Audio elements initialized');
         } catch (err) {
@@ -279,7 +282,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
         }
     };
 
-    const playSound = (type: 'success' | 'fail') => {
+    const playSound = (type: 'success' | 'fail' | 'already') => {
         try {
             const audio = audioRefs.current[type];
             if (!audio) return;
@@ -489,6 +492,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                     timestamp: Date.now()
                 };
                 setRecentMatches(prev => [newMatch, ...prev.filter(m => m.id !== studentId)].slice(0, 3));
+                playSound('already');
                 setTimeout(() => {
                     setRecentMatches(prev => prev.filter(m => m.timestamp !== newMatch.timestamp));
                 }, 5000);
