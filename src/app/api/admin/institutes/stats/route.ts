@@ -33,19 +33,88 @@ export async function GET(req: Request) {
             }
         });
 
-        // --- Revenue (Mock for now, can be expanded later) ---
-        // In a real app, we would sum up successful transactions for this institute
+        // --- Admission Trends (Last 7 Days) ---
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        sevenDaysAgo.setHours(0, 0, 0, 0);
+
+        const recentStudents = await prisma.user.findMany({
+            where: {
+                role: 'STUDENT',
+                instituteIds: { has: instituteId },
+                createdAt: { gte: sevenDaysAgo }
+            },
+            select: { createdAt: true }
+        });
+
+        const dayNames = ['রবিবার', 'সোমবার', 'মঙ্গলবার', 'বুধবার', 'বৃহস্পতিবার', 'শুক্রবার', 'শনিবার'];
+        const trends = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            const count = recentStudents.filter(s => s.createdAt.toISOString().split('T')[0] === dateStr).length;
+            trends.push({
+                name: dayNames[date.getDay()],
+                value: count,
+                date: dateStr
+            });
+        }
+
+        // --- Attendance Rate (Today) ---
+        const todayStr = new Date().toISOString().split('T')[0];
+        const attendances = await prisma.attendance.findMany({
+            where: {
+                instituteId: instituteId,
+                dateString: todayStr
+            },
+            select: { status: true }
+        });
+
+        const presentCount = attendances.filter(a => a.status === 'PRESENT' || a.status === 'LATE').length;
+        const totalPossible = studentCount || 1; // Prevent division by zero
+        const rate = Math.round((presentCount / totalPossible) * 100);
+        const attendanceRate = `${rate.toLocaleString('bn-BD')}%`;
+
+        // --- Revenue (Keep as 0 for now until Billing is implemented) ---
         const totalRevenue = 0;
 
-        // --- Attendance (Mock for now) ---
-        const attendanceRate = "৯৫%";
+        // --- Upcoming Assignments (Events) ---
+        const upcomingAssignments = await prisma.assignment.findMany({
+            where: {
+                instituteId: instituteId,
+                deadline: { gte: new Date() }
+            },
+            take: 3,
+            orderBy: { deadline: 'asc' },
+            select: {
+                id: true,
+                title: true,
+                deadline: true,
+                type: true
+            }
+        });
+
+        // --- Profile Completeness ---
+        const institute = await prisma.institute.findUnique({
+            where: { id: instituteId }
+        });
+
+        const profileFields = ['logo', 'coverImage', 'address', 'phone', 'email', 'website', 'type'];
+        const filledFields = profileFields.filter(f => (institute as any)?.[f]).length;
+        const profileHealth = Math.round((filledFields / profileFields.length) * 100);
 
         return NextResponse.json({
             students: studentCount,
             pendingStudents: pendingStudentCount,
             teachers: teacherCount,
             revenue: totalRevenue,
-            attendance: attendanceRate
+            attendance: attendanceRate,
+            presentCount,
+            totalStudents: studentCount,
+            admissionTrends: trends,
+            upcomingAssignments,
+            profileHealth
         });
 
     } catch (error) {

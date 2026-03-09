@@ -371,6 +371,7 @@ function OnboardingRouter({ role, user, onComplete }: { role: string, user: any,
 function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
     const { user, setAllInstitutes } = useSession();
     const { openAssignmentModal } = useUI();
+    const router = useRouter();
     const [isInstModalOpen, setIsInstModalOpen] = useState(false);
     const [showInstituteSwitcher, setShowInstituteSwitcher] = useState(false);
 
@@ -572,15 +573,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                                 </div>
                                 <div className="flex-1 w-full">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <AreaChart data={[
-                                            { name: 'শনিবার', value: 4 },
-                                            { name: 'রবিবার', value: 7 },
-                                            { name: 'সোমবার', value: 5 },
-                                            { name: 'মঙ্গলবার', value: 12 },
-                                            { name: 'বুধবার', value: 8 },
-                                            { name: 'বৃহস্পতিবার', value: 15 },
-                                            { name: 'শুক্রবার', value: 10 },
-                                        ]}>
+                                        <AreaChart data={statsData?.admissionTrends || []}>
                                             <defs>
                                                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
                                                     <stop offset="5%" stopColor="#045c84" stopOpacity={0.2} />
@@ -596,7 +589,9 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                                     </ResponsiveContainer>
                                 </div>
                                 <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">মোট নতুন ভর্তি: ১২ জন</span>
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                        মোট নতুন ভর্তি: {(statsData?.admissionTrends?.reduce((acc: number, curr: any) => acc + curr.value, 0) ?? 0).toLocaleString('bn-BD')} জন
+                                    </span>
                                     <button className="text-[10px] font-black text-[#045c84] uppercase tracking-widest flex items-center gap-1 hover:gap-2 transition-all">
                                         বিশদ দেখুন <ArrowRight size={12} />
                                     </button>
@@ -620,22 +615,24 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                                 <div className="flex-1 flex flex-col justify-center">
                                     <div className="flex items-center justify-around mb-8">
                                         <div className="text-center">
-                                            <p className="text-4xl font-black text-slate-800">৯৫%</p>
+                                            <p className="text-4xl font-black text-slate-800">{statsData?.attendance || '০%'}</p>
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">উপস্থিতি হার</p>
                                         </div>
                                         <div className="w-px h-12 bg-slate-100"></div>
                                         <div className="text-center">
-                                            <p className="text-4xl font-black text-rose-500">০৫%</p>
+                                            <p className="text-4xl font-black text-rose-500">
+                                                {statsData ? `${(100 - parseInt(statsData.attendance)).toLocaleString('bn-BD')}%` : '০%'}
+                                            </p>
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">অনুপস্থিতি হার</p>
                                         </div>
                                     </div>
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between text-[11px] font-bold">
                                             <span className="text-slate-500 uppercase">উপস্থিত শিক্ষার্থী</span>
-                                            <span className="text-slate-800">৩২০ জন</span>
+                                            <span className="text-slate-800">{(statsData?.presentCount ?? 0).toLocaleString('bn-BD')} জন</span>
                                         </div>
                                         <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                                            <div className="h-full bg-[#045c84] w-[95%]"></div>
+                                            <div className="h-full bg-[#045c84]" style={{ width: statsData?.attendance || '0%' }}></div>
                                         </div>
                                     </div>
                                 </div>
@@ -661,19 +658,28 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                                 দ্রুত কাজ
                             </h3>
                             <div className="space-y-4 relative z-10">
-                                <button className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-4 hover:bg-white hover:text-[#045c84] transition-all group/btn">
+                                <button
+                                    onClick={() => router.push('/dashboard/students')}
+                                    className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-4 hover:bg-white hover:text-[#045c84] transition-all group/btn"
+                                >
                                     <div className="p-2 bg-white/20 rounded-xl group-hover/btn:bg-[#045c84]/10">
                                         <UserPlus size={18} />
                                     </div>
                                     <span className="text-sm font-bold">নতুন শিক্ষার্থী ভর্তি</span>
                                 </button>
-                                <button className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-4 hover:bg-white hover:text-[#045c84] transition-all group/btn">
+                                <button
+                                    onClick={() => router.push('/dashboard/attendance')}
+                                    className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-4 hover:bg-white hover:text-[#045c84] transition-all group/btn"
+                                >
                                     <div className="p-2 bg-white/20 rounded-xl group-hover/btn:bg-[#045c84]/10">
                                         <Zap size={18} />
                                     </div>
                                     <span className="text-sm font-bold">আজকের হাজিরা দিন</span>
                                 </button>
-                                <button className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-4 hover:bg-white hover:text-[#045c84] transition-all group/btn">
+                                <button
+                                    onClick={() => router.push('/dashboard/attendance/summary')}
+                                    className="w-full p-4 bg-white/10 rounded-2xl border border-white/10 backdrop-blur-md flex items-center gap-4 hover:bg-white hover:text-[#045c84] transition-all group/btn"
+                                >
                                     <div className="p-2 bg-white/20 rounded-xl group-hover/btn:bg-[#045c84]/10">
                                         <FileText size={18} />
                                     </div>
@@ -686,53 +692,61 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                         <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8">
                             <h3 className="text-[12px] font-black text-slate-800 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
                                 <Activity size={16} className="text-emerald-500" />
-                                প্রোফাইল হেলথ
+                                প্রোফাইল পূর্ণতা
                             </h3>
                             <div className="space-y-6">
                                 <div className="space-y-2">
                                     <div className="flex justify-between text-[10px] font-black uppercase text-slate-400 tracking-widest">
                                         <span>প্রোফাইল পূর্ণতা</span>
-                                        <span>৮৫%</span>
+                                        <span>{(statsData?.profileHealth ?? 0).toLocaleString('bn-BD')}%</span>
                                     </div>
                                     <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-emerald-500 w-[85%]"></div>
+                                        <div className="h-full bg-emerald-500" style={{ width: `${statsData?.profileHealth ?? 0}%` }}></div>
                                     </div>
                                 </div>
-                                <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50">
-                                    <p className="text-[11px] font-bold text-[#045c84] leading-relaxed">
-                                        আপনার প্রতিষ্ঠানের প্রোফাইল আরও প্রফেশনাল করতে কভার ফটো আপডেট করুন।
-                                    </p>
-                                </div>
+                                {statsData?.profileHealth < 100 && (
+                                    <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100/50">
+                                        <p className="text-[11px] font-bold text-[#045c84] leading-relaxed">
+                                            আপনার প্রতিষ্ঠানের প্রোফাইল আরও প্রফেশনাল করতে প্রয়োজনীয় তথ্যগুলো আপডেট করুন।
+                                        </p>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        {/* Upcoming Events Placeholder */}
+                        {/* Upcoming Events (Assignments) */}
                         <div className="bg-white rounded-[40px] border border-slate-100 shadow-sm p-8">
                             <h3 className="text-[12px] font-black text-slate-800 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
                                 <Calendar size={16} className="text-rose-500" />
                                 আসন্ন ঘটনা
                             </h3>
                             <div className="space-y-4">
-                                <div className="flex gap-4">
-                                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-100">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase leading-none">মার্চ</span>
-                                        <span className="text-sm font-black text-slate-800 leading-none mt-1">১২</span>
+                                {statsData?.upcomingAssignments?.length > 0 ? (
+                                    statsData.upcomingAssignments.map((assignment: any) => {
+                                        const date = new Date(assignment.deadline);
+                                        const day = date.getDate().toLocaleString('bn-BD');
+                                        const monthNames = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'];
+                                        const month = monthNames[date.getMonth()];
+                                        const time = date.toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' });
+
+                                        return (
+                                            <div key={assignment.id} className="flex gap-4">
+                                                <div className="w-10 h-10 bg-slate-50 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-100">
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase leading-none">{month}</span>
+                                                    <span className="text-sm font-black text-slate-800 leading-none mt-1">{day}</span>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs font-black text-slate-700">{assignment.title || 'অ্যাসাইনমেন্ট'}</p>
+                                                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">{time}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="py-4 text-center">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">কোন আসন্ন ইভেন্ট নেই</p>
                                     </div>
-                                    <div>
-                                        <p className="text-xs font-black text-slate-700">মাসিক পরীক্ষা</p>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">সকাল ১০টা</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-4">
-                                    <div className="w-10 h-10 bg-slate-50 rounded-xl flex flex-col items-center justify-center shrink-0 border border-slate-100">
-                                        <span className="text-[10px] font-black text-slate-400 uppercase leading-none">মার্চ</span>
-                                        <span className="text-sm font-black text-slate-800 leading-none mt-1">১৫</span>
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-black text-slate-700">শিক্ষক মিটিং</p>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">বিকাল ৩টা</p>
-                                    </div>
-                                </div>
+                                )}
                             </div>
                             <button className="w-full mt-6 text-[10px] font-black text-[#045c84] uppercase tracking-widest border border-blue-50 py-3 rounded-2xl hover:bg-blue-50 transition-all">
                                 ক্যালেন্ডার দেখুন
