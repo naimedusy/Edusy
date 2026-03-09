@@ -322,6 +322,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                 setIsCameraActive(true);
                 setStatus('SCANNING');
                 setIsTestMode(false);
+                setIsPaused(false);
             }
         } catch (err: any) {
             console.error('Error accessing camera:', err);
@@ -361,6 +362,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                 setIsCameraActive(true);
                 setStatus('SCANNING');
                 setIsTestMode(false);
+                setIsPaused(false);
             }
         } catch (err: any) {
             console.error('Error accessing camera:', err);
@@ -744,12 +746,16 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
         let isProcessing = false;
 
         const processFrame = async () => {
-            if (status !== 'SCANNING' || !videoRef.current || !faceMatcher || !isCameraActive || isProcessing || isPaused) {
+            if (status !== 'SCANNING' || !videoRef.current || videoRef.current.readyState < 2 || !faceMatcher || !isCameraActive || isProcessing || isPaused) {
                 if (isPaused && canvasRef.current) {
                     const ctx = canvasRef.current.getContext('2d');
                     ctx?.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
                 }
-                if (status === 'SCANNING') requestRef.current = requestAnimationFrame(processFrame);
+                if (status === 'SCANNING' && !isPaused) requestRef.current = requestAnimationFrame(processFrame);
+                else if (isPaused) {
+                    // When paused, we still want to be able to resume later
+                    // The useEffect will handle restarting the loop when isPaused changes
+                }
                 return;
             }
 
@@ -819,14 +825,14 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
             }
         };
 
-        if (status === 'SCANNING' && !isTestMode) {
+        if (status === 'SCANNING' && !isTestMode && !isPaused) {
             requestRef.current = requestAnimationFrame(processFrame);
         }
 
         return () => {
             if (requestRef.current) cancelAnimationFrame(requestRef.current);
         };
-    }, [status, faceMatcher, students, isCameraActive, isTestMode]);
+    }, [status, faceMatcher, students, isCameraActive, isTestMode, isPaused]);
 
     return (
         <div className="space-y-6">
