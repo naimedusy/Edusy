@@ -646,7 +646,9 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                         </div>
 
                         {/* Recent Activity / Progress */}
-                        <StudentAssignmentProgress instituteId={activeInstitute.id} title="শিক্ষার্থী ক্লাস ডাইরি প্রগ্রেস" />
+                        {activeInstitute?.id && (
+                            <StudentAssignmentProgress instituteId={activeInstitute.id} title="শিক্ষার্থী ক্লাস ডাইরি প্রগ্রেস" />
+                        )}
                     </div>
 
                     {/* Sidebar Area (Right 1 col) */}

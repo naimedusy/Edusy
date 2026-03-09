@@ -143,6 +143,13 @@ export default function PublicAdmissionPage() {
         const uploadData = new FormData();
         uploadData.append('file', file);
 
+        // Create local preview
+        const localUrl = URL.createObjectURL(file);
+        setFormData((prev: any) => ({
+            ...prev,
+            metadata: { ...prev.metadata, [fieldId]: localUrl }
+        }));
+
         setActionLoading(true);
         try {
             const res = await fetch('/api/upload', {
@@ -151,10 +158,13 @@ export default function PublicAdmissionPage() {
             });
             const data = await res.json();
             if (data.url) {
+                // Update with permanent URL
                 setFormData((prev: any) => ({
                     ...prev,
                     metadata: { ...prev.metadata, [fieldId]: data.url }
                 }));
+            } else {
+                setToast({ message: data.message || 'আপলোড ব্যর্থ হয়েছে।', type: 'error' });
             }
         } catch (error) {
             console.error('Upload failed', error);
@@ -276,29 +286,43 @@ export default function PublicAdmissionPage() {
                         </select>
                     </div>
                 ) : field.type === 'attachment' ? (
-                    <div className="relative">
-                        <div className={`w-full px-4 py-3 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-between transition-all ${fieldValue ? 'border-green-200 bg-green-50/30' : 'hover:border-[#045c84]'}`}>
-                            <div className="flex items-center gap-3 overflow-hidden">
-                                <CloudUpload className={fieldValue ? 'text-green-500' : 'text-slate-400'} size={20} />
-                                <span className="text-sm font-medium text-slate-600 truncate">
-                                    {fieldValue ? 'ফাইল আপলোড হয়েছে' : 'ফাইল নির্বাচন করুন'}
-                                </span>
-                            </div>
+                    <div className="relative group/attachment">
+                        <div className={`relative w-[120px] h-[180px] bg-slate-50 border-2 border-dashed border-slate-200 rounded-[20px] overflow-hidden transition-all duration-500 ${fieldValue ? 'border-none ring-2 ring-[#045c84]/10 shadow-lg' : 'hover:border-[#045c84] hover:bg-slate-100/50'}`}>
                             <input
                                 type="file"
-                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                className="absolute inset-0 opacity-0 cursor-pointer z-20"
                                 onChange={(e) => handleFileUpload(e, field!.id)}
                                 required={field.required && !fieldValue}
                             />
-                            {fieldValue && (
-                                <div className="flex flex-col items-center gap-2">
-                                    {field.id === 'studentPhoto' && (
-                                        <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-green-500 shadow-lg">
-                                            <img src={fieldValue} alt="Preview" className="w-full h-full object-cover" />
+
+                            {fieldValue ? (
+                                <div className="absolute inset-0 w-full h-full">
+                                    <img
+                                        src={fieldValue}
+                                        alt="Preview"
+                                        className="w-full h-full object-cover transition-transform duration-700 group-hover/attachment:scale-110"
+                                        onError={(e) => {
+                                            (e.target as any).style.display = 'none';
+                                        }}
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/attachment:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[1px]">
+                                        <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white mb-2">
+                                            <CloudUpload size={20} />
                                         </div>
-                                    )}
-                                    <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                                        <Save size={16} />
+                                        <span className="text-white text-[10px] font-black uppercase tracking-widest text-center px-4">ছবি পরিবর্তন করুন</span>
+                                    </div>
+                                    <div className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-white/90 backdrop-blur-md shadow-lg flex items-center justify-center text-green-600">
+                                        <CheckCircle2 size={16} />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center bg-slate-50/50">
+                                    <div className="w-12 h-12 rounded-[16px] bg-white shadow-sm border border-slate-100 flex items-center justify-center text-slate-400 group-hover/attachment:text-[#045c84] group-hover/attachment:scale-110 transition-all duration-500">
+                                        <CloudUpload size={24} />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-black text-slate-700 leading-tight">{field.label}</p>
+                                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest italic font-black">Photo Box</p>
                                     </div>
                                 </div>
                             )}
@@ -566,7 +590,7 @@ export default function PublicAdmissionPage() {
                                 {effectiveFields.length > 0 && (
                                     <div className="space-y-6">
                                         <h3 className="text-sm font-black text-slate-400 uppercase tracking-widest border-b pb-2">বিস্তারিত তথ্য (Profile Data)</h3>
-                                        <div className="grid grid-cols-1 gap-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
                                             {effectiveFields.map(field => {
                                                 if (field.id === 'guardianName') {
                                                     return (
@@ -603,7 +627,7 @@ export default function PublicAdmissionPage() {
                                             <div className="w-8 h-8 rounded-xl bg-[#045c84] flex items-center justify-center text-white"><LogIn size={18} /></div>
                                             <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">শিক্ষার্থীর লগইন তথ্য</h4>
                                         </div>
-                                        <div className="grid grid-cols-1 gap-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
                                                 <label className="text-xs font-black text-slate-500 uppercase tracking-wider">মোবাইল নম্বর <span className="text-red-500">*</span></label>
                                                 <input type="text" required placeholder="শিক্ষার্থীর মোবাইল বা আইডি" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.phone || ''} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
@@ -623,7 +647,7 @@ export default function PublicAdmissionPage() {
                                             <div className="w-8 h-8 rounded-xl bg-emerald-600 flex items-center justify-center text-white"><CheckCircle2 size={18} /></div>
                                             <h4 className="text-sm font-black text-slate-800 uppercase tracking-widest">অভিভাবকের অ্যাকাউন্ট (বাধ্যতামূলক)</h4>
                                         </div>
-                                        <div className="grid grid-cols-1 gap-6">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div className="space-y-2">
                                                 <label className="text-xs font-black text-slate-500 uppercase tracking-wider">অভিভাবকের নাম <span className="text-red-500">*</span></label>
                                                 <input type="text" required placeholder="অভিভাবকের নাম লিখুন" className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[#045c84]/10 transition-all outline-none font-medium text-black placeholder:text-slate-300 placeholder:font-normal" value={formData.guardianName || ''} onChange={(e) => setFormData({ ...formData, guardianName: e.target.value })} />

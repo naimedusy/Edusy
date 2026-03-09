@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import * as faceapi from '@vladmandic/face-api';
 import { createPortal } from 'react-dom';
 import { useSession } from '@/components/SessionProvider';
 import {
@@ -32,6 +33,7 @@ import {
     ChevronLeft,
     Layers3,
     CheckCircle,
+    CheckCircle2,
     FileX,
     FileSpreadsheet,
     LayoutGrid,
@@ -140,6 +142,8 @@ export default function StudentManagementPage() {
     const [importFails, setImportFails] = useState<any[]>([]);
     const [isImportSummaryOpen, setIsImportSummaryOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [isProcessingFace, setIsProcessingFace] = useState(false);
+    const [isFaceModelLoaded, setIsFaceModelLoaded] = useState(false);
 
     // Login Credentials Modal States
     const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
@@ -147,7 +151,23 @@ export default function StudentManagementPage() {
 
     useEffect(() => {
         setMounted(true);
+        loadFaceModels();
     }, []);
+
+    const loadFaceModels = async () => {
+        try {
+            const MODEL_URL = '/models';
+            await Promise.all([
+                faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+                faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+            ]);
+            setIsFaceModelLoaded(true);
+            console.log('Face models loaded successfully');
+        } catch (error) {
+            console.error('Error loading face models:', error);
+        }
+    };
 
     const fetchTeachers = async () => {
         if (!activeInstitute?.id) return;
@@ -478,8 +498,20 @@ export default function StudentManagementPage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        // Auto-extract face if it's a student photo
+        if (fieldId === 'studentPhoto' && isFaceModelLoaded) {
+            extractFaceDescriptor(file);
+        }
+
         const uploadData = new FormData();
         uploadData.append('file', file);
+
+        // Create local preview
+        const localUrl = URL.createObjectURL(file);
+        setFormData((prev: any) => ({
+            ...prev,
+            metadata: { ...prev.metadata, [fieldId]: localUrl }
+        }));
 
         try {
             setActionLoading(true);
@@ -489,15 +521,45 @@ export default function StudentManagementPage() {
             });
             const data = await res.json();
             if (data.url) {
-                setFormData({
-                    ...formData,
-                    metadata: { ...formData.metadata, [fieldId]: data.url }
-                });
+                // Update with permanent URL
+                setFormData((prev: any) => ({
+                    ...prev,
+                    metadata: { ...prev.metadata, [fieldId]: data.url }
+                }));
+            } else {
+                setToast({ message: data.message || 'আপলোড ব্যর্থ হয়েছে।', type: 'error' });
             }
         } catch (error) {
             console.error('Upload failed', error);
+            setToast({ message: 'ফাইল আপলোড ব্যর্থ হয়েছে।', type: 'error' });
         } finally {
             setActionLoading(false);
+        }
+    };
+
+    const extractFaceDescriptor = async (file: File) => {
+        try {
+            setIsProcessingFace(true);
+            const img = await faceapi.bufferToImage(file);
+            const detection = await faceapi
+                .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 320 }))
+                .withFaceLandmarks()
+                .withFaceDescriptor();
+
+            if (detection) {
+                const descriptor = Array.from(detection.descriptor);
+                setFormData((prev: any) => ({
+                    ...prev,
+                    faceDescriptor: descriptor
+                }));
+                setToast({ message: 'ফেস আইডি সফলভাবে গ্রহণ করা হয়েছে!', type: 'success' });
+            } else {
+                setToast({ message: 'ছবিতে কোনো মুখ পাওয়া যায়নি। দয়া করে পরিষ্কার ছবি দিন।', type: 'error' });
+            }
+        } catch (error) {
+            console.error('Face extraction error:', error);
+        } finally {
+            setIsProcessingFace(false);
         }
     };
 
@@ -569,7 +631,7 @@ export default function StudentManagementPage() {
                 role: 'STUDENT',
                 metadata: editingStudent?.metadata?.admissionStatus === 'PENDING'
                     ? { ...cleanedMetadata, admissionStatus: 'APPROVED' }
-                    : cleanedMetadata,
+                    : (editingStudent ? cleanedMetadata : { ...cleanedMetadata, admissionStatus: 'APPROVED' }),
                 instituteIds: editingStudent ? undefined : [activeInstitute.id] // only for POST
             };
 
@@ -1900,7 +1962,7 @@ export default function StudentManagementPage() {
                                         const isRequired = forceRequired || field.required;
 
                                         return (
-                                            <div key={field.id} className={`space-y-2 group/field ${field.type === 'attachment' ? 'md:col-span-2' : ''}`}>
+                                            <div key={field.id} className="space-y-2 group/field">
                                                 {!formConfig.some(cf => cf.id === field.id) && !LOGIN_FIELD_IDS.includes(field.id) && field.id !== 'name' && field.id !== 'phone' && (
                                                     <div className="flex items-center gap-2 mb-1">
                                                         <span className="px-2 py-0.5 bg-amber-100 text-amber-900 text-[10px] font-black rounded uppercase tracking-wider border border-amber-200 italic">
@@ -1945,30 +2007,51 @@ export default function StudentManagementPage() {
                                                         </div>
                                                     </div>
                                                 ) : field.type === 'attachment' ? (
-                                                    <div className="relative">
-                                                        <div className={`w-full px-4 py-3 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-between transition-all ${fieldValue ? 'border-green-200 bg-green-50/30' : 'hover:border-[#045c84]'}`}>
-                                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                                <CloudUpload className={fieldValue ? 'text-green-500' : 'text-slate-400'} size={20} />
-                                                                <span className="text-sm font-medium text-slate-600 truncate">
-                                                                    {fieldValue ? 'ফাইল আপলোড হয়েছে' : 'ফাইল নির্বাচন করুন'}
-                                                                </span>
-                                                            </div>
+                                                    <div className="relative group/attachment">
+                                                        <div className={`relative w-[120px] h-[180px] bg-slate-50 border-2 border-dashed border-slate-200 rounded-[20px] overflow-hidden transition-all duration-500 ${fieldValue ? 'border-none ring-2 ring-[#045c84]/10 shadow-lg' : 'hover:border-[#045c84] hover:bg-slate-100/50'}`}>
                                                             <input
                                                                 type="file"
-                                                                className="absolute inset-0 opacity-0 cursor-pointer"
+                                                                className="absolute inset-0 opacity-0 cursor-pointer z-20"
                                                                 onChange={(e) => handleFileUpload(e, field!.id)}
                                                                 required={isRequired && !fieldValue}
                                                             />
-                                                            {fieldValue && (
-                                                                <div className="flex items-center gap-2">
-                                                                    {field.id === 'studentPhoto' && (
-                                                                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-green-500">
-                                                                            <img src={fieldValue} alt="Preview" className="w-full h-full object-cover" />
+
+                                                            {fieldValue ? (
+                                                                <div className="absolute inset-0 w-full h-full">
+                                                                    <img
+                                                                        src={fieldValue}
+                                                                        alt="Preview"
+                                                                        className="w-full h-full object-cover transition-transform duration-700 group-hover/attachment:scale-110"
+                                                                        onError={(e) => {
+                                                                            (e.target as any).style.display = 'none';
+                                                                        }}
+                                                                    />
+                                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/attachment:opacity-100 transition-opacity flex flex-col items-center justify-center backdrop-blur-[1px]">
+                                                                        <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white mb-2">
+                                                                            <CloudUpload size={20} />
                                                                         </div>
-                                                                    )}
-                                                                    <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
-                                                                        <CheckCircle size={16} />
+                                                                        <span className="text-white text-[10px] font-black uppercase tracking-widest text-center px-4">ছবি পরিবর্তন করুন</span>
                                                                     </div>
+                                                                    <div className="absolute top-3 right-3 w-8 h-8 rounded-xl bg-white/90 backdrop-blur-md shadow-lg flex items-center justify-center text-green-600">
+                                                                        <CheckCircle2 size={16} />
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center bg-slate-50/50">
+                                                                    <div className="w-12 h-12 rounded-[16px] bg-white shadow-sm border border-slate-100 flex items-center justify-center text-slate-400 group-hover/attachment:text-[#045c84] group-hover/attachment:scale-110 transition-all duration-500">
+                                                                        <CloudUpload size={24} />
+                                                                    </div>
+                                                                    <div className="space-y-1">
+                                                                        <p className="text-[10px] font-black text-slate-700 leading-tight">{field.label}</p>
+                                                                        <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest italic font-black">Photo Box</p>
+                                                                    </div>
+                                                                </div>
+                                                            )}
+
+                                                            {isProcessingFace && field.id === 'studentPhoto' && (
+                                                                <div className="absolute inset-0 z-30 bg-white/60 backdrop-blur-sm flex flex-col items-center justify-center gap-2 animate-pulse">
+                                                                    <div className="w-8 h-8 rounded-full border-2 border-[#045c84] border-t-transparent animate-spin" />
+                                                                    <span className="text-[10px] font-black text-[#045c84] uppercase tracking-widest text-center px-4">Processing Face ID...</span>
                                                                 </div>
                                                             )}
                                                         </div>

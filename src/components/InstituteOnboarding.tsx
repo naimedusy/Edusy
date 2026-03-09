@@ -10,7 +10,7 @@ interface InstituteOnboardingProps {
 }
 
 export default function InstituteOnboarding({ onComplete }: InstituteOnboardingProps) {
-    const { user, setAllInstitutes } = useSession();
+    const { user, setAllInstitutes, login } = useSession();
     const [loading, setLoading] = useState(false);
     const [logo, setLogo] = useState<string | null>(null);
     const [coverImage, setCoverImage] = useState<string | null>(null);
@@ -32,6 +32,11 @@ export default function InstituteOnboarding({ onComplete }: InstituteOnboardingP
         formData.append('file', file);
 
         try {
+            // Create local preview
+            const localUrl = URL.createObjectURL(file);
+            if (type === 'logo') setLogo(localUrl);
+            if (type === 'cover') setCoverImage(localUrl);
+
             const res = await fetch('/api/upload', {
                 method: 'POST',
                 body: formData,
@@ -39,6 +44,7 @@ export default function InstituteOnboarding({ onComplete }: InstituteOnboardingP
 
             if (res.ok) {
                 const data = await res.json();
+                // Update with the permanent Cloudinary URL
                 if (type === 'logo') setLogo(data.url);
                 if (type === 'cover') setCoverImage(data.url);
             }
@@ -67,17 +73,22 @@ export default function InstituteOnboarding({ onComplete }: InstituteOnboardingP
             });
 
             if (res.ok) {
-                // Fetch the updated list of institutes completely
-                const institutesRes = await fetch(`/api/institute?userId=${user?.id}`);
-                const institutes = await institutesRes.json();
+                const { institute, user: updatedUser } = await res.json();
 
-                if (Array.isArray(institutes)) {
-                    setAllInstitutes(institutes);
-                    onComplete(); // Callback to parent to switch view
+                if (updatedUser) {
+                    // Update session with new role and institutes
+                    login(updatedUser);
+                    onComplete();
                 } else {
-                    // Fallback check if setAllInstitutes needs array
-                    console.error('Failed to get institute list');
-                    window.location.reload();
+                    // Fallback to manual refresh if user object missing
+                    const institutesRes = await fetch(`/api/institute?userId=${user?.id}`);
+                    const institutes = await institutesRes.json();
+                    if (Array.isArray(institutes)) {
+                        setAllInstitutes(institutes);
+                        onComplete();
+                    } else {
+                        window.location.reload();
+                    }
                 }
             } else {
                 alert('Failed to create institute');

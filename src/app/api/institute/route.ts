@@ -219,7 +219,27 @@ export async function POST(req: Request) {
             console.error('Failed to link institute to user via Raw Command:', updateError);
         }
 
-        // Return a mocked object closest to expected format for frontend to update state
+        // AUTO-UPGRADE: If teacher creates institute, make them ADMIN
+        if (existingUser.role === 'TEACHER') {
+            try {
+                await prisma.user.update({
+                    where: { id: userId },
+                    data: { role: 'ADMIN' }
+                });
+                console.log(`User ${userId} upgraded from TEACHER to ADMIN`);
+            } catch (roleError) {
+                console.error('Failed to upgrade user role:', roleError);
+            }
+        }
+
+        // Fetch the fully updated user with relations for session sync
+        const updatedUser = await prisma.user.findUnique({
+            where: { id: userId },
+            include: {
+                institutes: true
+            }
+        });
+
         const responseInst = {
             id: objectId,
             name,
@@ -227,13 +247,17 @@ export async function POST(req: Request) {
             address,
             phone,
             website,
-            logo,          // Added logo
-            coverImage,    // Added coverImage
+            logo,
+            coverImage,
             adminIds: [userId]
         };
 
         console.log('INSTITUTE CREATED (RAW):', responseInst);
-        return NextResponse.json(responseInst);
+
+        return NextResponse.json({
+            institute: responseInst,
+            user: updatedUser
+        });
     } catch (error) {
         console.error('Create Institute Error:', error);
         return NextResponse.json({ message: 'Internal server error', error: String(error) }, { status: 500 });

@@ -23,16 +23,6 @@ export default function RoleSelectionPage() {
     // Roles Configuration
     const roles = [
         {
-            id: 'ADMIN',
-            title: 'প্রতিষ্ঠান ওনার/এডমিন',
-            description: 'নতুন প্রতিষ্ঠান তৈরি এবং সম্পূর্ণ ম্যানেজমেন্টের জন্য।',
-            icon: ShieldCheck,
-            color: 'blue',
-            bg: 'bg-blue-50',
-            text: 'text-blue-600',
-            border: 'border-blue-100'
-        },
-        {
             id: 'TEACHER',
             title: 'শিক্ষক (Teacher)',
             description: 'প্রতিষ্ঠানে যোগ দেওয়া বা ক্লাস পরিচালনা করার জন্য।',

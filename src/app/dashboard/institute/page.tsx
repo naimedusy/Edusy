@@ -23,7 +23,7 @@ import Modal from '@/components/Modal';
 
 
 export default function MultiInstitutePage() {
-    const { user, activeRole, activeInstitute, switchInstitute, refreshInstitutes, setAllInstitutes } = useSession();
+    const { user, activeRole, activeInstitute, switchInstitute, refreshInstitutes, setAllInstitutes, login } = useSession();
     const [institutes, setInstitutes] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -52,7 +52,10 @@ export default function MultiInstitutePage() {
         uploadData.append('file', file);
 
         try {
-            // Use a temporary loading state indicator if needed, or just reusing createLoading for simplicity
+            // Create local preview
+            const localUrl = URL.createObjectURL(file);
+            setFormData(prev => ({ ...prev, [field]: localUrl }));
+
             // preventing submit while uploading
             setCreateLoading(true);
             const res = await fetch('/api/upload', {
@@ -61,6 +64,7 @@ export default function MultiInstitutePage() {
             });
             const data = await res.json();
             if (data.url) {
+                // Update with permanent URL
                 setFormData(prev => ({ ...prev, [field]: data.url }));
             } else {
                 setToast({ message: 'আপলোড ব্যর্থ হয়েছে', type: 'error' });
@@ -125,12 +129,16 @@ export default function MultiInstitutePage() {
             });
 
             if (res.ok) {
-                const result = await res.json();
+                const { institute, user: updatedUser } = await res.json();
+
+                if (updatedUser) {
+                    // This will refresh the entire session including role and institutes
+                    login(updatedUser);
+                } else if (institute) {
+                    refreshInstitutes({ ...institute });
+                }
+
                 fetchInstitutes();
-
-                // Update the session data (user.institutes) so switcher has fresh data
-                refreshInstitutes({ ...result });
-
                 setIsCreateModalOpen(false);
                 setEditingInst(null);
                 setFormData({ name: '', type: 'Madrasa', address: '', phone: '', website: '', logo: '', coverImage: '' });

@@ -161,7 +161,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        let { name, email, password, role, instituteIds, metadata, phone } = body; // Destructure phone
+        let { name, email, password, role, instituteIds, metadata, phone, faceDescriptor } = body; // Destructure phone and faceDescriptor
 
         if (!phone) {
             phone = body.phone || metadata?.phone || (role === 'STUDENT' ? metadata?.studentPhone || metadata?.guardianPhone : metadata?.guardianPhone);
@@ -182,6 +182,10 @@ export async function POST(req: Request) {
             }
             if (!finalMetadata.rollNumber && finalMetadata.classId) {
                 finalMetadata.rollNumber = await getNextRollNumber(instituteId, finalMetadata.classId);
+            }
+            // Auto-approve students created via admin dashboard
+            if (!finalMetadata.admissionStatus) {
+                finalMetadata.admissionStatus = 'APPROVED';
             }
         }
 
@@ -213,6 +217,7 @@ export async function POST(req: Request) {
             role,
             instituteIds: instIds,
             metadata: finalMetadata,
+            faceDescriptor: Array.isArray(faceDescriptor) ? faceDescriptor : [],
             createdAt: { $date: new Date().toISOString() },
             updatedAt: { $date: new Date().toISOString() }
         };
@@ -380,7 +385,7 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
     try {
         const body = await req.json();
-        const { id, email, password, role, name, metadata, phone } = body;
+        const { id, email, password, role, name, metadata, phone, faceDescriptor } = body;
 
         if (!id) return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
 
@@ -391,6 +396,7 @@ export async function PATCH(req: Request) {
         if (name) set.name = name;
         if (metadata) set.metadata = metadata;
         if (phone) set.phone = phone;
+        if (faceDescriptor && Array.isArray(faceDescriptor)) set.faceDescriptor = faceDescriptor;
 
         await (prisma as any).$runCommandRaw({
             update: 'User',

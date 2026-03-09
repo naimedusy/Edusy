@@ -10,6 +10,25 @@ cloudinary.config({
 
 export async function POST(req: Request) {
     try {
+        // Check for Cloudinary configuration
+        const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+        const apiKey = process.env.CLOUDINARY_API_KEY;
+        const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+        const isConfigMissing = !cloudName || !apiKey || !apiSecret;
+        const isUsingPlaceholders = cloudName === 'your_cloud_name' ||
+            apiKey === 'your_api_key' ||
+            apiSecret === 'your_api_secret';
+
+        if (isConfigMissing || isUsingPlaceholders) {
+            console.error('Cloudinary configuration error:', { isConfigMissing, isUsingPlaceholders });
+            return NextResponse.json({
+                message: 'Cloudinary configuration is missing or invalid. Please update your .env file with actual CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.',
+                error: 'INVALID_CLOUDINARY_CONFIG',
+                is_placeholder: isUsingPlaceholders
+            }, { status: 401 });
+        }
+
         const data = await req.formData();
         const file: File | null = data.get('file') as unknown as File;
 
