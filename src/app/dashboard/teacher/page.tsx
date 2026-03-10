@@ -17,7 +17,7 @@ import { useUI } from '@/components/UIProvider';
 import OnboardingRouter from '../../../components/OnboardingRouter';
 
 export default function TeacherDashboardPage() {
-    const { user, activeInstitute, activeRole } = useSession();
+    const { user, activeInstitute, activeRole, refreshInstitutes } = useSession();
     const [stats, setStats] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -31,10 +31,15 @@ export default function TeacherDashboardPage() {
                 const statsRes = await fetch(`/api/admin/institutes/stats?instituteId=${activeInstitute.id}`);
                 const statsData = await statsRes.json();
 
+                // Refresh session with latest institute data (logo, cover, etc.)
+                if (statsData.institute) {
+                    refreshInstitutes(statsData.institute);
+                }
+
                 // 2. Fetch students to get a count filtered by the teacher's allowed classes
                 // We use the same filter logic as in the students list page
                 const allowedClassIds = user?.metadata?.allowedClasses || [];
-                const isAllClasses = allowedClassIds.length === 0; // If empty, usually means all or none depending on system design, but here it seems to mean all or restricted
+                const isAllClasses = allowedClassIds.length === 0;
 
                 const studentsRes = await fetch(`/api/admin/users?role=STUDENT&instituteId=${activeInstitute.id}`);
                 const studentsData = await studentsRes.json();

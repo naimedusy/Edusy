@@ -114,7 +114,8 @@ export async function GET(req: Request) {
             totalStudents: studentCount,
             admissionTrends: trends,
             upcomingAssignments,
-            profileHealth
+            profileHealth,
+            institute // Including full institute data to allow refreshing session in dashboard
         });
 
     } catch (error) {
