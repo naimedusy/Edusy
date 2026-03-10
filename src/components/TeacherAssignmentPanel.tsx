@@ -933,7 +933,9 @@ export default function TeacherAssignmentPanel({
                                                                         </div>
                                                                         <div className="space-y-2">
                                                                             {section.tasks.map((task: any, tIdx: number) => {
-                                                                                const targetedNames = task.targetStudents?.map((sid: string) => allStudents.find(st => st.id === sid)?.name).filter(Boolean);
+                                                                                const targetedNames = Array.isArray(task.targetStudents)
+                                                                                    ? task.targetStudents.map((sid: string) => allStudents.find(st => st.id === sid)?.name).filter(Boolean)
+                                                                                    : [];
 
                                                                                 return (
                                                                                     <div key={tIdx} className="flex flex-col gap-1">

@@ -2627,7 +2627,7 @@ export default function StudentManagementPage() {
                                             </td>
                                             <td className="px-4 py-3 text-xs text-slate-600 font-medium">
                                                 <div className="max-w-[200px] truncate" title={JSON.stringify(fail.data)}>
-                                                    {fail.data.join(' | ')}
+                                                    {Array.isArray(fail.data) ? fail.data.join(' | ') : String(fail.data || '')}
                                                 </div>
                                             </td>
                                         </tr>

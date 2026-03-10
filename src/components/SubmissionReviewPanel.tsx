@@ -580,98 +580,100 @@ export default function SubmissionReviewPanel() {
     return (
         <div className="bg-white rounded-[28px] border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
             {/* Header */}
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-[#045c84]/10 flex items-center justify-center text-[#045c84]">
-                        <ClipboardCheck size={18} />
+            <div className="border-b border-slate-100 flex flex-col">
+                <div className="px-5 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-[#045c84]/10 flex items-center justify-center text-[#045c84]">
+                            <ClipboardCheck size={18} />
+                        </div>
+                        <div>
+                            <h2 className="text-[14px] font-black text-slate-800 tracking-tight">জমা পর্যালোচনা</h2>
+                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                {loading ? '...' : `${filteredSubmissions.length}${searchQuery ? 'টি ফলাফল' : 'টি পেন্ডিং'}`}
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-[14px] font-black text-slate-800 tracking-tight">জমা পর্যালোচনা</h2>
-                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                            {loading ? '...' : `${filteredSubmissions.length}${searchQuery ? 'টি ফলাফল' : 'টি পেন্ডিং'}`}
-                        </p>
+
+                    <div className="flex items-center gap-2">
+                        {(isAdmin || isTeacher) && (
+                            <div className="relative">
+                                <button onClick={() => setShowForceMenu(!showForceMenu)} disabled={isForceProcessing || loading}
+                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-500 hover:text-white text-amber-600 transition-all border border-amber-100 disabled:opacity-50 font-black text-[10px] uppercase tracking-widest"
+                                    title="বাকিদের জমা গ্রহণ করুন">
+                                    {isForceProcessing ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                                    <span className="hidden sm:inline">ফোর্স সাবমিট</span>
+                                    <ChevronDown size={12} className={showForceMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                                </button>
+
+                                <AnimatePresence>
+                                    {showForceMenu && (
+                                        <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                            className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 overflow-hidden">
+                                            <div className="px-3 py-1.5 mb-1 border-b border-slate-50">
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">সময় বেছে নিন</p>
+                                            </div>
+                                            <button onClick={() => {
+                                                const today = new Date().toISOString().split('T')[0];
+                                                handleForceSubmit(today, today);
+                                            }} className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                আজকের জন্য
+                                            </button>
+                                            <button onClick={() => {
+                                                const yest = new Date();
+                                                yest.setDate(yest.getDate() - 1);
+                                                const d = yest.toISOString().split('T')[0];
+                                                handleForceSubmit(d, d);
+                                            }} className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                                গতকালের জন্য
+                                            </button>
+                                            <div className="px-3 py-2 border-t border-slate-50 mt-1">
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">নির্ধারিত দিন</p>
+                                                <div className="flex items-center gap-1.5">
+                                                    <input type="date" value={selectedForceDate} onChange={(e) => setSelectedForceDate(e.target.value)}
+                                                        className="flex-1 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[10px] font-bold outline-none focus:border-amber-300 transition-colors" />
+                                                    <button onClick={() => handleForceSubmit(selectedForceDate, selectedForceDate)}
+                                                        className="p-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm shadow-amber-200">
+                                                        <Calendar size={12} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        )}
+                        <button onClick={fetchSubmissions} disabled={loading}
+                            className="p-2 rounded-xl bg-slate-50 hover:bg-[#045c84] hover:text-white text-slate-400 transition-all border border-slate-100 disabled:opacity-50"
+                            title="রিফ্রেশ">
+                            <RefreshCcw size={14} className={loading ? 'animate-spin' : ''} />
+                        </button>
                     </div>
                 </div>
 
-                {/* Search Bar */}
-                <div className="flex-1 max-w-sm mx-4">
+                {/* Search Bar Row */}
+                <div className="px-5 pb-4">
                     <div className="relative group">
-                        <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#045c84] transition-colors">
-                            <Search size={14} />
+                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-[#045c84] transition-colors">
+                            <Search size={16} />
                         </div>
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="শিক্ষার্থী বা রোল দিয়ে খুঁজুন..."
-                            className="w-full bg-slate-50 border border-slate-100 rounded-2xl py-2 pl-9 pr-8 text-[11px] font-bold text-slate-700 outline-none focus:bg-white focus:border-[#045c84]/30 focus:ring-4 focus:ring-[#045c84]/5 transition-all"
+                            className="w-full bg-slate-50/50 border border-slate-100 rounded-[20px] py-3 pl-11 pr-10 text-[12px] font-bold text-slate-700 outline-none focus:bg-white focus:border-[#045c84]/30 focus:ring-8 focus:ring-[#045c84]/5 transition-all"
                         />
                         {searchQuery && (
                             <button
                                 onClick={() => setSearchQuery('')}
-                                className="absolute inset-y-0 right-2 flex items-center text-slate-300 hover:text-slate-500 transition-colors"
+                                className="absolute inset-y-0 right-3 flex items-center text-slate-300 hover:text-slate-500 transition-colors"
                             >
-                                <SearchX size={14} />
+                                <SearchX size={16} />
                             </button>
                         )}
                     </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                    {(isAdmin || isTeacher) && (
-                        <div className="relative">
-                            <button onClick={() => setShowForceMenu(!showForceMenu)} disabled={isForceProcessing || loading}
-                                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-500 hover:text-white text-amber-600 transition-all border border-amber-100 disabled:opacity-50 font-black text-[10px] uppercase tracking-widest"
-                                title="বাকিদের জমা গ্রহণ করুন">
-                                {isForceProcessing ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                                <span className="hidden sm:inline">ফোর্স সাবমিট</span>
-                                <ChevronDown size={12} className={showForceMenu ? 'rotate-180 transition-transform' : 'transition-transform'} />
-                            </button>
-
-                            <AnimatePresence>
-                                {showForceMenu && (
-                                    <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                                        className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 z-50 overflow-hidden">
-                                        <div className="px-3 py-1.5 mb-1 border-b border-slate-50">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">সময় বেছে নিন</p>
-                                        </div>
-                                        <button onClick={() => {
-                                            const today = new Date().toISOString().split('T')[0];
-                                            handleForceSubmit(today, today);
-                                        }} className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                            আজকের জন্য
-                                        </button>
-                                        <button onClick={() => {
-                                            const yest = new Date();
-                                            yest.setDate(yest.getDate() - 1);
-                                            const d = yest.toISOString().split('T')[0];
-                                            handleForceSubmit(d, d);
-                                        }} className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                            গতকালের জন্য
-                                        </button>
-                                        <div className="px-3 py-2 border-t border-slate-50 mt-1">
-                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">নির্ধারিত দিন</p>
-                                            <div className="flex items-center gap-1.5">
-                                                <input type="date" value={selectedForceDate} onChange={(e) => setSelectedForceDate(e.target.value)}
-                                                    className="flex-1 bg-slate-50 border border-slate-100 rounded-lg px-2 py-1 text-[10px] font-bold outline-none focus:border-amber-300 transition-colors" />
-                                                <button onClick={() => handleForceSubmit(selectedForceDate, selectedForceDate)}
-                                                    className="p-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 transition-colors shadow-sm shadow-amber-200">
-                                                    <Calendar size={12} />
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    )}
-                    <button onClick={fetchSubmissions} disabled={loading}
-                        className="p-2 rounded-xl bg-slate-50 hover:bg-[#045c84] hover:text-white text-slate-400 transition-all border border-slate-100 disabled:opacity-50"
-                        title="রিফ্রেশ">
-                        <RefreshCcw size={14} className={loading ? 'animate-spin' : ''} />
-                    </button>
                 </div>
             </div>
 

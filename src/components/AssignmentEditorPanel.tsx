@@ -546,7 +546,7 @@ export default function AssignmentEditorPanel({
 
         const formatSection = (title: string, tasks: TaskLine[]) => {
             const validTasks = tasks.map(line => {
-                const taskText = line.segments.map(seg => {
+                const taskText = (Array.isArray(line.segments) ? line.segments : []).map(seg => {
                     if (seg.type === 'tag') {
                         const tag = ALL_TAGS.find(att => att.id === seg.value);
                         if (!tag) return '';
@@ -584,7 +584,7 @@ export default function AssignmentEditorPanel({
                 }).join('');
 
                 // Append student names if targeted
-                if (line.targetStudents && line.targetStudents.length > 0) {
+                if (Array.isArray(line.targetStudents) && line.targetStudents.length > 0) {
                     const targetedStudentNames = line.targetStudents
                         .map(studentId => classStudents.find(s => s.id === studentId)?.name)
                         .filter(Boolean)

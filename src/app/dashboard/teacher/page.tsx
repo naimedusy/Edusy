@@ -27,12 +27,33 @@ export default function TeacherDashboardPage() {
         const fetchTeacherStats = async () => {
             setLoading(true);
             try {
-                // Mocking or fetching teacher specific stats if endpoint exists
-                // For now just basic info
+                // 1. Fetch general institute stats for assignments/etc.
+                const statsRes = await fetch(`/api/admin/institutes/stats?instituteId=${activeInstitute.id}`);
+                const statsData = await statsRes.json();
+
+                // 2. Fetch students to get a count filtered by the teacher's allowed classes
+                // We use the same filter logic as in the students list page
+                const allowedClassIds = user?.metadata?.allowedClasses || [];
+                const isAllClasses = allowedClassIds.length === 0; // If empty, usually means all or none depending on system design, but here it seems to mean all or restricted
+
+                const studentsRes = await fetch(`/api/admin/users?role=STUDENT&instituteId=${activeInstitute.id}`);
+                const studentsData = await studentsRes.json();
+
+                let filteredStudentCount = 0;
+                if (Array.isArray(studentsData)) {
+                    if (isAllClasses) {
+                        filteredStudentCount = studentsData.length;
+                    } else {
+                        filteredStudentCount = studentsData.filter((s: any) =>
+                            allowedClassIds.includes(s.metadata?.classId)
+                        ).length;
+                    }
+                }
+
                 setStats({
-                    totalStudents: 45,
-                    activeAssignments: 12,
-                    pendingLeaves: 2
+                    totalStudents: filteredStudentCount,
+                    activeAssignments: statsData.upcomingAssignments?.length || 0,
+                    pendingLeaves: 0
                 });
             } catch (error) {
                 console.error('Fetch teacher stats error:', error);

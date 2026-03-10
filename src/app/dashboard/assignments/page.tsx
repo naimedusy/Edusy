@@ -114,7 +114,8 @@ function AssignmentsPageContent() {
                 }
             } else if (activeRole === 'GUARDIAN' && user?.metadata) {
                 // For guardians, we show all classes their children are in
-                const childrenIds = user.metadata.childrenIds || (user.metadata.studentId ? [user.metadata.studentId] : []);
+                const childrenIdsRaw = user.metadata.childrenIds || (user.metadata.studentId ? [user.metadata.studentId] : []);
+                const childrenIds = Array.isArray(childrenIdsRaw) ? childrenIdsRaw : [];
                 if (childrenIds.length > 0) {
                     const childrenRes = await fetch(`/api/admin/users?ids=${childrenIds.join(',')}`);
                     const childrenData = await childrenRes.json();

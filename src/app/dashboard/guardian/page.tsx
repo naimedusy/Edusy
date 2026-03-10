@@ -50,7 +50,8 @@ export default function GuardianDashboardPage() {
 
         const fetchChildrenData = async () => {
             try {
-                const childrenIds = user?.metadata?.childrenIds || (user?.metadata?.studentId ? [user.metadata.studentId] : []);
+                const childrenIdsRaw = user?.metadata?.childrenIds || (user?.metadata?.studentId ? [user.metadata.studentId] : []);
+                const childrenIds = Array.isArray(childrenIdsRaw) ? childrenIdsRaw : [];
                 if (childrenIds.length > 0) {
                     const res = await fetch(`/api/admin/users?ids=${childrenIds.join(',')}`);
                     const data = await res.json();

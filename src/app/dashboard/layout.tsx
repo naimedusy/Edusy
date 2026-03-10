@@ -162,7 +162,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <nav className="px-4 space-y-3 pb-8">
                             {filteredMenuItems.map((item) => {
                                 const isActive = item.href === '/dashboard'
-                                    ? pathname === '/dashboard'
+                                    ? ['/dashboard', '/dashboard/teacher', '/dashboard/student', '/dashboard/guardian'].includes(pathname)
                                     : pathname?.startsWith(item.href);
 
                                 return (
