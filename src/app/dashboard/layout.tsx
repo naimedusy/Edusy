@@ -155,7 +155,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 
                     {/* Scrollable Content Area */}
-                    <div className="flex-1 overflow-y-auto scrollbar-visible py-4">
+                    <div
+                        className="flex-1 overflow-y-auto custom-scrollbar py-4"
+                        data-lenis-prevent
+                    >
                         <nav className="px-4 space-y-3 pb-8">
                             {filteredMenuItems.map((item) => {
                                 const isActive = item.href === '/dashboard'
