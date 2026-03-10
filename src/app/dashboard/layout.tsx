@@ -139,9 +139,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
 
             {/* Sidebar */}
-            <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 text-black transition-transform duration-300 lg:translate-x-0 shadow-lg ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} h-screen overflow-hidden`}>
-                <div className="flex flex-col h-full overflow-hidden">
-                    <div className="p-8 flex items-center gap-4 bg-primary text-white">
+            <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-white border-r border-slate-200 text-black transition-transform duration-300 lg:translate-x-0 shadow-lg ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} h-screen`}>
+                <div className="flex flex-col h-full">
+                    <div className="p-8 flex items-center gap-4 bg-primary text-white shrink-0">
                         <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-md shadow-inner">
                             <GraduationCap size={24} className="text-white" />
                         </div>
@@ -155,7 +155,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
 
                     {/* Scrollable Content Area */}
-                    <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-200 py-4">
+                    <div className="flex-1 overflow-y-auto scrollbar-visible py-4">
                         <nav className="px-4 space-y-3 pb-8">
                             {filteredMenuItems.map((item) => {
                                 const isActive = item.href === '/dashboard'
@@ -214,11 +214,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         )}
 
                         <RoleSwitcher />
+
+                        <div className="p-4 mt-4 lg:hidden">
+                            <button
+                                onClick={logout}
+                                className="flex items-center gap-5 w-full px-5 py-4 rounded-2xl hover:bg-red-50 transition-all font-medium text-red-600 text-lg"
+                            >
+                                <LogOut size={24} />
+                                <span>লগ আউট</span>
+                            </button>
+                        </div>
                     </div>
 
 
 
-                    <div className="p-6 border-t border-slate-100">
+                    <div className="p-6 border-t border-slate-100 hidden lg:block shrink-0 bg-white">
                         <button
                             onClick={logout}
                             className="flex items-center gap-5 w-full px-5 py-4 rounded-2xl hover:bg-red-50 transition-all font-medium text-red-600 text-lg"
