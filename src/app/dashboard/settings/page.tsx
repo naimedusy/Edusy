@@ -5,7 +5,7 @@ import {
     Settings as SettingsIcon,
     User,
     Bell,
-    ShieldLock,
+    ShieldCheck,
     Globe,
     Camera,
     Save,
@@ -66,15 +66,15 @@ export default function SettingsPage() {
                     {[
                         { id: 'profile', label: 'প্রোফাইল তথ্য', icon: User, desc: 'নাম, ইমেইল ও ছবি' },
                         { id: 'notif', label: 'নোটিফিকেশন', icon: Bell, desc: 'অ্যালার্ট ও আপডেট' },
-                        { id: 'security', label: 'নিরাপত্তা', icon: ShieldLock, desc: 'পাসওয়ার্ড ও সুরক্ষা' },
+                        { id: 'security', label: 'নিরাপত্তা', icon: ShieldCheck, desc: 'পাসওয়ার্ড ও সুরক্ষা' },
                         { id: 'display', label: 'ভাষা ও ডিসপ্লে', icon: Languages, desc: 'থিম ও ফন্ট' },
                     ].map((item) => (
                         <button
                             key={item.id}
                             onClick={() => setActiveTab(item.id)}
                             className={`w-full p-6 rounded-[32px] border text-left transition-all group ${activeTab === item.id
-                                    ? 'bg-white border-[#045c84]/20 shadow-xl ring-4 ring-[#045c84]/5'
-                                    : 'bg-transparent border-transparent hover:bg-white hover:border-slate-100'
+                                ? 'bg-white border-[#045c84]/20 shadow-xl ring-4 ring-[#045c84]/5'
+                                : 'bg-transparent border-transparent hover:bg-white hover:border-slate-100'
                                 }`}
                         >
                             <div className="flex items-center gap-4">
@@ -126,7 +126,7 @@ export default function SettingsPage() {
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">মোবাইল নম্বর</label>
                                     <div className="relative group">
                                         <Smartphone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#045c84] transition-colors" size={18} />
-                                        <input type="text" defaultValue={user?.phone || ''} className="w-full pl-12 pr-6 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold placeholder:text-slate-300 focus:ring-2 focus:ring-[#045c84]/10 transition-all" />
+                                        <input type="text" defaultValue={user?.metadata?.phone || ''} className="w-full pl-12 pr-6 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold placeholder:text-slate-300 focus:ring-2 focus:ring-[#045c84]/10 transition-all" />
                                     </div>
                                 </div>
                                 <div className="space-y-3">
@@ -168,14 +168,14 @@ export default function SettingsPage() {
                                     <div className="space-y-3">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">পুরানো পাসওয়ার্ড</label>
                                         <div className="relative group">
-                                            <ShieldLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                                            <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                                             <input type={showPassword ? 'text' : 'password'} className="w-full pl-12 pr-12 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold" />
                                         </div>
                                     </div>
                                     <div className="space-y-3">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">নতুন পাসওয়ার্ড</label>
                                         <div className="relative group">
-                                            <ShieldLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                                            <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
                                             <input type={showPassword ? 'text' : 'password'} className="w-full pl-12 pr-12 py-4 bg-slate-50 border-none rounded-2xl text-sm font-bold" />
                                             <button
                                                 onClick={() => setShowPassword(!showPassword)}
