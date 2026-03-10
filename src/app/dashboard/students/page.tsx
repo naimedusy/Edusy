@@ -291,7 +291,21 @@ export default function StudentManagementPage() {
         try {
             const res = await fetch(`/api/admin/users?role=STUDENT&instituteId=${activeInstitute.id}&admissionStatus=PENDING`);
             const data = await res.json();
-            setPendingCount(Array.isArray(data) ? data.length : 0);
+            const list = Array.isArray(data) ? data : [];
+
+            if (activeRole === 'TEACHER') {
+                const profile = user?.teacherProfiles?.find((p: any) => p.instituteId === activeInstitute?.id);
+                const classWise = profile?.permissions?.classWise || {};
+                const allowedClassIds = Object.keys(classWise);
+
+                const filtered = list.filter(s => {
+                    const studentClassId = s.metadata?.classId;
+                    return allowedClassIds.includes(studentClassId);
+                });
+                setPendingCount(filtered.length);
+            } else {
+                setPendingCount(list.length);
+            }
         } catch (error) {
             console.error('Fetch pending count error:', error);
         }
@@ -1052,7 +1066,7 @@ export default function StudentManagementPage() {
             setToast({ message: 'সার্ভার এরর!', type: 'error' });
         }
     };
-    // Calculate allowed classes for admission
+    // Calculate allowed classes for admission (Expand to all assigned classes for visibility)
     const allowedClasses = React.useMemo(() => {
         if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return classes;
         if (activeRole === 'TEACHER' && user?.teacherProfiles) {
@@ -1061,19 +1075,34 @@ export default function StudentManagementPage() {
 
             return classes.filter(c => {
                 const classPermissions = profile.permissions.classWise[c.id];
-                // classPermissions can be an array OR an object — guard against non-array
-                if (Array.isArray(classPermissions)) {
-                    return classPermissions.includes('canManageAdmission');
-                }
-                // If it's an object with boolean flags, check the flag directly
-                if (classPermissions && typeof classPermissions === 'object') {
-                    return classPermissions.canManageAdmission === true;
-                }
-                return false;
+                // If there's ANY entry for this class, the teacher is assigned to it and should see it
+                return classPermissions !== undefined && classPermissions !== null;
             });
         }
         return [];
     }, [classes, activeRole, user, activeInstitute]);
+
+    // Helper to check if teacher can manage students in a specific class
+    const canManageClass = (classId: string) => {
+        if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return true;
+        if (activeRole === 'TEACHER' && user?.teacherProfiles) {
+            const profile = user.teacherProfiles.find((p: any) => p.instituteId === activeInstitute?.id);
+            if (!profile || !profile.permissions?.classWise) return false;
+
+            const classPermissions = profile.permissions.classWise[classId];
+            if (Array.isArray(classPermissions)) {
+                return classPermissions.includes('canManageAdmission');
+            }
+            if (classPermissions && typeof classPermissions === 'object') {
+                return classPermissions.canManageAdmission === true;
+            }
+            // Compatibility for old structures
+            if (typeof classPermissions === 'string') {
+                return classPermissions === 'canManageAdmission';
+            }
+        }
+        return false;
+    };
 
     if (activeRole !== 'ADMIN' && activeRole !== 'SUPER_ADMIN' && activeRole !== 'TEACHER') {
         if (typeof window !== 'undefined') {
@@ -1117,7 +1146,7 @@ export default function StudentManagementPage() {
                     <ScrollableTabs
                         items={[
                             { id: 'all', label: 'সকল ক্লাস' },
-                            ...classes.map(c => ({ id: c.id, label: c.name })),
+                            ...allowedClasses.map(c => ({ id: c.id, label: c.name })),
                             ...(activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' ? [{ id: 'add-class', label: 'নতুন ক্লাস' }] : [])
                         ]}
                         selectedId={selectedClassId}
@@ -1234,7 +1263,7 @@ export default function StudentManagementPage() {
                                 items={[
                                     { id: 'all', label: 'সকল গ্রুপ' },
                                     ...groups.map(g => ({ id: g.id, label: g.name })),
-                                    ...(activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' ? [{ id: 'add-group', label: 'নতুন গ্রুপ' }] : [])
+                                    ...(activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' || (selectedClassId !== 'all' && canManageClass(selectedClassId)) ? [{ id: 'add-group', label: 'নতুন গ্রুপ' }] : [])
                                 ]}
                                 selectedId={selectedGroupId}
                                 onSelect={(id) => {
@@ -1264,7 +1293,7 @@ export default function StudentManagementPage() {
                                             : 'bg-white text-slate-500 border-slate-100 hover:bg-slate-50 hover:text-slate-800 hover:shadow-sm'
                                             }`}>
                                             <span className="whitespace-nowrap">{item.label}</span>
-                                            {item.id !== 'all' && isSelected && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') && (
+                                            {item.id !== 'all' && isSelected && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' || (selectedClassId !== 'all' && canManageClass(selectedClassId))) && (
                                                 <button
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -1290,7 +1319,7 @@ export default function StudentManagementPage() {
                                     );
                                 }}
                             />
-                            {selectedGroupId !== 'all' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') && (
+                            {selectedGroupId !== 'all' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' || (selectedClassId !== 'all' && canManageClass(selectedClassId))) && (
                                 <button
                                     onClick={() => {
                                         fetchAllStudentsInClass();
@@ -1554,6 +1583,10 @@ export default function StudentManagementPage() {
                                 <div
                                     key={s.id}
                                     onClick={() => {
+                                        if (!canManageClass(s.metadata?.classId)) {
+                                            setToast({ message: 'আপনার এই ক্লাসের আবেদন ম্যানেজ করার অনুমতি নেই।', type: 'error' });
+                                            return;
+                                        }
                                         setEditingStudent(s);
                                         setFormData({
                                             name: s.name || '',
@@ -2720,7 +2753,7 @@ export default function StudentManagementPage() {
                 onClose={() => setIsProfileModalOpen(false)}
                 student={selectedStudent}
                 onUpdate={fetchStudents}
-                onEdit={(s, context) => {
+                onEdit={canManageClass(selectedStudent?.metadata?.classId) ? (s, context) => {
                     setIsProfileModalOpen(false);
                     setEditingStudent(s);
 
@@ -2743,7 +2776,7 @@ export default function StudentManagementPage() {
                     });
                     if (s.metadata?.classId) fetchGroups(s.metadata.classId);
                     setIsAddModalOpen(true);
-                }}
+                } : undefined}
             />
 
             {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
@@ -2802,32 +2835,36 @@ export default function StudentManagementPage() {
                             {isActionMenuOpen && students.some(s => s.id === isActionMenuOpen) ? (
                                 students.filter(s => s.id === isActionMenuOpen).map(s => (
                                     <div key={s.id}>
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                const hasGuardian = !!s.metadata?.guardianId;
-                                                const studentPhone = s.email || s.phone || s.metadata?.studentId || 'N/A';
-                                                const studentPassword = s.password || 'N/A';
-                                                const guardianPhone = hasGuardian ? (s.metadata?.guardianPhone || 'N/A') : 'N/A';
-                                                const guardianPassword = hasGuardian ? (s.metadata?.guardianPassword || 'N/A') : 'N/A';
+                                        {canManageClass(s.metadata?.classId) && (
+                                            <>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const hasGuardian = !!s.metadata?.guardianId;
+                                                        const studentPhone = s.email || s.phone || s.metadata?.studentId || 'N/A';
+                                                        const studentPassword = s.password || 'N/A';
+                                                        const guardianPhone = hasGuardian ? (s.metadata?.guardianPhone || 'N/A') : 'N/A';
+                                                        const guardianPassword = hasGuardian ? (s.metadata?.guardianPassword || 'N/A') : 'N/A';
 
-                                                setCredentialsData({
-                                                    studentPhone,
-                                                    studentPassword,
-                                                    guardianPhone,
-                                                    guardianPassword
-                                                });
-                                                setIsCredentialsModalOpen(true);
-                                                setIsActionMenuOpen(null);
-                                            }}
-                                            className="w-full px-4 py-3 text-left text-[13px] font-bold text-amber-600 hover:bg-amber-50 flex items-center gap-3 transition-colors"
-                                        >
-                                            <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
-                                                <Key size={16} />
-                                            </div>
-                                            <span>লগইন তথ্য (Credentials)</span>
-                                        </button>
-                                        <div className="h-[1px] bg-slate-100 my-1 mx-2" />
+                                                        setCredentialsData({
+                                                            studentPhone,
+                                                            studentPassword,
+                                                            guardianPhone,
+                                                            guardianPassword
+                                                        });
+                                                        setIsCredentialsModalOpen(true);
+                                                        setIsActionMenuOpen(null);
+                                                    }}
+                                                    className="w-full px-4 py-3 text-left text-[13px] font-bold text-amber-600 hover:bg-amber-50 flex items-center gap-3 transition-colors"
+                                                >
+                                                    <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+                                                        <Key size={16} />
+                                                    </div>
+                                                    <span>লগইন তথ্য (Credentials)</span>
+                                                </button>
+                                                <div className="h-[1px] bg-slate-100 my-1 mx-2" />
+                                            </>
+                                        )}
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
@@ -2868,35 +2905,39 @@ export default function StudentManagementPage() {
                                             </div>
                                             <span>হোয়াটসঅ্যাপ (WhatsApp)</span>
                                         </button>
-                                        <div className="h-[1px] bg-slate-100 my-1 mx-2" />
-                                        {selectedGroupId !== 'all' && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleRemoveFromGroup(s);
-                                                    setIsActionMenuOpen(null);
-                                                }}
-                                                className="w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-slate-50 flex items-center gap-3 transition-colors text-orange-600"
-                                            >
-                                                <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
-                                                    <FileX size={16} />
-                                                </div>
-                                                <span>গ্রুপ থেকে বাদ দিন (Remove)</span>
-                                            </button>
+                                        {canManageClass(s.metadata?.classId) && (
+                                            <>
+                                                <div className="h-[1px] bg-slate-100 my-1 mx-2" />
+                                                {selectedGroupId !== 'all' && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleRemoveFromGroup(s);
+                                                            setIsActionMenuOpen(null);
+                                                        }}
+                                                        className="w-full px-4 py-3 text-left text-[13px] font-bold hover:bg-slate-50 flex items-center gap-3 transition-colors text-orange-600"
+                                                    >
+                                                        <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
+                                                            <FileX size={16} />
+                                                        </div>
+                                                        <span>গ্রুপ থেকে বাদ দিন (Remove)</span>
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteStudent(s.id);
+                                                        setIsActionMenuOpen(null);
+                                                    }}
+                                                    className="w-full px-4 py-3 text-left text-[13px] font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
+                                                >
+                                                    <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
+                                                        <Trash2 size={16} />
+                                                    </div>
+                                                    <span>মুছে ফেলুন (Delete)</span>
+                                                </button>
+                                            </>
                                         )}
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDeleteStudent(s.id);
-                                                setIsActionMenuOpen(null);
-                                            }}
-                                            className="w-full px-4 py-3 text-left text-[13px] font-bold text-red-600 hover:bg-red-50 flex items-center gap-3 transition-colors"
-                                        >
-                                            <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center text-red-500">
-                                                <Trash2 size={16} />
-                                            </div>
-                                            <span>মুছে ফেলুন (Delete)</span>
-                                        </button>
                                     </div>
                                 ))
                             ) : isActionMenuOpen === 'all' ? (
@@ -3008,8 +3049,9 @@ export default function StudentManagementPage() {
                                         </button>
                                     </div>
                                 ))
-                            ) : null}
-                        </div>
+                            ) : null
+                            }
+                        </div >
                     </>,
                     document.body
                 )
@@ -3350,7 +3392,11 @@ export default function StudentManagementPage() {
 
             {/* Dynamic FAB System */}
             {
-                mounted && (activeTab === 'students' || activeTab === 'books' || activeTab === 'applications') && createPortal(
+                mounted && (
+                    (activeTab === 'students' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' || (selectedClassId !== 'all' && canManageClass(selectedClassId)))) ||
+                    (activeTab === 'books' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN')) ||
+                    (activeTab === 'applications' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' || (selectedClassId !== 'all' && canManageClass(selectedClassId))))
+                ) && createPortal(
                     <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-4 pointer-events-none">
                         <button
                             onClick={() => {
