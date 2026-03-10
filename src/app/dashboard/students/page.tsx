@@ -199,7 +199,10 @@ export default function StudentManagementPage() {
             await Promise.all([
                 faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
                 faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+                faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL).catch(err => {
+                    console.warn('Face recognition model failed to load:', err);
+                    return null;
+                }),
             ]);
             setIsFaceModelLoaded(true);
             console.log('Face models loaded successfully');
@@ -299,7 +302,8 @@ export default function StudentManagementPage() {
     const fetchFormConfig = async () => {
         if (!activeInstitute?.id) return;
         try {
-            const res = await fetch(`/api/admin/institutes/form-config?instituteId=${activeInstitute.id}`);
+            const url = `/api/admin/institutes/form-config?instituteId=${activeInstitute.id}`;
+            const res = await fetch(url);
             const data = await res.json();
             let config = Array.isArray(data) ? data : [];
 
@@ -1563,7 +1567,17 @@ export default function StudentManagementPage() {
                                         return (
                                             <div className={`w-12 h-12 rounded-full ${bgColor} border-2 border-white shadow-md overflow-hidden flex items-center justify-center text-white font-bold text-lg shrink-0 group-hover:scale-110 transition-transform duration-300`}>
                                                 {s.metadata?.studentPhoto ? (
-                                                    <img src={s.metadata.studentPhoto} alt={s.name} className="w-full h-full object-cover" />
+                                                    <img
+                                                        src={s.metadata.studentPhoto}
+                                                        alt={s.name}
+                                                        className="w-full h-full object-cover"
+                                                        onError={(e) => {
+                                                            const target = e.target as HTMLImageElement;
+                                                            target.style.display = 'none';
+                                                            const parent = target.parentElement;
+                                                            if (parent) parent.innerText = s.name?.[0] || 'S';
+                                                        }}
+                                                    />
                                                 ) : (
                                                     s.name?.[0] || 'S'
                                                 )}
@@ -1856,12 +1870,16 @@ export default function StudentManagementPage() {
                                             <table className="w-full text-sm">
                                                 <thead className="sticky top-0 z-10 bg-slate-50 shadow-sm">
                                                     <tr>
-                                                        <th className="px-3 py-2 text-left border-b border-slate-200 bg-emerald-50/80 text-emerald-800 font-black whitespace-nowrap">
-                                                            স্টুডেন্ট আইডি (Auto)
-                                                        </th>
-                                                        <th className="px-3 py-2 text-left border-b border-slate-200 bg-emerald-50/80 text-emerald-800 font-black whitespace-nowrap">
-                                                            রোল (Auto)
-                                                        </th>
+                                                        {!Object.values(columnMappings).includes('studentId') && (
+                                                            <th className="px-3 py-2 text-left border-b border-slate-200 bg-emerald-50/80 text-emerald-800 font-black whitespace-nowrap">
+                                                                স্টুডেন্ট আইডি (Auto)
+                                                            </th>
+                                                        )}
+                                                        {!Object.values(columnMappings).includes('rollNumber') && (
+                                                            <th className="px-3 py-2 text-left border-b border-slate-200 bg-emerald-50/80 text-emerald-800 font-black whitespace-nowrap">
+                                                                রোল (Auto)
+                                                            </th>
+                                                        )}
                                                         {excelData[0]?.map((_, colIndex) => (
                                                             <th key={colIndex} className="px-3 py-2 text-left border-b border-slate-200 bg-slate-50">
                                                                 <select
@@ -1886,12 +1904,16 @@ export default function StudentManagementPage() {
                                                 <tbody>
                                                     {excelData.map((row, rowIndex) => (
                                                         <tr key={rowIndex} className="hover:bg-slate-50">
-                                                            <td className="px-3 py-2 border-b border-slate-100 text-emerald-700 font-bold whitespace-nowrap bg-emerald-50/30">
-                                                                {previewIds[rowIndex]?.studentId || '-'}
-                                                            </td>
-                                                            <td className="px-3 py-2 border-b border-slate-100 text-emerald-700 font-bold whitespace-nowrap bg-emerald-50/30">
-                                                                {previewIds[rowIndex]?.rollNumber || '-'}
-                                                            </td>
+                                                            {!Object.values(columnMappings).includes('studentId') && (
+                                                                <td className="px-3 py-2 border-b border-slate-100 text-emerald-700 font-bold whitespace-nowrap bg-emerald-50/30">
+                                                                    {previewIds[rowIndex]?.studentId || '-'}
+                                                                </td>
+                                                            )}
+                                                            {!Object.values(columnMappings).includes('rollNumber') && (
+                                                                <td className="px-3 py-2 border-b border-slate-100 text-emerald-700 font-bold whitespace-nowrap bg-emerald-50/30">
+                                                                    {previewIds[rowIndex]?.rollNumber || '-'}
+                                                                </td>
+                                                            )}
                                                             {row.map((cell, cellIndex) => (
                                                                 <td key={cellIndex} className="px-3 py-2 border-b border-slate-100 text-slate-900 font-medium">
                                                                     {cell || '-'}
@@ -2040,11 +2062,21 @@ export default function StudentManagementPage() {
                                                         if (res.ok) {
                                                             successCount++;
                                                         } else {
-                                                            const err = await res.json();
-                                                            fails.push({ name: studentName, reason: err.message || 'সার্ভার ত্রুটি', data: row });
+                                                            let errorData;
+                                                            try {
+                                                                errorData = await res.json();
+                                                            } catch (e) {
+                                                                errorData = { message: `HTTP Error ${res.status}` };
+                                                            }
+                                                            fails.push({
+                                                                name: studentName,
+                                                                reason: errorData.message || `সার্ভার ত্রুটি (${res.status})`,
+                                                                data: row
+                                                            });
                                                         }
-                                                    } catch {
-                                                        fails.push({ name: studentName, reason: 'সংযোগ বিচ্ছিন্ন', data: row });
+                                                    } catch (err) {
+                                                        console.error('Bulk save fetch error:', err);
+                                                        fails.push({ name: studentName, reason: 'সার্ভারে সংযোগ করতে সমস্যা হয়েছে', data: row });
                                                     }
                                                 }
 
