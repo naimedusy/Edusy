@@ -1956,7 +1956,8 @@ export default function StudentManagementPage() {
                                                         instituteIds: [activeInstitute.id],
                                                         metadata: {
                                                             classId: bulkClassId,
-                                                            groupId: bulkGroupId || undefined
+                                                            groupId: bulkGroupId || undefined,
+                                                            admissionStatus: 'APPROVED'
                                                         }
                                                     };
 
