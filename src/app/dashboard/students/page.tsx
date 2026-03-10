@@ -1061,7 +1061,15 @@ export default function StudentManagementPage() {
 
             return classes.filter(c => {
                 const classPermissions = profile.permissions.classWise[c.id];
-                return classPermissions && classPermissions.includes('canManageAdmission');
+                // classPermissions can be an array OR an object — guard against non-array
+                if (Array.isArray(classPermissions)) {
+                    return classPermissions.includes('canManageAdmission');
+                }
+                // If it's an object with boolean flags, check the flag directly
+                if (classPermissions && typeof classPermissions === 'object') {
+                    return classPermissions.canManageAdmission === true;
+                }
+                return false;
             });
         }
         return [];

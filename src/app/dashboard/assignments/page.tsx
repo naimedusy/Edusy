@@ -209,6 +209,8 @@ function AssignmentsPageContent() {
         if (isTeacher && teacherProfile && selectedClassId) {
             const classData = teacherProfile.permissions?.classWise?.[selectedClassId];
             if (!classData || !classData.bookIds) return [];
+            // Guard: bookIds must be an array to call .includes()
+            if (!Array.isArray(classData.bookIds)) return [];
             return books.filter(b => classData.bookIds.includes(b.id));
         }
         return [];
