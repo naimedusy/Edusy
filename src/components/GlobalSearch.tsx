@@ -222,7 +222,7 @@ export default function GlobalSearch() {
             {(isExpanded && (query.length > 0 || allResults.length > 0)) && (
                 <div className={`fixed xl:absolute left-0 right-0 top-[73px] xl:top-full mt-0 xl:mt-2 bg-white xl:rounded-2xl shadow-2xl border-x border-b xl:border border-slate-200 overflow-hidden z-[55] animate-in fade-in slide-in-from-top-2 duration-200 ${isExpanded && 'xl:w-[500px]'
                     }`}>
-                    <div className="max-h-[70vh] xl:max-h-[50vh] overflow-y-auto p-2 scrollbar-hide">
+                    <div className="max-h-[70vh] xl:max-h-[50vh] overflow-y-auto p-2 custom-scrollbar" data-lenis-prevent>
                         {allResults.length > 0 ? (
                             <div className="space-y-1">
                                 {allResults.map((item, index) => (
