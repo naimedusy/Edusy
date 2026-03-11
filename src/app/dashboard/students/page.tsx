@@ -1873,7 +1873,7 @@ export default function StudentManagementPage() {
                                             required
                                         >
                                             <option value="">শ্রেণী নির্বাচন করুন</option>
-                                            {classes.map(c => (
+                                            {classes.filter(c => canManageClass(c.id)).map(c => (
                                                 <option key={c.id} value={c.id}>{c.name}</option>
                                             ))}
                                         </select>
@@ -2398,7 +2398,7 @@ export default function StudentManagementPage() {
                                                             required={isRequired}
                                                         >
                                                             <option value="">শ্রেণী নির্বাচন করুন</option>
-                                                            {classes.map(c => (
+                                                            {classes.filter(c => canManageClass(c.id)).map(c => (
                                                                 <option key={c.id} value={c.id}>{c.name}</option>
                                                             ))}
                                                         </select>
