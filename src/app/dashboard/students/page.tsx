@@ -3456,9 +3456,9 @@ export default function StudentManagementPage() {
             {/* Dynamic FAB System */}
             {
                 mounted && (
-                    (activeTab === 'students' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' || (selectedClassId !== 'all' && canManageClass(selectedClassId)))) ||
+                    (activeTab === 'students' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' || (selectedClassId !== 'all' ? canManageClass(selectedClassId) : classes.some(c => canManageClass(c.id))))) ||
                     (activeTab === 'books' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN')) ||
-                    (activeTab === 'applications' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' || (selectedClassId !== 'all' && canManageClass(selectedClassId))))
+                    (activeTab === 'applications' && (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN' || (selectedClassId !== 'all' ? canManageClass(selectedClassId) : classes.some(c => canManageClass(c.id)))))
                 ) && createPortal(
                     <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-4 pointer-events-none">
                         <button
