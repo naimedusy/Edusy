@@ -1081,7 +1081,9 @@ export default function StudentManagementPage() {
         if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return classes;
         if (activeRole === 'TEACHER' && user?.teacherProfiles) {
             const profile = user.teacherProfiles.find((p: any) => p.instituteId === activeInstitute?.id);
-            if (!profile || !profile.permissions?.classWise) return [];
+            if (!profile) return [];
+            if (profile.isAdmin) return classes;
+            if (!profile.permissions?.classWise) return [];
 
             return classes.filter(c => {
                 const classPermissions = profile.permissions.classWise[c.id];
@@ -1097,16 +1099,26 @@ export default function StudentManagementPage() {
         if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return true;
         if (activeRole === 'TEACHER' && user?.teacherProfiles) {
             const profile = user.teacherProfiles.find((p: any) => p.instituteId === activeInstitute?.id);
-            if (!profile || !profile.permissions?.classWise) return false;
+            if (!profile) return false;
+            if (profile.isAdmin) return true;
+            if (!profile.permissions?.classWise) return false;
 
             const classPermissions = profile.permissions.classWise[classId];
+            if (!classPermissions) return false;
+
+            // Handle the new structure where permissions are in an array inside the class object
+            if (classPermissions.permissions && Array.isArray(classPermissions.permissions)) {
+                return classPermissions.permissions.includes('canManageAdmission');
+            }
+
+            // Fallback for older structures
             if (Array.isArray(classPermissions)) {
                 return classPermissions.includes('canManageAdmission');
             }
-            if (classPermissions && typeof classPermissions === 'object') {
+            if (typeof classPermissions === 'object') {
                 return classPermissions.canManageAdmission === true;
             }
-            // Compatibility for old structures
+            // Compatibility for string structures
             if (typeof classPermissions === 'string') {
                 return classPermissions === 'canManageAdmission';
             }
