@@ -683,7 +683,7 @@ export default function StudentManagementPage() {
             const finalPhone = formData.metadata?.studentPhone || formData.phone;
             const gPhone = formData.metadata?.guardianPhone;
 
-            if (!finalEmail && !finalPhone && !gPhone) {
+            if (!formData.skipAccountSetup && !finalEmail && !finalPhone && !gPhone) {
                 setToast({ message: 'ইমেইল, শিক্ষার্থীর মোবাইল অথবা অভিভাবকের মোবাইল নম্বর - যেকোনো একটি অবশ্যই দিতে হবে।', type: 'error' });
                 setActionLoading(false);
                 return;
@@ -1931,6 +1931,16 @@ export default function StudentManagementPage() {
                                                                 রোল (Auto)
                                                             </th>
                                                         )}
+                                                        {Object.entries(columnMappings).some(([_, fId]) => fId === 'studentPhone' || fId === 'phone') && (
+                                                            <>
+                                                                <th className="px-3 py-2 text-left border-b border-slate-200 bg-blue-50/80 text-blue-800 font-black whitespace-nowrap">
+                                                                    Login ID (Auto)
+                                                                </th>
+                                                                <th className="px-3 py-2 text-left border-b border-slate-200 bg-blue-50/80 text-blue-800 font-black whitespace-nowrap">
+                                                                    Password (Auto)
+                                                                </th>
+                                                            </>
+                                                        )}
                                                         {excelData[0]?.map((_, colIndex) => (
                                                             <th key={colIndex} className="px-3 py-2 text-left border-b border-slate-200 bg-slate-50">
                                                                 <select
@@ -1965,6 +1975,24 @@ export default function StudentManagementPage() {
                                                                     {previewIds[rowIndex]?.rollNumber || '-'}
                                                                 </td>
                                                             )}
+                                                            {(() => {
+                                                                const phoneEntry = Object.entries(columnMappings).find(([_, fId]) => fId === 'studentPhone' || fId === 'phone');
+                                                                if (phoneEntry) {
+                                                                    const pIdx = parseInt(phoneEntry[0]);
+                                                                    const phoneVal = row[pIdx];
+                                                                    return (
+                                                                        <>
+                                                                            <td className="px-3 py-2 border-b border-slate-100 text-blue-700 font-bold whitespace-nowrap bg-blue-50/30">
+                                                                                {phoneVal || '-'}
+                                                                            </td>
+                                                                            <td className="px-3 py-2 border-b border-slate-100 text-blue-700 font-bold whitespace-nowrap bg-blue-50/30">
+                                                                                {phoneVal && phoneVal.length >= 4 ? phoneVal.slice(-4) : '-'}
+                                                                            </td>
+                                                                        </>
+                                                                    );
+                                                                }
+                                                                return null;
+                                                            })()}
                                                             {row.map((cell, cellIndex) => (
                                                                 <td key={cellIndex} className="px-3 py-2 border-b border-slate-100 text-slate-900 font-medium">
                                                                     {cell || '-'}
@@ -2045,6 +2073,19 @@ export default function StudentManagementPage() {
                                                             }
                                                         }
                                                     });
+
+                                                    // Auto-sync studentPhone to phone for login if phone is empty
+                                                    if (studentData.metadata.studentPhone && !studentData.phone) {
+                                                        studentData.phone = studentData.metadata.studentPhone;
+                                                    }
+
+                                                    // Auto-generate password from phone if not provided and not skipping account
+                                                    const currentPhone = studentData.phone || studentData.metadata.studentPhone;
+                                                    if (currentPhone && !studentData.password && !formData.skipAccountSetup) {
+                                                        if (currentPhone.length >= 4) {
+                                                            studentData.password = currentPhone.slice(-4);
+                                                        }
+                                                    }
 
                                                     if (formData.skipAccountSetup) {
                                                         studentData.skipAccountSetup = true;
