@@ -157,17 +157,27 @@ export default function PublicAdmissionPage() {
                 body: uploadData
             });
             const data = await res.json();
-            if (data.url) {
+            if (res.ok && data.url) {
                 // Update with permanent URL
                 setFormData((prev: any) => ({
                     ...prev,
                     metadata: { ...prev.metadata, [fieldId]: data.url }
                 }));
             } else {
+                // Clear local preview if upload failed
+                setFormData((prev: any) => ({
+                    ...prev,
+                    metadata: { ...prev.metadata, [fieldId]: '' }
+                }));
                 setToast({ message: data.message || 'আপলোড ব্যর্থ হয়েছে।', type: 'error' });
             }
         } catch (error) {
             console.error('Upload failed', error);
+            // Clear local preview on error
+            setFormData((prev: any) => ({
+                ...prev,
+                metadata: { ...prev.metadata, [fieldId]: '' }
+            }));
             setToast({ message: 'ফাইল আপলোড ব্যর্থ হয়েছে।', type: 'error' });
         } finally {
             setActionLoading(false);

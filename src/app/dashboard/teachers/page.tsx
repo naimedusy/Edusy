@@ -14,9 +14,8 @@ export default function TeachersPage() {
     const router = useRouter();
 
     useEffect(() => {
-        if (activeRole && activeRole !== 'ADMIN' && activeRole !== 'SUPER_ADMIN') {
-            if (activeRole === 'TEACHER') window.location.replace('/dashboard/teacher');
-            else if (activeRole === 'GUARDIAN') window.location.replace('/dashboard/guardian');
+        if (activeRole && activeRole !== 'ADMIN' && activeRole !== 'SUPER_ADMIN' && activeRole !== 'TEACHER') {
+            if (activeRole === 'GUARDIAN') window.location.replace('/dashboard/guardian');
             else if (activeRole === 'STUDENT') window.location.replace('/dashboard/student');
             else window.location.replace('/dashboard');
         }

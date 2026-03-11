@@ -47,10 +47,18 @@ export default function InstituteOnboarding({ onComplete }: InstituteOnboardingP
                 // Update with the permanent Cloudinary URL
                 if (type === 'logo') setLogo(data.url);
                 if (type === 'cover') setCoverImage(data.url);
+            } else {
+                const errorData = await res.json();
+                // Clear local preview if upload failed to prevent saving blob URLs
+                if (type === 'logo') setLogo(null);
+                if (type === 'cover') setCoverImage(null);
+                alert(`Upload failed: ${errorData.message || 'Please check your Cloudinary configuration.'}`);
             }
         } catch (error) {
             console.error('Upload error:', error);
-            alert('Image upload failed');
+            if (type === 'logo') setLogo(null);
+            if (type === 'cover') setCoverImage(null);
+            alert('Image upload failed due to a network error.');
         }
     };
 

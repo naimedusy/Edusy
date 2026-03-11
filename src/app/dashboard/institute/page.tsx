@@ -62,16 +62,25 @@ export default function MultiInstitutePage() {
                 method: 'POST',
                 body: uploadData
             });
-            const data = await res.json();
-            if (data.url) {
-                // Update with permanent URL
-                setFormData(prev => ({ ...prev, [field]: data.url }));
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data.url) {
+                    // Update with permanent URL
+                    setFormData(prev => ({ ...prev, [field]: data.url }));
+                } else {
+                    setFormData(prev => ({ ...prev, [field]: '' }));
+                    setToast({ message: 'আপলোড ব্যর্থ হয়েছে', type: 'error' });
+                }
             } else {
-                setToast({ message: 'আপলোড ব্যর্থ হয়েছে', type: 'error' });
+                const errorData = await res.json();
+                setFormData(prev => ({ ...prev, [field]: '' }));
+                setToast({ message: `আপলোড ব্যর্থ: ${errorData.message || 'Cloudinary কনফিগারেশন চেক করুন'}`, type: 'error' });
             }
         } catch (error) {
             console.error('Upload failed', error);
-            setToast({ message: 'আপলোড এরর', type: 'error' });
+            setFormData(prev => ({ ...prev, [field]: '' }));
+            setToast({ message: 'আপলোড এরর: নেটওয়ার্ক সমস্যা', type: 'error' });
         } finally {
             setCreateLoading(false);
         }

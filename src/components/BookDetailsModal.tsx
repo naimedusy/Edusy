@@ -92,11 +92,16 @@ const BookDetailsModal: React.FC<BookDetailsModalProps> = ({
                 body: uploadData
             });
             const data = await res.json();
-            if (data.url) {
+            if (res.ok && data.url) {
                 setFormData({ ...formData, [field]: data.url });
+            } else {
+                setFormData({ ...formData, [field]: '' });
+                setToast({ message: data.message || 'আপলোড ব্যর্থ হয়েছে।', type: 'error' });
             }
         } catch (error) {
             console.error('Upload failed', error);
+            setFormData({ ...formData, [field]: '' });
+            setToast({ message: 'ফাইল আপলোড ব্যর্থ হয়েছে।', type: 'error' });
         } finally {
             setLoading(false);
         }
