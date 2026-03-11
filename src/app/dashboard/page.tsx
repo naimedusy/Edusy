@@ -388,19 +388,37 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
     const [statsLoading, setStatsLoading] = useState(false);
 
     useEffect(() => {
-        if (activeInstitute?.id) {
-            setStatsLoading(true);
-            fetch(`/api/admin/institutes/stats?instituteId=${activeInstitute.id}`)
-                .then(res => res.json())
-                .then(data => {
+        let isMounted = true;
+        const fetchStats = async (showLoading = false) => {
+            if (!activeInstitute?.id) return;
+            if (showLoading) setStatsLoading(true);
+
+            try {
+                const res = await fetch(`/api/admin/institutes/stats?instituteId=${activeInstitute.id}`);
+                const data = await res.json();
+                if (isMounted) {
                     setStatsData(data);
+                }
+            } catch (err) {
+                console.error('Failed to fetch institute stats:', err);
+            } finally {
+                if (isMounted && showLoading) {
                     setStatsLoading(false);
-                })
-                .catch(err => {
-                    console.error('Failed to fetch institute stats:', err);
-                    setStatsLoading(false);
-                });
-        }
+                }
+            }
+        };
+
+        fetchStats(true); // Initial load with spinner text
+
+        // Poll every 15 seconds for real-time updates without showing loading spinner
+        const intervalId = setInterval(() => {
+            fetchStats(false);
+        }, 15000);
+
+        return () => {
+            isMounted = false;
+            clearInterval(intervalId);
+        };
     }, [activeInstitute?.id]);
 
     const showOnboarding = user?.institutes && user.institutes.length === 0;
@@ -442,7 +460,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
         },
         {
             name: 'উপস্থিতি',
-            value: statsLoading ? '...' : (statsData?.attendance ?? '০%'),
+            value: statsLoading ? '...' : (statsData?.attendance !== undefined && statsData?.attendance !== null ? `${statsData.attendance.toLocaleString('bn-BD')}%` : '০%'),
             icon: TrendingUp,
             color: 'cyan',
             change: '০%',
