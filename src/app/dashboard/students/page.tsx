@@ -1083,13 +1083,8 @@ export default function StudentManagementPage() {
             const profile = user.teacherProfiles.find((p: any) => p.instituteId === activeInstitute?.id);
             if (!profile) return [];
             if (profile.isAdmin) return classes;
-            if (!profile.permissions?.classWise) return [];
 
-            return classes.filter(c => {
-                const classPermissions = profile.permissions.classWise[c.id];
-                // If there's ANY entry for this class, the teacher is assigned to it and should see it
-                return classPermissions !== undefined && classPermissions !== null;
-            });
+            return classes.filter(c => canManageClass(c.id));
         }
         return [];
     }, [classes, activeRole, user, activeInstitute]);
