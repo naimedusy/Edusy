@@ -178,7 +178,7 @@ export default function TeacherCard({
 
                 {/* Class Permissions Tags (Compressed) */}
                 <div className="flex gap-1">
-                    {teacher.permissions?.classWise && Object.keys(teacher.permissions.classWise).length > 0 ? (
+                    {teacher.permissions?.classWise && typeof teacher.permissions.classWise === 'object' && Object.keys(teacher.permissions.classWise).length > 0 ? (
                         <span className="text-[9px] font-bold px-1.5 py-0.5 bg-slate-50 text-slate-500 rounded-md border border-slate-100">
                             {Object.keys(teacher.permissions.classWise).length} Classes
                         </span>

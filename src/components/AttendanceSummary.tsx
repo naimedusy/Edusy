@@ -57,7 +57,7 @@ interface SummaryData {
 }
 
 export default function AttendanceSummary() {
-    const { activeInstitute } = useSession();
+    const { user, activeRole, activeInstitute } = useSession();
     const [classes, setClasses] = useState<any[]>([]);
     const [selectedClassId, setSelectedClassId] = useState<string>('');
     const [loading, setLoading] = useState(true);
@@ -76,12 +76,36 @@ export default function AttendanceSummary() {
         }
     }, [activeInstitute, selectedClassId, startDate, endDate]);
 
+    const canViewReportForClass = (classId: string) => {
+        if (!classId) return true; // Keep 'All Classes' option, but it will be filtered in the breakdown if we implemented filtering there.
+        // For simplicity, if they can take attendance, they can see reports.
+        if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return true;
+        if (activeRole === 'TEACHER' && user?.teacherProfiles) {
+            const profile = (user.teacherProfiles || []).find((p: any) => p.instituteId === activeInstitute?.id);
+            if (!profile) return false;
+            if (profile.isAdmin) return true;
+            if (!profile.permissions?.classWise) return false;
+
+            const classPermissions = profile.permissions.classWise[classId];
+            if (!classPermissions) return false;
+
+            if (classPermissions && typeof classPermissions === 'object' && classPermissions.permissions && Array.isArray(classPermissions.permissions)) {
+                return classPermissions.permissions.includes('canTakeAttendance');
+            }
+            if (Array.isArray(classPermissions)) {
+                return classPermissions.includes('canTakeAttendance');
+            }
+        }
+        return false;
+    };
+
     const fetchClasses = async () => {
         try {
             const res = await fetch(`/api/admin/classes?instituteId=${activeInstitute?.id}`);
             if (res.ok) {
                 const data = await res.json();
-                setClasses(data);
+                const filteredClasses = Array.isArray(data) ? data.filter((c: any) => canViewReportForClass(c.id)) : [];
+                setClasses(filteredClasses);
             }
         } catch (err) {
             console.error('Error fetching classes:', err);
@@ -111,6 +135,7 @@ export default function AttendanceSummary() {
         { name: 'ছুটি', value: data.summary.leave, color: '#3b82f6' },
     ].filter(d => d.value > 0) : [];
 
+    const isRange = startDate !== endDate;
     const stats = [
         {
             name: 'গড় উপস্থিতি',
@@ -125,13 +150,13 @@ export default function AttendanceSummary() {
             color: 'teal'
         },
         {
-            name: 'আজ উপস্থিত',
-            value: data?.summary.present.toLocaleString('bn-BD') || '০',
+            name: isRange ? 'মোট উপস্থিত' : 'আজ উপস্থিত',
+            value: data ? (data.summary.present + data.summary.late).toLocaleString('bn-BD') : '০',
             icon: UserCheck,
             color: 'emerald'
         },
         {
-            name: 'আজ অনুপস্থিত',
+            name: isRange ? 'মোট অনুপস্থিত' : 'আজ অনুপস্থিত',
             value: data?.summary.absent.toLocaleString('bn-BD') || '০',
             icon: UserX,
             color: 'rose'
@@ -148,14 +173,14 @@ export default function AttendanceSummary() {
                             type="date"
                             value={startDate}
                             onChange={(e) => setStartDate(e.target.value)}
-                            className="bg-transparent border-none outline-none text-xs font-black text-slate-600 px-3 py-1 cursor-pointer"
+                            className="bg-transparent border-none outline-none text-sm font-black text-slate-600 px-4 py-1.5 cursor-pointer"
                         />
                         <span className="text-slate-300 font-bold px-1 self-center">থেকে</span>
                         <input
                             type="date"
                             value={endDate}
                             onChange={(e) => setEndDate(e.target.value)}
-                            className="bg-transparent border-none outline-none text-xs font-black text-slate-600 px-3 py-1 cursor-pointer"
+                            className="bg-transparent border-none outline-none text-sm font-black text-slate-600 px-4 py-1.5 cursor-pointer"
                         />
                     </div>
 
@@ -177,7 +202,7 @@ export default function AttendanceSummary() {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={fetchSummary}
-                        className="bg-[#045c84] text-white px-6 py-2.5 rounded-xl font-black text-sm flex items-center gap-2 hover:bg-[#034a6b] transition-all shadow-lg shadow-blue-900/10"
+                        className="bg-[#045c84] text-white px-8 py-3.5 rounded-2xl font-black text-base flex items-center gap-2 hover:bg-[#034a6b] transition-all shadow-lg shadow-blue-900/10"
                     >
                         রিফ্রেশ করুন
                     </button>
@@ -194,11 +219,11 @@ export default function AttendanceSummary() {
                         transition={{ delay: idx * 0.1 }}
                         className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-md transition-all group"
                     >
-                        <div className={`p-4 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 inline-flex mb-4 group-hover:bg-${stat.color}-600 group-hover:text-white transition-all`}>
-                            <stat.icon size={26} />
+                        <div className={`p-5 rounded-2xl bg-${stat.color}-50 text-${stat.color}-600 inline-flex mb-4 group-hover:bg-${stat.color}-600 group-hover:text-white transition-all`}>
+                            <stat.icon size={32} />
                         </div>
-                        <p className="text-slate-400 font-bold uppercase text-[10px] tracking-widest mb-1">{stat.name}</p>
-                        <h3 className="text-3xl font-black text-slate-800">{stat.value}</h3>
+                        <p className="text-slate-400 font-black uppercase text-xs tracking-widest mb-1">{stat.name}</p>
+                        <h3 className="text-4xl font-black text-slate-800 tracking-tighter">{stat.value}</h3>
                     </motion.div>
                 ))}
             </div>
@@ -222,7 +247,7 @@ export default function AttendanceSummary() {
                                 <Loader2 className="animate-spin text-slate-300" size={40} />
                             </div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                                 <AreaChart data={data?.dailyTrends}>
                                     <defs>
                                         <linearGradient id="colorPresent" x1="0" y1="0" x2="0" y2="1">
@@ -276,7 +301,7 @@ export default function AttendanceSummary() {
                             </div>
                         ) : (
                             <>
-                                <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                                     <PieChart>
                                         <Pie
                                             data={pieData}
@@ -323,7 +348,7 @@ export default function AttendanceSummary() {
                                 <Loader2 className="animate-spin text-slate-300" size={40} />
                             </div>
                         ) : (
-                            <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                                 <BarChart data={data?.classBreakdown} layout="vertical" margin={{ left: 40, right: 40 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
                                     <XAxis type="number" hide />

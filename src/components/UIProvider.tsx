@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import dynamic from 'next/dynamic';
 import AssignmentDetailsModal from './AssignmentDetailsModal';
+import CustomDialog from './CustomDialog';
 
 const PinnedAssignmentOverlay = dynamic(() => import('./PinnedAssignmentOverlay'), { ssr: false });
 
@@ -20,6 +21,9 @@ interface UIContextType {
     globalAssignmentDetail: { assignment: any; options?: { selectedStudentId?: string } } | null;
     openAssignmentDetails: (assignment: any, options?: { selectedStudentId?: string }) => void;
     closeAssignmentDetails: () => void;
+    // New Dialog API
+    confirm: (message: string, title?: string) => Promise<boolean>;
+    alert: (message: string, title?: string) => void;
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
@@ -32,6 +36,21 @@ export function UIProvider({ children }: { children: ReactNode }) {
     }>({ view: 'LIST', subject: null });
 
     const [globalAssignmentDetail, setGlobalAssignmentDetail] = useState<any | null>(null);
+
+    // Dialog state
+    const [dialog, setDialog] = useState<{
+        isOpen: boolean;
+        type: 'alert' | 'confirm';
+        title: string;
+        message: string;
+        resolve: (value: boolean) => void;
+    }>({
+        isOpen: false,
+        type: 'alert',
+        title: '',
+        message: '',
+        resolve: () => { }
+    });
 
     const [pinnedAssignment, setPinnedAssignment] = useState<any | null>(() => {
         if (typeof window !== 'undefined') {
@@ -76,6 +95,39 @@ export function UIProvider({ children }: { children: ReactNode }) {
         });
     };
 
+    // Dialog handlers
+    const confirm = (message: string, title: string = 'নিশ্চিত করুন') => {
+        return new Promise<boolean>((resolve) => {
+            setDialog({
+                isOpen: true,
+                type: 'confirm',
+                title,
+                message,
+                resolve
+            });
+        });
+    };
+
+    const alert = (message: string, title: string = 'সতর্কবার্তা') => {
+        setDialog({
+            isOpen: true,
+            type: 'alert',
+            title,
+            message,
+            resolve: () => { }
+        });
+    };
+
+    const handleDialogConfirm = () => {
+        dialog.resolve(true);
+        setDialog(prev => ({ ...prev, isOpen: false }));
+    };
+
+    const handleDialogCancel = () => {
+        dialog.resolve(false);
+        setDialog(prev => ({ ...prev, isOpen: false }));
+    };
+
     return (
         <UIContext.Provider value={{
             isAssignmentModalOpen,
@@ -87,7 +139,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
             togglePinAssignment,
             globalAssignmentDetail,
             openAssignmentDetails,
-            closeAssignmentDetails
+            closeAssignmentDetails,
+            confirm,
+            alert
         }}>
             {children}
             <PinnedAssignmentOverlay />
@@ -96,6 +150,14 @@ export function UIProvider({ children }: { children: ReactNode }) {
                 onClose={closeAssignmentDetails}
                 assignments={globalAssignmentDetail?.assignment ? [globalAssignmentDetail.assignment] : []}
                 selectedStudentId={globalAssignmentDetail?.options?.selectedStudentId}
+            />
+            <CustomDialog
+                isOpen={dialog.isOpen}
+                type={dialog.type}
+                title={dialog.title}
+                message={dialog.message}
+                onConfirm={handleDialogConfirm}
+                onCancel={handleDialogCancel}
             />
         </UIContext.Provider>
     );

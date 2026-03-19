@@ -53,7 +53,7 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
             ]);
             setModelsLoaded(true);
             setStatus('READY');
-            startCamera();
+            // startCamera(); - Removed auto-start to prevent NotAllowedError
         } catch (err: any) {
             console.error('Error loading models:', err);
             setError('মডেল লোড করতে সমস্যা হয়েছে। দয়া করে আবার চেষ্টা করুন।');
@@ -299,7 +299,7 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
                             </motion.div>
                         )}
 
-                        {error && (error.includes('ক্যামেরা') || error.includes('অনুমতি')) && status === 'READY' && (
+                        {((error && (error.includes('ক্যামেরা') || error.includes('অনুমতি'))) || (!error && status === 'READY' && !videoRef.current?.srcObject)) && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                                 className="absolute inset-0 bg-slate-900/60 flex flex-col items-center justify-center text-white text-center p-6 backdrop-blur-md z-30">
                                 <div className={`w-24 h-24 border-4 border-dashed rounded-full flex items-center justify-center mb-6 ${!isLowCapacity ? 'animate-[spin_20s_linear_infinite]' : 'border-white/20'}`}>
@@ -307,9 +307,9 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
                                         <Camera size={28} className="text-white/40" />
                                     </div>
                                 </div>
-                                <h4 className="text-xl font-black mb-1 italic uppercase tracking-tight">ক্যামেরা নিষ্ক্রিয়</h4>
+                                <h4 className="text-xl font-black mb-1 italic uppercase tracking-tight">{error ? 'ক্যামেরা নিষ্ক্রিয়' : 'ক্যামেরা ইনভোক করুন'}</h4>
                                 <p className="text-[11px] sm:text-xs font-bold text-slate-300 max-w-[240px] leading-relaxed mb-6 uppercase tracking-wider">
-                                    ক্যামেরা কাজ না করলে সরাসরি ফটো আপলোড করে ট্রাই করুন।
+                                    {error ? 'ক্যামেরা কাজ না করলে সরাসরি ফটো আপলোড করে ট্রাই করুন।' : 'রেজিস্ট্রেশন শুরু করতে ক্যামেরা চালু করুন।'}
                                 </p>
                                 <div className="flex flex-col gap-2 w-full max-w-[200px]">
                                     <button
@@ -322,7 +322,7 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
                                         onClick={startCamera}
                                         className="py-3 bg-white/5 hover:bg-white/10 text-white/80 font-black rounded-xl transition-all flex items-center justify-center gap-2 border border-white/10 text-[11px]"
                                     >
-                                        আবার চেষ্টা করুন
+                                        {error ? 'আবার চেষ্টা করুন' : 'ক্যামেরা শুরু করুন'}
                                     </button>
                                 </div>
                             </motion.div>

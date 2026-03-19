@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Clock, Calendar, Save, Loader2, CheckCircle2 } from 'lucide-react';
+import { X, Clock, Calendar, Save, Loader2, CheckCircle2, Image as ImageIcon } from 'lucide-react';
 
 const DAYS = [
     { key: 'sun', label: 'রবি', en: 'Sunday' },
@@ -31,6 +31,7 @@ interface ClassSchedule {
     daySchedules: Record<string, DaySchedule>;
     fees: number;
     lateThreshold: number;
+    coverImage?: string;             // Added for diary cover
 }
 
 const DEFAULT_SCHEDULE: ClassSchedule = {
@@ -44,7 +45,8 @@ const DEFAULT_SCHEDULE: ClassSchedule = {
     perDayReleaseTime: false,
     daySchedules: {},
     fees: 0,
-    lateThreshold: 15
+    lateThreshold: 15,
+    coverImage: ''
 };
 
 interface ClassScheduleSettingsModalProps {
@@ -74,6 +76,7 @@ export default function ClassScheduleSettingsModal({
             globalEndTime: existingData?.endTime || base.globalEndTime || '14:00',
             tiffinStart: existingData?.tiffinStart || base.tiffinStart || '11:00',
             tiffinEnd: existingData?.tiffinEnd || base.tiffinEnd || '11:30',
+            coverImage: existingData?.coverImage || base.coverImage || ''
         };
     });
     const [saving, setSaving] = useState(false);
@@ -92,6 +95,7 @@ export default function ClassScheduleSettingsModal({
                 globalEndTime: existingData?.endTime || base.globalEndTime || '14:00',
                 tiffinStart: existingData?.tiffinStart || base.tiffinStart || '11:00',
                 tiffinEnd: existingData?.tiffinEnd || base.tiffinEnd || '11:30',
+                coverImage: existingData?.coverImage || base.coverImage || ''
             });
             setSaved(false);
             // Lock body scroll only if not already locked by another modal (or just force it)
@@ -142,7 +146,8 @@ export default function ClassScheduleSettingsModal({
                     startTime: schedule.globalStartTime,
                     endTime: schedule.globalEndTime,
                     tiffinStart: schedule.tiffinStart,
-                    tiffinEnd: schedule.tiffinEnd
+                    tiffinEnd: schedule.tiffinEnd,
+                    coverImage: schedule.coverImage
                 })
             });
             if (res.ok) {
@@ -324,6 +329,30 @@ export default function ClassScheduleSettingsModal({
                                     </div>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Cover Image Section */}
+                        <div className="space-y-4 bg-slate-50 rounded-2xl p-4 border border-slate-100">
+                            <div className="flex items-center gap-2">
+                                <ImageIcon size={16} className="text-blue-500" />
+                                <h3 className="text-xs font-black text-slate-700 uppercase tracking-widest">ডাইরি কভার ইমেজ</h3>
+                            </div>
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">ইমেজ ইউআরএল (URL)</label>
+                                <input
+                                    type="text"
+                                    value={schedule.coverImage}
+                                    onChange={e => setSchedule(p => ({ ...p, coverImage: e.target.value }))}
+                                    className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-lg text-sm font-black text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all shadow-sm"
+                                    placeholder="https://example.com/image.jpg"
+                                />
+                                <p className="text-[10px] text-slate-400 font-medium ml-1">Realistic 3D ভিউতে এই ইমেজটি কভার হিসেবে ব্যবহৃত হবে।</p>
+                            </div>
+                            {schedule.coverImage && (
+                                <div className="mt-2 w-24 aspect-[3/4] rounded-lg overflow-hidden border border-slate-200 shadow-sm mx-auto">
+                                    <img src={schedule.coverImage} alt="Cover Preview" className="w-full h-full object-cover" />
+                                </div>
+                            )}
                         </div>
 
                         {/* Attendance Settings */}

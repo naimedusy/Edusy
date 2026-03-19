@@ -65,14 +65,14 @@ const formatBengaliDate = (dateStr?: string) => {
     return `${toBn(day)}/${toBn(month)}`;
 };
 
-const getPhotoUrl = (s: ReviewSubmission) => s.student.metadata?.photo || null;
-const getInitial = (s: ReviewSubmission) => s.student.name?.charAt(0)?.toUpperCase() || '?';
+const getPhotoUrl = (s: ReviewSubmission) => s.student?.metadata?.photo || null;
+const getInitial = (s: ReviewSubmission) => s.student?.name?.charAt(0)?.toUpperCase() || '?';
 
 // Student Avatar
 const Avatar = ({ sub, size = 9 }: { sub: ReviewSubmission; size?: number }) => (
     <div className={`w-${size} h-${size} rounded-xl overflow-hidden border-2 border-slate-100 shadow-sm shrink-0`}>
         {getPhotoUrl(sub) ? (
-            <img src={getPhotoUrl(sub)} alt={sub.student.name} className="w-full h-full object-cover" />
+            <img src={getPhotoUrl(sub)} alt={sub.student?.name} className="w-full h-full object-cover" />
         ) : (
             <div className="w-full h-full bg-gradient-to-br from-[#045c84]/20 to-[#045c84]/5 flex items-center justify-center text-[#045c84] font-black text-[13px]">
                 {getInitial(sub)}
@@ -157,8 +157,8 @@ interface ViewProps {
 const ClassWiseView = ({ submissions, expanded, setExpanded, selectedIds, toggleSelection, toggleGroup, processingId, justActioned, onAction }: ViewProps) => {
     const groups: Record<string, { label: string; subs: ReviewSubmission[] }> = {};
     submissions.forEach(s => {
-        const key = s.assignment.class?.id || 'unknown';
-        if (!groups[key]) groups[key] = { label: s.assignment.class?.name || 'অজানা ক্লাস', subs: [] };
+        const key = s.assignment?.class?.id || 'unknown';
+        if (!groups[key]) groups[key] = { label: s.assignment?.class?.name || 'অজানা ক্লাস', subs: [] };
         groups[key].subs.push(s);
     });
 
@@ -208,12 +208,12 @@ const ClassWiseView = ({ submissions, expanded, setExpanded, selectedIds, toggle
                                             <SelectionCheckbox sub={sub} isSelected={selectedIds.has(sub.id)} onToggle={() => toggleSelection(sub.id)} />
                                             <Avatar sub={sub} />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[12px] font-black text-slate-800 truncate">{sub.student.name}</p>
+                                                <p className="text-[12px] font-black text-slate-800 truncate">{sub.student?.name}</p>
                                                 <div className="flex items-center gap-1 mt-0.5">
                                                     <BookOpen size={9} className="text-[#045c84] shrink-0" />
-                                                    <p className="text-[10px] font-bold text-[#045c84] truncate">{sub.assignment.book?.name || '—'}</p>
+                                                    <p className="text-[10px] font-bold text-[#045c84] truncate">{sub.assignment?.book?.name || '—'}</p>
                                                     <span className="text-slate-200 text-[9px]">·</span>
-                                                    <p className="text-[9px] text-amber-600 font-bold shrink-0">{formatBengaliDate(sub.assignment.scheduledDate)}</p>
+                                                    <p className="text-[9px] text-amber-600 font-bold shrink-0">{formatBengaliDate(sub.assignment?.scheduledDate)}</p>
                                                     <span className="text-slate-200 text-[9px]">·</span>
                                                     <p className="text-[9px] text-slate-400 font-bold shrink-0">{formatTime(sub.submittedAt)}</p>
                                                 </div>
@@ -235,10 +235,10 @@ const ClassWiseView = ({ submissions, expanded, setExpanded, selectedIds, toggle
 const StudentWiseView = ({ submissions, expanded, setExpanded, selectedIds, toggleSelection, toggleGroup, processingId, justActioned, onAction }: ViewProps) => {
     const groups: Record<string, { label: string; meta: string; subs: ReviewSubmission[] }> = {};
     submissions.forEach(s => {
-        const key = s.student.id;
+        const key = s.student?.id || 'unknown';
         if (!groups[key]) groups[key] = {
-            label: s.student.name,
-            meta: s.assignment.class?.name || '',
+            label: s.student?.name || 'অজানা শিক্ষার্থী',
+            meta: s.assignment?.class?.name || '',
             subs: []
         };
         groups[key].subs.push(s);
@@ -294,9 +294,9 @@ const StudentWiseView = ({ submissions, expanded, setExpanded, selectedIds, togg
                                                 <BookOpen size={13} />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[11px] font-black text-slate-700 truncate">{sub.assignment.book?.name || 'ক্লাস ডাইরি'}</p>
+                                                <p className="text-[11px] font-black text-slate-700 truncate">{sub.assignment?.book?.name || 'ক্লাস ডাইরি'}</p>
                                                 <div className="flex items-center gap-1 mt-0.5">
-                                                    <p className="text-[9px] text-amber-600 font-bold shrink-0">{formatBengaliDate(sub.assignment.scheduledDate)}</p>
+                                                    <p className="text-[9px] text-amber-600 font-bold shrink-0">{formatBengaliDate(sub.assignment?.scheduledDate)}</p>
                                                     <span className="text-slate-200 text-[9px]">·</span>
                                                     <Clock size={9} className="text-slate-300" />
                                                     <p className="text-[9px] text-slate-400 font-bold">{formatTime(sub.submittedAt)}</p>
@@ -319,8 +319,8 @@ const StudentWiseView = ({ submissions, expanded, setExpanded, selectedIds, togg
 const SubjectWiseView = ({ submissions, expanded, setExpanded, selectedIds, toggleSelection, toggleGroup, processingId, justActioned, onAction }: ViewProps) => {
     const groups: Record<string, { label: string; subs: ReviewSubmission[] }> = {};
     submissions.forEach(s => {
-        const key = s.assignment.book?.id || 'unknown';
-        if (!groups[key]) groups[key] = { label: s.assignment.book?.name || 'অজানা বিষয়', subs: [] };
+        const key = s.assignment?.book?.id || 'unknown';
+        if (!groups[key]) groups[key] = { label: s.assignment?.book?.name || 'অজানা বিষয়', subs: [] };
         groups[key].subs.push(s);
     });
 
@@ -370,12 +370,12 @@ const SubjectWiseView = ({ submissions, expanded, setExpanded, selectedIds, togg
                                             <SelectionCheckbox sub={sub} isSelected={selectedIds.has(sub.id)} onToggle={() => toggleSelection(sub.id)} />
                                             <Avatar sub={sub} />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-[12px] font-black text-slate-800 truncate">{sub.student.name}</p>
+                                                <p className="text-[12px] font-black text-slate-800 truncate">{sub.student?.name}</p>
                                                 <div className="flex items-center gap-1 mt-0.5">
                                                     <School size={9} className="text-slate-400 shrink-0" />
-                                                    <p className="text-[10px] font-bold text-slate-400 truncate">{sub.assignment.class?.name || '—'}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 truncate">{sub.assignment?.class?.name || '—'}</p>
                                                     <span className="text-slate-200 text-[9px]">·</span>
-                                                    <p className="text-[9px] text-amber-600 font-bold shrink-0">{formatBengaliDate(sub.assignment.scheduledDate)}</p>
+                                                    <p className="text-[9px] text-amber-600 font-bold shrink-0">{formatBengaliDate(sub.assignment?.scheduledDate)}</p>
                                                     <span className="text-slate-200 text-[9px]">·</span>
                                                     <Clock size={9} className="text-slate-300 shrink-0" />
                                                     <p className="text-[9px] text-slate-400 font-bold">{formatTime(sub.submittedAt)}</p>
@@ -435,8 +435,8 @@ export default function SubmissionReviewPanel() {
     const filteredSubmissions = submissions.filter(s => {
         if (!searchQuery.trim()) return true;
         const q = searchQuery.toLowerCase();
-        const studentName = s.student.name?.toLowerCase() || '';
-        const roll = (s.student.metadata?.roll || '').toString().toLowerCase();
+        const studentName = s.student?.name?.toLowerCase() || '';
+        const roll = (s.student?.metadata?.roll || '').toString().toLowerCase();
         return studentName.includes(q) || roll.includes(q);
     });
 

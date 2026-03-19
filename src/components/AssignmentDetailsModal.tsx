@@ -28,6 +28,7 @@ import {
     ShieldCheck
 } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import InlineMarkdown from './InlineMarkdown';
 
 const FaceVerificationOverlay = dynamic(() => import('./FaceVerificationOverlay'), { ssr: false });
 
@@ -407,11 +408,13 @@ export default function AssignmentDetailsModal({
 
                                                                         <div className="flex-1 min-w-0">
                                                                             <div className={`text-[15px] font-bold leading-normal ${isDone ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
-                                                                                {task.segments?.map((seg: any) => (
-                                                                                    <span key={seg.id} className={seg.type === 'tag' ? `inline-block text-[15px] text-slate-500 font-black mr-2` : ''}>
-                                                                                        {seg.type === 'tag' ? (TAG_TRANSLATIONS[seg.value.toUpperCase()] || seg.value) : seg.value}
-                                                                                    </span>
-                                                                                )) || <span>{task.text}</span>}
+                                                                                {task.segments?.map((seg: any, sIdx: number) => {
+                                                                                    if (seg.type === 'tag') {
+                                                                                        const tagText = TAG_TRANSLATIONS[seg.value.toUpperCase()] || seg.value;
+                                                                                        return <span key={sIdx} className="inline-block text-[15px] text-slate-500 font-black mr-2 uppercase tracking-tight">{tagText}</span>;
+                                                                                    }
+                                                                                    return <InlineMarkdown key={sIdx} text={seg.value || ''} />;
+                                                                                }) || <InlineMarkdown text={task.text || ''} />}
                                                                             </div>
                                                                             {isDone && submission?.taskProgress?.[taskId]?.submittedAt && (
                                                                                 <div className="mt-1 flex items-center gap-2 text-[10px] font-bold">

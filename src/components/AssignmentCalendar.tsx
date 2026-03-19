@@ -13,6 +13,7 @@ interface AssignmentCalendarProps {
     assignments: any[];
     selectedDate: string;
     onDateSelect: (date: string) => void;
+    onDateDoubleClick?: (date: string) => void;
 }
 
 const DAYS_BN = ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহঃ', 'শুক্র', 'শনি'];
@@ -21,7 +22,7 @@ const MONTHS_BN = [
     'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর'
 ];
 
-export default function AssignmentCalendar({ assignments, selectedDate, onDateSelect }: AssignmentCalendarProps) {
+export default function AssignmentCalendar({ assignments, selectedDate, onDateSelect, onDateDoubleClick }: AssignmentCalendarProps) {
     const [currentMonth, setCurrentMonth] = useState(new Date(selectedDate || new Date()));
 
     const daysInMonth = useMemo(() => {
@@ -47,22 +48,33 @@ export default function AssignmentCalendar({ assignments, selectedDate, onDateSe
         setCurrentMonth(newMonth);
     };
 
-    // Group assignments by date string
+    // Group assignments by date string with detailed stats
     const assignmentsByDate = useMemo(() => {
-        const map: Record<string, { count: number, submissions: number, subjects: string[] }> = {};
+        const map: Record<string, { count: number, submissions: number, subjects: string[], released: number, empty: number }> = {};
         assignments.forEach(a => {
-            const dateStr = new Date(a.scheduledDate).toISOString().split('T')[0];
+            const dateStr = new Date(a.createdAt).toISOString().split('T')[0]; // Using createdAt as per typical assignment queries
             if (!map[dateStr]) {
-                map[dateStr] = { count: 0, submissions: 0, subjects: [] };
+                map[dateStr] = { count: 0, submissions: 0, subjects: [], released: 0, empty: 0 };
             }
             map[dateStr].count += 1;
-            map[dateStr].submissions += (a._count?.submissions || 0);
+            map[dateStr].submissions += (a.submissions?.length || 0);
+            
+            if (a.status === 'RELEASED') {
+                map[dateStr].released += 1;
+            }
+            if (!a.title || a.title.trim() === '') {
+                 // Assuming empty/incomplete logic based on title or another field. Adjust if needed.
+                map[dateStr].empty += 1;
+            }
+
             if (a.book?.name && !map[dateStr].subjects.includes(a.book.name)) {
                 map[dateStr].subjects.push(a.book.name);
             }
         });
         return map;
     }, [assignments]);
+
+    const selectedDateData = assignmentsByDate[selectedDate] || null;
 
     const isSelected = (date: Date) => {
         return date.toISOString().split('T')[0] === selectedDate;
@@ -133,6 +145,10 @@ export default function AssignmentCalendar({ assignments, selectedDate, onDateSe
                             <button
                                 key={dateStr}
                                 onClick={() => onDateSelect(dateStr)}
+                                onDoubleClick={(e) => {
+                                    e.preventDefault();
+                                    if(onDateDoubleClick) onDateDoubleClick(dateStr);
+                                }}
                                 className={`group relative aspect-square rounded-2xl border transition-all flex flex-col p-2 items-start justify-between
                                     ${selected
                                         ? 'bg-[#045c84] border-[#045c84] shadow-lg shadow-[#045c84]/20 -translate-y-1'
@@ -207,6 +223,57 @@ export default function AssignmentCalendar({ assignments, selectedDate, onDateSe
                     </div>
                 </div>
             </div>
+
+            {/* Selected Date Details Panel */}
+            {selectedDateData ? (
+                <div className="p-6 bg-slate-50 border-t border-slate-100 animate-in slide-in-from-bottom-2">
+                    <div className="flex items-center justify-between mb-4">
+                         <h3 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                            <CalendarIcon size={16} className="text-[#045c84]" />
+                            {new Date(selectedDate).toLocaleDateString('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' })} - এর সারাংশ
+                        </h3>
+                        <div className="px-3 py-1 bg-blue-100 text-blue-700 text-[10px] font-black rounded-full uppercase tracking-widest animate-pulse">
+                            ডাবল ক্লিক করে ডাইরি দেখুন
+                        </div>
+                    </div>
+                   
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="p-3 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">মোট ডাইরি এন্ট্রি</span>
+                            <span className="text-lg font-black text-slate-800">{selectedDateData.count}টি ক্লাস</span>
+                        </div>
+                        <div className="p-3 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">মোট জমা</span>
+                            <span className="text-lg font-black text-emerald-600">{selectedDateData.submissions}টি</span>
+                        </div>
+                        <div className="p-3 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">রিলিজড</span>
+                            <span className="text-lg font-black text-blue-600">{selectedDateData.released}টি</span>
+                        </div>
+                        <div className="p-3 bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-center">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">ফাঁকা/অসম্পূর্ণ</span>
+                            <span className="text-lg font-black text-amber-600">{selectedDateData.empty}টি</span>
+                        </div>
+                    </div>
+                    
+                    {selectedDateData.subjects.length > 0 && (
+                        <div className="mt-4 pt-4 border-t border-slate-200">
+                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">বিষয়সমূহ:</span>
+                             <div className="flex flex-wrap gap-2">
+                                 {selectedDateData.subjects.map((sub, idx) => (
+                                     <span key={idx} className="px-2 py-1 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg border border-slate-200">
+                                         {sub}
+                                     </span>
+                                 ))}
+                             </div>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="p-8 bg-slate-50 border-t border-slate-100 text-center">
+                     <p className="text-sm font-bold text-slate-400">এই দিনে কোনো ক্লাস ডাইরি এন্ট্রি নেই।</p>
+                </div>
+            )}
         </div>
     );
 }

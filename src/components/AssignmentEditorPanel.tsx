@@ -262,26 +262,33 @@ export default function AssignmentEditorPanel({
             });
 
             // Parse description to populate tasks
-            if (initialAssignment.description) {
+            if (initialAssignment.description && initialAssignment.description.trim().startsWith('{')) {
                 try {
                     const parsed = JSON.parse(initialAssignment.description);
                     if (parsed.version === '2.0' && parsed.sections) {
                         parsed.sections.forEach((section: any) => {
-                            const tasks = section.tasks.map((t: any) => ({
+                            const tasks = Array.isArray(section.tasks) ? section.tasks.map((t: any) => ({
                                 id: t.id || `task-${Date.now()}-${Math.random()}`,
-                                segments: t.segments,
-                                targetStudents: t.targetStudents
-                            }));
+                                segments: Array.isArray(t.segments) ? t.segments : [{ type: 'text', value: t.text || t }],
+                                targetStudents: Array.isArray(t.targetStudents) ? t.targetStudents : []
+                            })) : [];
 
-                            if (section.title.includes('Classwork')) setClassworkTasks(tasks);
-                            if (section.title.includes('Preparation')) setPrepTasks(tasks);
-                            if (section.title.includes('Homework')) setHomeworkTasks(tasks);
-                            if (section.title.includes('Comments')) setCommentTasks(tasks);
+                            if (section.title.includes('Classwork')) setClassworkTasks(tasks.length > 0 ? tasks : classworkTasks);
+                            if (section.title.includes('Preparation')) setPrepTasks(tasks.length > 0 ? tasks : prepTasks);
+                            if (section.title.includes('Homework')) setHomeworkTasks(tasks.length > 0 ? tasks : homeworkTasks);
+                            if (section.title.includes('Comments')) setCommentTasks(tasks.length > 0 ? tasks : commentTasks);
                         });
                     }
                 } catch (e) {
                     console.error("Failed to parse existing assignment description", e);
                 }
+            } else if (initialAssignment.description) {
+                // Handle legacy plain text description
+                const legacyTasks: TaskLine[] = [{ 
+                    id: 'legacy-1', 
+                    segments: [{ id: 'seg-1', type: 'text', value: initialAssignment.description } as Segment] 
+                }];
+                setHomeworkTasks(legacyTasks);
             }
         }
     }, [initialAssignment]);
@@ -650,7 +657,8 @@ export default function AssignmentEditorPanel({
             requireFaceVerify: formData.requireFaceVerify,
             scheduledDate: scheduledDate || null,
             resources: formData.resources,
-            releaseAt: formData.releaseAt || null
+            releaseAt: formData.releaseAt || null,
+            status: 'DRAFT'
         };
 
         try {

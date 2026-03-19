@@ -20,6 +20,7 @@ import {
     X
 } from 'lucide-react';
 import { useUI } from './UIProvider';
+import Diary3D from './Diary3D';
 
 interface AssignmentCardProps {
     assignment: any;
@@ -45,6 +46,10 @@ export default function AssignmentCard({
     const isStudent = role === 'STUDENT';
     const isGuardian = role === 'GUARDIAN';
     const isOverdue = assignment.deadline && new Date(assignment.deadline) < new Date();
+
+    // Use the class cover image if assignment.class exists, otherwise fallback to book cover
+    const coverImage = assignment.class?.coverImage || assignment.book?.metadata?.coverImage || (assignment.book?.coverImage);
+    const classTitle = assignment.class?.name || assignment.book?.name || assignment.title || 'DAILY DIARY';
 
     // Extract task types from description if structured
     let taskTypes: string[] = [];
@@ -84,70 +89,18 @@ export default function AssignmentCard({
 
     const statusInfo = getStatusInfo(assignment.status, assignment.userStatus);
 
-    // Realistic Book Cover Component
-    const BookCover = ({ book, status, isMultiple }: { book: any, status: string, isMultiple?: boolean }) => {
-        const isDraft = status === 'DRAFT';
-        const coverColor = book?.metadata?.color || '#045c84';
-
-        return (
-            <div className="relative group/book w-full aspect-[3/4] rounded-r-lg rounded-l-md overflow-hidden shadow-2xl transition-all duration-500 group-hover:scale-105 group-hover:-translate-y-2 group-hover:shadow-[0_20px_50px_rgba(0,0,0,0.3)] perspective-1000">
-                {/* Book Spine Shadow */}
-                <div className="absolute left-0 top-0 bottom-0 w-2.5 bg-black/30 z-10 rounded-l-sm" />
-                <div className="absolute left-[2.5px] top-0 bottom-0 w-[1px] bg-white/20 z-10 shadow-[0_0_5px_rgba(255,255,255,0.2)]" />
-
-                {/* Stack Effect for multiple assignments */}
-                {isMultiple && (
-                    <>
-                        <div className="absolute -right-1 -top-1 w-full h-full bg-white/20 rounded-r-lg -z-10 translate-x-1 -translate-y-1 shadow-md" />
-                        <div className="absolute -right-2 -top-2 w-full h-full bg-white/10 rounded-r-lg -z-20 translate-x-2 -translate-y-2 shadow-sm" />
-                    </>
-                )}
-
-                {/* Cover Image or Default */}
-                {book?.metadata?.coverImage ? (
-                    <img src={book.metadata.coverImage} className="w-full h-full object-cover" alt={book.name} />
-                ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center relative overflow-hidden" style={{ backgroundColor: coverColor }}>
-                        {/* Abstract Texture */}
-                        <div className="absolute inset-0 opacity-[0.03] mix-blend-overlay" style={{ backgroundImage: 'url("https://www.transparenttextures.com/patterns/leather.png")' }} />
-                        <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '24px 24px' }} />
-
-                        <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center mb-4 border border-white/30 rotate-12 shadow-lg">
-                            <BookOpen size={28} className="text-white drop-shadow-lg" />
-                        </div>
-                        <h5 className="text-white font-black text-xs uppercase tracking-widest leading-tight drop-shadow-xl px-2 line-clamp-3">
-                            {book?.name || assignment.title || 'DAILY DIARY'}
-                        </h5>
-                        <div className="absolute bottom-6 left-0 right-0 flex flex-col items-center gap-1">
-                            <div className="w-8 h-0.5 bg-white/30 rounded-full" />
-                            <p className="text-white/40 text-[7px] font-black uppercase tracking-[0.4em]">EDUSY PREMIUM</p>
-                        </div>
-                    </div>
-                )}
-
-                {/* Status Overlay */}
-                {isDraft && (
-                    <div className="absolute inset-0 bg-amber-500/10 backdrop-blur-[1px] flex items-center justify-center">
-                        <div className="bg-amber-600 text-white px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest shadow-2xl rotate-[-15deg] border border-white/30 transform scale-125">
-                            DRAFT
-                        </div>
-                    </div>
-                )}
-
-                {/* Sheen */}
-                <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/5 to-white/10 opacity-0 group-hover/book:opacity-100 transition-opacity duration-700 pointer-events-none" />
-            </div>
-        );
-    };
-
     return (
         <div
             onClick={() => onAction?.(assignment)}
             className="group relative flex flex-col gap-4 p-2 transition-all cursor-pointer"
         >
-            {/* The Realistic Book */}
+            {/* The Realistic 3D Diary */}
             <div className="w-full max-w-[200px] mx-auto">
-                <BookCover book={assignment.book} status={assignment.status} />
+                <Diary3D 
+                    coverImage={coverImage} 
+                    classTitle={classTitle}
+                    accentColor={assignment.book?.metadata?.color || '#045c84'}
+                />
             </div>
 
             {/* Below Text Content */}

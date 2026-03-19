@@ -26,7 +26,7 @@ const ManualAttendance = dynamic<{ classId: string; selectedDate: string }>(() =
 type AttendanceMode = 'MANUAL' | 'FRS' | 'QR';
 
 export default function AttendanceDashboard() {
-    const { activeInstitute } = useSession();
+    const { user, activeRole, activeInstitute } = useSession();
     const [classes, setClasses] = useState<any[]>([]);
     const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
     const [activeMode, setActiveMode] = useState<AttendanceMode>('MANUAL');
@@ -42,12 +42,44 @@ export default function AttendanceDashboard() {
         }
     }, [activeInstitute]);
 
+    const canTakeAttendanceForClass = (classId: string) => {
+        if (!classId) return true; // 'all' class
+        if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return true;
+        if (activeRole === 'TEACHER' && user?.teacherProfiles) {
+            const profile = (user.teacherProfiles || []).find((p: any) => p.instituteId === activeInstitute?.id);
+            if (!profile) return false;
+            if (profile.isAdmin) return true;
+            if (!profile.permissions?.classWise) return false;
+
+            const classPermissions = profile.permissions.classWise[classId];
+            if (!classPermissions) return false;
+
+            // New structure check
+            if (classPermissions && typeof classPermissions === 'object' && classPermissions.permissions && Array.isArray(classPermissions.permissions)) {
+                return classPermissions.permissions.includes('canTakeAttendance');
+            }
+
+            // Older structures
+            if (Array.isArray(classPermissions)) {
+                return classPermissions.includes('canTakeAttendance');
+            }
+            if (classPermissions && typeof classPermissions === 'object') {
+                return classPermissions.canTakeAttendance === true;
+            }
+            if (typeof classPermissions === 'string') {
+                return classPermissions === 'canTakeAttendance';
+            }
+        }
+        return false;
+    };
+
     const fetchClasses = async () => {
         try {
             const res = await fetch(`/api/admin/classes?instituteId=${activeInstitute?.id}`);
             if (res.ok) {
                 const data = await res.json();
-                setClasses(data);
+                const filteredClasses = Array.isArray(data) ? data.filter((c: any) => canTakeAttendanceForClass(c.id)) : [];
+                setClasses(filteredClasses);
                 if (selectedClassId === null) {
                     setSelectedClassId('');
                 }
@@ -77,7 +109,7 @@ export default function AttendanceDashboard() {
                             <Building2 size={18} />
                         </div>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                            <h1 className="text-base font-black text-slate-800 tracking-tight leading-none truncate max-w-[120px] md:max-w-none">
+                            <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight leading-none truncate max-w-[120px] md:max-w-none">
                                 {activeInstitute?.name || 'হাজিরা'}
                             </h1>
                             <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 shrink-0">
@@ -85,7 +117,7 @@ export default function AttendanceDashboard() {
                                     type="date"
                                     value={selectedDate}
                                     onChange={(e) => setSelectedDate(e.target.value)}
-                                    className="bg-transparent border-none outline-none text-[10px] font-black text-slate-600 px-2 py-0.5 cursor-pointer focus:ring-0"
+                                    className="bg-transparent border-none outline-none text-xs md:text-sm font-black text-slate-600 px-3 py-1 cursor-pointer focus:ring-0"
                                 />
                             </div>
                         </div>
@@ -107,8 +139,8 @@ export default function AttendanceDashboard() {
                                         : 'text-slate-500 hover:text-slate-700 font-bold opacity-70'
                                         }`}
                                 >
-                                    <mode.icon size={14} />
-                                    <span className="text-[10px] font-black whitespace-nowrap hidden sm:inline">{mode.label}</span>
+                                    <mode.icon size={16} />
+                                    <span className="text-xs font-black whitespace-nowrap hidden sm:inline">{mode.label}</span>
                                 </button>
                             ))}
                         </div>
@@ -132,8 +164,8 @@ export default function AttendanceDashboard() {
                     >
                         <button
                             onClick={() => setSelectedClassId('')}
-                            className={`px-6 py-2.5 rounded-xl text-[14px] transition-all duration-300 relative ${selectedClassId === ''
-                                ? 'bg-[#045c84]/10 text-[#045c84] font-black border-2 border-[#045c84]/40'
+                            className={`px-8 py-3.5 rounded-2xl text-base transition-all duration-300 relative ${selectedClassId === ''
+                                ? 'bg-[#045c84]/10 text-[#045c84] font-black border-2 border-[#045c84]/40 shadow-lg shadow-[#045c84]/5'
                                 : 'bg-[#f1f5f9] text-slate-500 font-bold border-2 border-transparent hover:bg-slate-200 hover:text-slate-700'
                                 }`}
                         >
@@ -149,8 +181,8 @@ export default function AttendanceDashboard() {
                             <button
                                 key={cls.id}
                                 onClick={() => setSelectedClassId(cls.id)}
-                                className={`px-6 py-2.5 rounded-xl text-[14px] transition-all duration-300 relative ${selectedClassId === cls.id
-                                    ? 'bg-[#045c84]/10 text-[#045c84] font-black border-2 border-[#045c84]/40'
+                                className={`px-8 py-3.5 rounded-2xl text-base transition-all duration-300 relative ${selectedClassId === cls.id
+                                    ? 'bg-[#045c84]/10 text-[#045c84] font-black border-2 border-[#045c84]/40 shadow-lg shadow-[#045c84]/5'
                                     : 'bg-[#f1f5f9] text-slate-500 font-bold border-2 border-transparent hover:bg-slate-200 hover:text-slate-700'
                                     }`}
                             >

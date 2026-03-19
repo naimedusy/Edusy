@@ -88,7 +88,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const uploadImgRef = useRef<HTMLInputElement>(null);
     const markingCooldown = useRef<{ [key: string]: number }>({});
-    const hasAutoStarted = useRef(false);
+
 
     // Web Audio API Context & Buffers
     // Audio refs for HTML5 Audio
@@ -443,21 +443,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
         return () => clearInterval(interval);
     }, [activeInstitute, selectedDate]);
 
-    useEffect(() => {
-        // Only auto-start if we have students and aren't already active/loading
-        if (students.length > 0 && !isCameraActive && (status === 'IDLE' || status === 'LOADING_STUDENTS') && !hasAutoStarted.current) {
-            if (!error || error !== 'PERMISSION_DENIED') {
-                console.log('Auto-starting scanner...');
-                hasAutoStarted.current = true;
-                startScanner();
-            }
-        }
 
-        // Reset auto-start flag if class changes and we are IDLE again
-        if (status === 'IDLE' && !isCameraActive) {
-            // allows next class to auto-start if it has students
-        }
-    }, [students.length, isCameraActive, status, error, isTestMode]);
 
     const markAttendance = async (studentId: string, studentName: string, overrideClassId?: string) => {
         const now = new Date();

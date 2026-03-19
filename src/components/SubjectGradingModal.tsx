@@ -116,10 +116,10 @@ export default function SubjectGradingModal({
     const [activeTab, setActiveTab] = useState('basic');
     const [demoScore, setDemoScore] = useState(80);
 
-    const calculateGrade = (score: number, total: number, rules: GradingRule[]) => {
+    const calculateGrade = (score: number, total: number, rules: GradingRule[] = []) => {
         const percentage = (score / total) * 100;
         // Sort rules by minMarks descending to find the highest match
-        const sortedRules = [...rules].sort((a, b) => b.minMarks - a.minMarks);
+        const sortedRules = [...(rules || [])].sort((a, b) => b.minMarks - a.minMarks);
 
         const match = sortedRules.find(r => percentage >= r.minMarks);
         if (match) {

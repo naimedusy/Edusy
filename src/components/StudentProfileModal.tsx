@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Calendar, BookOpen, CreditCard, ChevronRight, User, Edit, ChevronDown, ChevronUp, Printer, Trash2, Loader2, Check, Key, LogIn, Disc, ScanFace, Sparkles, AlertCircle, RefreshCw } from 'lucide-react';
 import { useSession } from './SessionProvider';
+import { useUI } from './UIProvider';
 import dynamic from 'next/dynamic';
 import PrintLayout from './PrintLayout';
 
@@ -15,11 +16,13 @@ interface StudentProfileModalProps {
     student: any;
     onEdit?: (student: any, context?: any) => void;
     onUpdate?: () => void;
+    initialTab?: 'fees' | 'attendance' | 'assignments' | 'login' | 'face';
 }
 
-export default function StudentProfileModal({ isOpen, onClose, student, onEdit, onUpdate }: StudentProfileModalProps) {
-    const { activeInstitute, user: currentUser, login } = useSession();
-    const [activeTab, setActiveTab] = useState<'fees' | 'attendance' | 'assignments' | 'login' | 'face'>('fees');
+export default function StudentProfileModal({ isOpen, onClose, student, onEdit, onUpdate, initialTab }: StudentProfileModalProps) {
+    const { activeInstitute, user: currentUser, activeRole, login } = useSession();
+    const { alert } = useUI();
+    const [activeTab, setActiveTab] = useState<'fees' | 'attendance' | 'assignments' | 'login' | 'face'>(initialTab || 'fees');
     const [showEnrollment, setShowEnrollment] = useState(false);
     const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
@@ -79,7 +82,7 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
 
     const handleQuickLogin = async (identifier: string, password: string) => {
         if (!identifier || !password) {
-            alert('আইডি বা পাসওয়ার্ড পাওয়া যায়নি।');
+            await alert('আইডি বা পাসওয়ার্ড পাওয়া যায়নি।');
             return;
         }
         setIsSaving(true);
@@ -95,17 +98,42 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
                 window.location.href = '/dashboard';
             } else {
                 const err = await res.json();
-                alert(err.message || 'লগইন ব্যর্থ হয়েছে।');
+                await alert(err.message || 'লগইন ব্যর্থ হয়েছে।');
             }
         } catch (error) {
             console.error('Quick login failed:', error);
-            alert('লগইন করার সময় একটি সমস্যা হয়েছে।');
+            await alert('লগইন করার সময় একটি সমস্যা হয়েছে।');
         } finally {
             setIsSaving(false);
         }
     };
 
-    const isAdmin = currentUser?.role === 'SUPER_ADMIN' || currentUser?.role === 'ADMIN' || currentUser?.role === 'TEACHER';
+    const canManageStudent = () => {
+        if (!student?.metadata?.classId) return false;
+        if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return true;
+
+        if (activeRole === 'TEACHER' && currentUser?.teacherProfiles) {
+            const profile = (currentUser.teacherProfiles || []).find((p: any) => p.instituteId === activeInstitute?.id);
+            if (!profile) return false;
+            if (profile.isAdmin) return true;
+            if (!profile.permissions?.classWise) return false;
+
+            const classId = student.metadata.classId;
+            const classPermissions = profile.permissions.classWise[classId];
+            if (!classPermissions) return false;
+
+            // Check if they have 'canManageAdmission' which is the write permission for students
+            if (classPermissions && typeof classPermissions === 'object' && classPermissions.permissions && Array.isArray(classPermissions.permissions)) {
+                return classPermissions.permissions.includes('canManageAdmission');
+            }
+            if (Array.isArray(classPermissions)) {
+                return classPermissions.includes('canManageAdmission');
+            }
+        }
+        return false;
+    };
+
+    const isAdmin = activeRole === 'SUPER_ADMIN' || activeRole === 'ADMIN' || (activeRole === 'TEACHER' && canManageStudent());
 
     const guardianLoginPassword = (guardian: any) => {
         return guardian.password || 'নেই';
@@ -160,6 +188,18 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
         }, 500);
     };
 
+    const tabButtonsRef = useRef<{ [key: string]: HTMLButtonElement | null }>({});
+
+    useEffect(() => {
+        if (isOpen && activeTab && tabButtonsRef.current[activeTab]) {
+            tabButtonsRef.current[activeTab]?.scrollIntoView({
+                behavior: 'smooth',
+                inline: 'center',
+                block: 'nearest'
+            });
+        }
+    }, [isOpen, activeTab]);
+
     useEffect(() => {
         setMounted(true);
         if (isOpen) {
@@ -181,10 +221,12 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
             if (parsed.version === '2.0' && parsed.sections) {
                 return (
                     <div className="space-y-4">
-                        {parsed.sections.map((section: any, idx: number) => {
-                            const validTasks = section.tasks.filter((t: any) =>
-                                t.segments.some((s: any) => s.value.trim() !== '') ||
-                                t.segments.some((s: any) => s.type === 'tag')
+                        {Array.isArray(parsed.sections) && parsed.sections.map((section: any, idx: number) => {
+                            const validTasks = (section.tasks || []).filter((t: any) =>
+                                t && t.segments && Array.isArray(t.segments) && (
+                                    t.segments.some((s: any) => s.value && s.value.trim() !== '') ||
+                                    t.segments.some((s: any) => s.type === 'tag')
+                                )
                             );
                             if (validTasks.length === 0) return null;
 
@@ -207,7 +249,7 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
                                             <li key={tIdx} className="flex items-start gap-3 text-[13px] text-slate-800 leading-relaxed font-semibold">
                                                 <span className="mt-2 w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    {task.segments.map((seg: any, sIdx: number) => {
+                                                    {(task.segments || []).map((seg: any, sIdx: number) => {
                                                         if (seg.type === 'tag') {
                                                             const tag = ALL_TAGS.find(t => t.id === seg.value);
                                                             if (!tag) return null;
@@ -280,18 +322,20 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
             />
 
             {/* Modal Content */}
-            <div className="bg-white w-full max-w-xl rounded-[32px] shadow-2xl animate-scale-in overflow-hidden relative z-10 flex flex-col max-h-[90vh]">
+            <div className="bg-white w-full max-w-xl rounded-[32px] shadow-2xl animate-scale-in overflow-hidden relative z-10 flex flex-col h-[85vh] max-h-[85vh]">
                 {/* Header */}
                 <div className="p-6 flex items-center justify-between pb-2 shrink-0">
                     <h2 className="text-lg font-bold text-slate-800 font-bengali">শিক্ষার্থীর প্রোফাইল</h2>
                     <div className="flex items-center gap-2">
-                        <button
-                            onClick={() => onEdit?.(student)}
-                            className="p-2 text-slate-400 hover:text-[#045c84] hover:bg-slate-100 rounded-full transition-all"
-                            title="সম্পাদনা করুন"
-                        >
-                            <Edit size={20} />
-                        </button>
+                        {canManageStudent() && (
+                            <button
+                                onClick={() => onEdit?.(student)}
+                                className="p-2 text-slate-400 hover:text-[#045c84] hover:bg-slate-100 rounded-full transition-all"
+                                title="সম্পাদনা করুন"
+                            >
+                                <Edit size={20} />
+                            </button>
+                        )}
                         <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition-colors rounded-full hover:bg-slate-100">
                             <X size={20} />
                         </button>
@@ -312,15 +356,16 @@ export default function StudentProfileModal({ isOpen, onClose, student, onEdit, 
                 </div>
 
                 {/* Tab Navigation */}
-                <div className="px-6 border-b border-slate-100 flex items-center bg-white shrink-0">
+                <div className="px-4 border-b border-slate-100 flex items-center bg-white shrink-0 overflow-x-auto no-scrollbar">
                     {tabs.map((tab) => {
                         const Icon = tab.icon;
                         const isActive = activeTab === tab.id;
                         return (
                             <button
                                 key={tab.id}
+                                ref={(el) => { tabButtonsRef.current[tab.id] = el; }}
                                 onClick={() => setActiveTab(tab.id as any)}
-                                className={`flex-1 flex items-center justify-center gap-2 py-4 border-b-2 transition-all duration-200 ${isActive
+                                className={`flex items-center justify-center gap-2 py-4 px-4 border-b-2 transition-all duration-200 shrink-0 whitespace-nowrap ${isActive
                                     ? 'text-[#045c84] border-[#045c84]'
                                     : 'text-slate-400 border-transparent hover:text-slate-600'
                                     }`}

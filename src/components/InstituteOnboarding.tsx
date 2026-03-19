@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Building2, Save, Upload, MapPin, Phone, Globe, Mail, BookOpen, Loader2 } from 'lucide-react';
 import { useSession } from '@/components/SessionProvider';
+import { useUI } from '@/components/UIProvider';
 import Image from 'next/image';
 
 interface InstituteOnboardingProps {
@@ -11,6 +12,7 @@ interface InstituteOnboardingProps {
 
 export default function InstituteOnboarding({ onComplete }: InstituteOnboardingProps) {
     const { user, setAllInstitutes, login } = useSession();
+    const { alert } = useUI();
     const [loading, setLoading] = useState(false);
     const [logo, setLogo] = useState<string | null>(null);
     const [coverImage, setCoverImage] = useState<string | null>(null);
@@ -52,19 +54,19 @@ export default function InstituteOnboarding({ onComplete }: InstituteOnboardingP
                 // Clear local preview if upload failed to prevent saving blob URLs
                 if (type === 'logo') setLogo(null);
                 if (type === 'cover') setCoverImage(null);
-                alert(`Upload failed: ${errorData.message || 'Please check your Cloudinary configuration.'}`);
+                await alert(`Upload failed: ${errorData.message || 'Please check your Cloudinary configuration.'}`);
             }
         } catch (error) {
             console.error('Upload error:', error);
             if (type === 'logo') setLogo(null);
             if (type === 'cover') setCoverImage(null);
-            alert('Image upload failed due to a network error.');
+            await alert('Image upload failed due to a network error.');
         }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!formData.name) return alert('Institute name is required');
+        if (!formData.name) return await alert('Institute name is required');
 
         setLoading(true);
 
@@ -99,11 +101,11 @@ export default function InstituteOnboarding({ onComplete }: InstituteOnboardingP
                     }
                 }
             } else {
-                alert('Failed to create institute');
+                await alert('Failed to create institute');
             }
         } catch (error) {
             console.error('Error creating institute:', error);
-            alert('Something went wrong');
+            await alert('Something went wrong');
         } finally {
             setLoading(false);
         }

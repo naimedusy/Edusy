@@ -1,4 +1,4 @@
-import { Bell, X, Building2, ClipboardList, PenTool } from 'lucide-react';
+import { Bell, X, Building2, ClipboardList, PenTool, CheckCircle2, AlertCircle, MessageSquare, Info, Calendar } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useSession } from '@/components/SessionProvider';
 import { useRouter } from 'next/navigation';
@@ -85,7 +85,10 @@ export default function NotificationDropdown({ isOpen, onClose, onRead }: Notifi
             </div>
 
             {/* List */}
-            <div className="max-h-[400px] overflow-y-auto font-sans">
+            <div 
+                className="max-h-[400px] overflow-y-auto font-sans custom-scrollbar"
+                data-lenis-prevent
+            >
                 <div className="p-2 space-y-2">
                     {/* Invitations Section */}
                     {invitations.length > 0 && (
@@ -119,94 +122,96 @@ export default function NotificationDropdown({ isOpen, onClose, onRead }: Notifi
                                 <div
                                     key={notif.id}
                                     onClick={async () => {
-                                        // Mark as read
-                                        if (!notif.read) {
-                                            await fetch(`/api/notifications/${notif.id}`, { method: 'PATCH' });
+                                        // Mark as read/clicked
+                                        if (notif.status !== 'CLICKED') {
+                                            fetch(`/api/notifications/${notif.id}`, { 
+                                                method: 'PATCH',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ status: 'CLICKED' })
+                                            }).catch(e => console.error(e));
+                                            
                                             setNotifications(prev =>
-                                                prev.map(n => n.id === notif.id ? { ...n, read: true } : n)
+                                                prev.map(n => n.id === notif.id ? { ...n, status: 'CLICKED', read: true } : n)
                                             );
                                             if (onRead) onRead();
                                         }
 
-                                        // Handle TASK_COMPLETED navigation
-                                        if (notif.type === 'TASK_COMPLETED' && notif.metadata?.assignmentId) {
-                                            setIsNavigating(notif.id);
-                                            try {
+                                        // Handle Navigation
+                                        setIsNavigating(notif.id);
+                                        try {
+                                            if (notif.type === 'TASK_COMPLETED' && notif.metadata?.assignmentId) {
                                                 const res = await fetch(`/api/assignments/${notif.metadata.assignmentId}?instituteId=${notif.metadata.instituteId}`);
                                                 if (res.ok) {
                                                     const assignment = await res.json();
                                                     openAssignmentDetails(assignment);
                                                     onClose();
                                                 }
-                                            } catch (error) {
-                                                console.error('Failed to navigate to assignment:', error);
-                                            } finally {
-                                                setIsNavigating(null);
+                                            } else if (notif.type === 'ATTENDANCE_ALERT') {
+                                                router.push('/dashboard/attendance');
+                                                onClose();
+                                            } else if (notif.type === 'INVITATION') {
+                                                router.push('/dashboard/invitations');
+                                                onClose();
+                                            } else if (notif.type === 'PERMISSION_UPDATE') {
+                                                router.push('/dashboard/settings'); // Or specific permissions page
+                                                onClose();
                                             }
+                                        } catch (error) {
+                                            console.error('Navigation error:', error);
+                                        } finally {
+                                            setIsNavigating(null);
                                         }
                                     }}
-                                    className={`relative mx-2 p-3 rounded-xl cursor-pointer transition-colors flex items-start gap-3 ${notif.read
-                                        ? 'bg-slate-50 hover:bg-slate-100 border border-slate-100'
-                                        : 'bg-blue-50 hover:bg-blue-100 border border-blue-200'
+                                    className={`relative mx-2 p-4 rounded-2xl cursor-pointer transition-all flex items-start gap-4 mb-2 group ${notif.read || notif.status === 'CLICKED'
+                                        ? 'bg-white hover:bg-slate-50 border border-slate-100 shadow-sm'
+                                        : 'bg-blue-50/50 hover:bg-blue-50 border border-blue-100 shadow-md shadow-blue-500/5'
                                         } ${isNavigating === notif.id ? 'opacity-70 pointer-events-none' : ''}`}
                                 >
-                                    {isNavigating === notif.id && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-white/20 rounded-xl">
-                                            <div className="w-4 h-4 border-2 border-[#045c84] border-t-transparent rounded-full animate-spin"></div>
-                                        </div>
-                                    )}
-                                    {!notif.read && (
-                                        <div className="w-2 h-2 bg-blue-500 rounded-full mt-1.5 shrink-0"></div>
-                                    )}
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105 ${
+                                        notif.type === 'TASK_COMPLETED' ? 'bg-emerald-50 text-emerald-600' :
+                                        notif.type === 'ATTENDANCE_ALERT' ? 'bg-amber-50 text-amber-600' :
+                                        notif.type === 'MESSAGE' ? 'bg-indigo-50 text-indigo-600' :
+                                        'bg-blue-50 text-blue-600'
+                                    }`}>
+                                        {notif.type === 'TASK_COMPLETED' ? <CheckCircle2 size={24} /> :
+                                         notif.type === 'ATTENDANCE_ALERT' ? <AlertCircle size={24} /> :
+                                         notif.type === 'MESSAGE' ? <MessageSquare size={24} /> :
+                                         <Bell size={24} />}
+                                    </div>
+
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex justify-between items-start">
-                                            <p className="text-sm font-bold text-slate-800">{notif.title}</p>
-                                            <p className="text-[10px] text-slate-400 whitespace-nowrap ml-2">
-                                                {new Date(notif.createdAt).toLocaleString('bn-BD')}
+                                        <div className="flex justify-between items-start mb-1">
+                                            <p className={`text-sm font-bold truncate ${notif.read ? 'text-slate-600' : 'text-slate-900 group-hover:text-blue-700'}`}>
+                                                {notif.title}
                                             </p>
+                                            <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium whitespace-nowrap ml-2">
+                                                <Calendar size={10} />
+                                                {new Date(notif.createdAt).toLocaleDateString('bn-BD', { day: 'numeric', month: 'short' })}
+                                            </div>
                                         </div>
 
-                                        {notif.type === 'PERMISSION_UPDATE' && notif.metadata ? (
-                                            <div className="mt-2 space-y-2">
-                                                <div className="flex items-center gap-2">
-                                                    {notif.metadata.instituteLogo ? (
-                                                        <img
-                                                            src={notif.metadata.instituteLogo}
-                                                            alt="Logo"
-                                                            className="w-8 h-8 rounded-full border border-slate-200 object-cover"
-                                                        />
-                                                    ) : (
-                                                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
-                                                            <Building2 size={16} />
-                                                        </div>
-                                                    )}
-                                                    <div>
-                                                        <p className="text-xs font-bold text-[#045c84]">{notif.metadata.instituteName}</p>
-                                                        <p className="text-[10px] text-slate-500">{notif.metadata.instituteAddress}</p>
-                                                    </div>
-                                                </div>
+                                        <p className={`text-[13px] leading-relaxed ${notif.read ? 'text-slate-500' : 'text-slate-700'}`}>
+                                            {notif.message}
+                                        </p>
 
-                                                <div className="bg-slate-50 p-2 rounded-lg border border-slate-100">
-                                                    <p className="text-xs font-bold text-slate-700 mb-1">অনুমতিসমূহ:</p>
-                                                    <div className="space-y-1">
-                                                        {Array.isArray(notif.metadata.permissionDetails) && notif.metadata.permissionDetails.map((detail: string, idx: number) => (
-                                                            <p key={idx} className="text-[11px] text-slate-600 flex items-start gap-1">
-                                                                <span className="mt-1 w-1 h-1 rounded-full bg-slate-400 shrink-0"></span>
-                                                                {detail}
-                                                            </p>
-                                                        ))}
-                                                    </div>
-                                                </div>
+                                        {notif.metadata?.instituteName && (
+                                            <div className="mt-2 flex items-center gap-2">
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-[#045c84] bg-blue-50 px-2 py-0.5 rounded-md">
+                                                    {notif.metadata.instituteName}
+                                                </span>
                                             </div>
-                                        ) : (
-                                            <>
-                                                <p className="text-xs text-slate-600 mt-0.5">{notif.message}</p>
-                                                {/* <p className="text-xs text-slate-400 mt-1">
-                                                    {new Date(notif.createdAt).toLocaleString('bn-BD')}
-                                                </p> */}
-                                            </>
                                         )}
                                     </div>
+                                    
+                                    {!notif.read && (
+                                        <div className="absolute top-4 right-4 w-2 h-2 bg-blue-500 rounded-full shadow-[0_0_8px_rgba(59,130,246,0.6)]"></div>
+                                    )}
+
+                                    {isNavigating === notif.id && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-white/40 backdrop-blur-[1px] rounded-2xl">
+                                            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
