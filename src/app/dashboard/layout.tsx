@@ -24,7 +24,10 @@ import {
     ClipboardList,// Assignment
     Megaphone,    // Notice
     Zap,           // Attendance
-    TrendingUp
+    TrendingUp,
+    MessageSquare,
+    PenTool,
+    BarChart3
 } from 'lucide-react';
 
 import { useSession } from '@/components/SessionProvider';
@@ -34,7 +37,7 @@ import NotificationBell from '@/components/NotificationBell';
 import GlobalSearch from '@/components/GlobalSearch';
 import GlobalAssignmentModal from '@/components/GlobalAssignmentModal';
 import { useUI } from '@/components/UIProvider';
-import { PenTool } from 'lucide-react';
+
 
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -75,27 +78,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     // ...
     const menuItems = [
-        { name: 'ড্যাশবোর্ড', icon: LayoutDashboard, href: '/dashboard' },
-        { name: 'হাজিরা', icon: Zap, href: '/dashboard/attendance/scan', roles: ['ADMIN', 'TEACHER'] },
-        { name: 'রিপোর্টস', icon: TrendingUp, href: '/dashboard/reports', roles: ['ADMIN', 'TEACHER'] },
-        { name: 'প্রতিষ্ঠান', icon: Building2, href: '/dashboard/institute', adminOnly: true },
-        { name: 'শিক্ষক', icon: GraduationCap, href: '/dashboard/teachers' },
+        // ওভারভিউ
+        { name: 'ড্যাশবোর্ড', icon: LayoutDashboard, href: '/dashboard', section: 'ওভারভিউ' },
+
+        // দৈনন্দিন কার্যক্রম
         {
             name: activeRole === 'GUARDIAN' ? 'আমার সন্তান' : 'শিক্ষার্থী / বই',
             icon: Users,
-            href: activeRole === 'GUARDIAN' ? '/dashboard/guardian/children' : '/dashboard/students'
+            href: activeRole === 'GUARDIAN' ? '/dashboard/guardian/children' : '/dashboard/students',
+            section: 'দৈনন্দিন কার্যক্রম'
         },
-        { name: 'অভিভাবক', icon: HeartPulse, href: '/dashboard/guardians' },
-        { name: 'হিসাব', icon: CreditCard, href: '/dashboard/accounts' },
-        { name: 'ক্লাস রুম', icon: Presentation, href: '/dashboard/classroom' },
-        // Role-specific Library Links
-        { name: 'লাইব্রেরি', icon: Library, href: '/dashboard/library', roles: ['STUDENT'] },
-        { name: 'লাইব্রেরি', icon: Library, href: '/dashboard/admin/library', roles: ['ADMIN', 'SUPER_ADMIN'] },
+        { name: 'হাজিরা', icon: Zap, href: '/dashboard/attendance/scan', roles: ['ADMIN', 'TEACHER'], section: 'দৈনন্দিন কার্যক্রম' },
+        { name: 'হিসাব', icon: CreditCard, href: '/dashboard/accounts', section: 'দৈনন্দিন কার্যক্রম' },
+        { name: 'ক্লাস ডাইরি', icon: ClipboardList, href: '/dashboard/assignments', section: 'দৈনন্দিন কার্যক্রম' },
+        { name: 'ক্লাস রুম', icon: Presentation, href: '/dashboard/classroom', section: 'দৈনন্দিন কার্যক্রম' },
 
-        { name: 'ক্লাস ডাইরি', icon: ClipboardList, href: '/dashboard/assignments' },
-        { name: 'নোটিশ', icon: Megaphone, href: '/dashboard/notices' },
-        { name: 'ক্যালেন্ডার', icon: Calendar, href: '/dashboard/calendar' },
-        { name: 'সেটিংস', icon: Settings, href: '/dashboard/settings' },
+        // একাডেমিক
+        { name: 'পরীক্ষা', icon: PenTool, href: '/dashboard/exams', section: 'একাডেমিক' },
+        { name: 'লাইব্রেরি', icon: Library, href: '/dashboard/library', roles: ['STUDENT'], section: 'একাডেমিক' },
+        { name: 'লাইব্রেরি', icon: Library, href: '/dashboard/admin/library', roles: ['ADMIN', 'SUPER_ADMIN'], section: 'একাডেমিক' },
+        { name: 'নোটিশ', icon: Megaphone, href: '/dashboard/notices', section: 'একাডেমিক' },
+
+        // ব্যবস্থাপনা
+        { name: 'প্রতিষ্ঠান', icon: Building2, href: '/dashboard/admin/institutes', roles: ['ADMIN', 'SUPER_ADMIN'], section: 'ব্যবস্থাপনা' },
+        { name: 'শিক্ষক', icon: GraduationCap, href: '/dashboard/teachers', roles: ['ADMIN', 'SUPER_ADMIN'], section: 'ব্যবস্থাপনা' },
+        { name: 'অভিভাবক', icon: HeartPulse, href: '/dashboard/guardians', roles: ['ADMIN', 'SUPER_ADMIN'], section: 'ব্যবস্থাপনা' },
+        { name: 'ইউজার ডাটাবেস', icon: Users, href: '/dashboard/admin/users', roles: ['ADMIN', 'SUPER_ADMIN'], section: 'ব্যবস্থাপনা' },
+        { name: 'অ্যাপ ব্র্যান্ডিং', icon: Settings, href: '/dashboard/admin/settings/branding', roles: ['SUPER_ADMIN'], section: 'ব্যবস্থাপনা' },
+        { name: 'নোটিফিকেশন সেট', icon: Bell, href: '/dashboard/admin/settings/notifications', roles: ['ADMIN', 'SUPER_ADMIN'], section: 'ব্যবস্থাপনা' },
+        { name: 'নোটিফিকেশন এনালিটিক্স', icon: BarChart3, href: '/dashboard/admin/notifications/analytics', roles: ['ADMIN', 'SUPER_ADMIN', 'TEACHER'], section: 'বিশ্লেষণ ও রিপোর্ট' },
+
+        // যোগাযোগ
+        { name: 'যোগাযোগ', icon: MessageSquare, href: '/dashboard/communication', section: 'যোগাযোগ' },
+
+        // বিশ্লেষণ ও রিপোর্ট
+        { name: 'রিপোর্টস', icon: TrendingUp, href: '/dashboard/reports', roles: ['ADMIN', 'TEACHER'], section: 'বিশ্লেষণ ও রিপোর্ট' },
+
+        // সেটিংস ও অন্যান্য
+        { name: 'ক্যালেন্ডার', icon: Calendar, href: '/dashboard/calendar', section: 'সেটিংস ও অন্যান্য' },
+        { name: 'সেটিংস', icon: Settings, href: '/dashboard/settings', section: 'সেটিংস ও অন্যান্য' },
     ];
 
     const filteredMenuItems = menuItems.filter(item => {
@@ -105,7 +126,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         }
 
         if (activeRole === 'SUPER_ADMIN') {
-            return item.href === '/dashboard' || item.href === '/dashboard/admin/library';
+            const allowed = ['/dashboard', '/dashboard/admin/library', '/dashboard/admin/users', '/dashboard/admin/institutes', '/dashboard/admin/settings/branding', '/dashboard/admin/settings/notifications', '/dashboard/admin/notifications/analytics'];
+            return allowed.includes(item.href);
         }
         if (activeRole === 'STUDENT') {
             return ['/dashboard', '/dashboard/notices', '/dashboard/classroom', '/dashboard/library', '/dashboard/assignments'].includes(item.href);
@@ -113,19 +135,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (activeRole === 'GUARDIAN') {
             return ['/dashboard', '/dashboard/guardian/children', '/dashboard/assignments', '/dashboard/settings'].includes(item.href);
         }
-        if ((item as any).adminOnly) {
-            return activeRole === 'ADMIN';
-        }
         return true;
     });
 
 
 
-    const adminLinks = [
-        { name: 'ইউজার ডাটাবেস', icon: Users, href: '/dashboard/admin/users' },
-        { name: 'প্রতিষ্ঠানসমূহ', icon: Building2, href: '/dashboard/admin/institutes' },
-        { name: 'অ্যাপ ব্র্যান্ডিং', icon: Settings, href: '/dashboard/admin/settings/branding' },
-    ];
 
 
     return (
@@ -159,62 +173,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         className="flex-1 overflow-y-auto custom-scrollbar py-4"
                         data-lenis-prevent
                     >
-                        <nav className="px-4 space-y-3 pb-8">
-                            {filteredMenuItems.map((item) => {
-                                const isActive = item.href === '/dashboard'
-                                    ? ['/dashboard', '/dashboard/teacher', '/dashboard/student', '/dashboard/guardian'].includes(pathname)
-                                    : pathname?.startsWith(item.href);
+                        <nav className="px-4 space-y-6 pb-8">
+                            {Array.from(new Set(filteredMenuItems.map(item => item.section))).map((section) => (
+                                <div key={section} className="space-y-2">
+                                    {section !== 'ওভারভিউ' && (
+                                        <h3 className="px-5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">
+                                            {section}
+                                        </h3>
+                                    )}
+                                    <div className="space-y-1">
+                                        {filteredMenuItems
+                                            .filter(item => item.section === section)
+                                            .map((item) => {
+                                                const isActive = item.href === '/dashboard'
+                                                    ? ['/dashboard', '/dashboard/teacher', '/dashboard/student', '/dashboard/guardian'].includes(pathname)
+                                                    : pathname?.startsWith(item.href);
 
-                                return (
-                                    <Link
-                                        key={item.href}
-                                        href={
-                                            activeRole === 'GUARDIAN' && item.href === '/dashboard' ? '/dashboard/guardian' :
-                                                activeRole === 'GUARDIAN' && item.href === '/dashboard/guardian/children' ? '/dashboard/guardian/children' :
-                                                    activeRole === 'STUDENT' && item.href === '/dashboard/students' ? '/dashboard/student' :
-                                                        activeRole === 'TEACHER' && item.href === '/dashboard/teachers' ? '/dashboard/teacher' :
-                                                            item.href
-                                        }
-                                        onClick={() => setIsSidebarOpen(false)}
-                                        className={`flex items-center gap-5 px-5 py-4 rounded-2xl transition-all font-medium group text-lg ${isActive
-                                            ? 'bg-primary text-white shadow-lg shadow-primary/20'
-                                            : 'text-zinc-900 hover:bg-slate-100'
-                                            }`}
-                                    >
-                                        <item.icon size={24} className={`transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-primary'}`} />
-                                        <span>{activeRole === 'GUARDIAN' && item.name === 'শিক্ষার্থী / বই' ? 'আমার সন্তান' : item.name}</span>
-                                    </Link>
-                                );
-                            })}
+                                                return (
+                                                    <Link
+                                                        key={item.href}
+                                                        href={
+                                                            activeRole === 'GUARDIAN' && item.href === '/dashboard' ? '/dashboard/guardian' :
+                                                                activeRole === 'GUARDIAN' && item.href === '/dashboard/guardian/children' ? '/dashboard/guardian/children' :
+                                                                    activeRole === 'STUDENT' && item.href === '/dashboard/students' ? '/dashboard/student' :
+                                                                        item.href
+                                                        }
+                                                        onClick={() => setIsSidebarOpen(false)}
+                                                        className={`flex items-center gap-5 px-5 py-3 rounded-2xl transition-all font-medium group text-lg ${isActive
+                                                            ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                                                            : 'text-zinc-900 hover:bg-slate-100'
+                                                            }`}
+                                                    >
+                                                        <item.icon size={22} className={`transition-transform group-hover:scale-110 ${isActive ? 'text-white' : 'text-primary'}`} />
+                                                        <span>{activeRole === 'GUARDIAN' && item.name === 'শিক্ষার্থী / বই' ? 'আমার সন্তান' : item.name}</span>
+                                                    </Link>
+                                                );
+                                            })}
+                                    </div>
+                                </div>
+                            ))}
                         </nav>
-
-                        {activeRole === 'SUPER_ADMIN' && (
-                            <div className="px-4 mb-4">
-                                <div className="px-5 mb-2 flex items-center gap-2 text-primary">
-                                    <ShieldCheck size={16} />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.2em]">অ্যাডমিন ওভারসাইট</span>
-                                </div>
-                                <div className="space-y-1">
-                                    {adminLinks.map((item) => {
-                                        const isActive = pathname?.startsWith(item.href);
-                                        return (
-                                            <Link
-                                                key={item.href}
-                                                href={item.href}
-                                                onClick={() => setIsSidebarOpen(false)}
-                                                className={`flex items-center gap-4 px-5 py-3 rounded-xl transition-all font-medium group text-sm ${isActive
-                                                    ? 'bg-primary/10 text-primary font-bold'
-                                                    : 'text-slate-600 hover:bg-primary/5'
-                                                    }`}
-                                            >
-                                                <item.icon size={18} className={`transition-opacity ${isActive ? 'opacity-100 text-primary' : 'opacity-70 group-hover:opacity-100 text-primary'}`} />
-                                                <span>{item.name}</span>
-                                            </Link>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        )}
 
                         <RoleSwitcher />
 

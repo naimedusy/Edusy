@@ -65,6 +65,9 @@ model Institute {
   classes     Class[]
   books       Book[]
   
+  // Notification Settings
+  notificationSettings Json?
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -96,6 +99,7 @@ model Class {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  coverImage  String?  // Added for diary cover image
   assignments Assignment[]
   attendances Attendance[]
 }
@@ -176,8 +180,12 @@ model Notification {
   type        String   // "TEACHER_LEFT", "TEACHER_REMOVED", etc.
   title       String
   message     String
+  status      String   @default("SENT") // SENT, DELIVERED, READ, CLICKED
   read        Boolean  @default(false)
   metadata    Json?    // Store additional info like teacher name, institute name, instituteId
+  batchId     String?  // For group notifications analytics
+  seenAt      DateTime?
+  clickedAt   DateTime?
   createdAt   DateTime @default(now())
 }
 
@@ -247,7 +255,7 @@ model Assignment {
   createdAt     DateTime @default(now())
   scheduledDate DateTime @default(now())
   releaseAt     DateTime?
-  requireFaceVerify Boolean @default(false)
+  studentIds    String[]   @db.ObjectId
   
   updatedAt     DateTime @updatedAt
 }

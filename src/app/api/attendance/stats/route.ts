@@ -17,7 +17,6 @@ export async function GET(req: NextRequest) {
         }
 
         // Aggregate attendance stats per student using raw MongoDB
-        // We want to count total records per student and how many of them are PRESENT/LATE
         const result = await (prisma as any).$runCommandRaw({
             aggregate: 'Attendance',
             pipeline: [
@@ -27,9 +26,13 @@ export async function GET(req: NextRequest) {
                         _id: '$studentId',
                         totalDays: { $sum: 1 },
                         presentDays: {
-                            $sum: {
-                                $cond: [{ $in: ['$status', ['PRESENT', 'LATE']] }, 1, 0]
-                            }
+                            $sum: { $cond: [{ $eq: ['$status', 'PRESENT'] }, 1, 0] }
+                        },
+                        lateDays: {
+                            $sum: { $cond: [{ $eq: ['$status', 'LATE'] }, 1, 0] }
+                        },
+                        absentDays: {
+                            $sum: { $cond: [{ $eq: ['$status', 'ABSENT'] }, 1, 0] }
                         }
                     }
                 }
@@ -42,7 +45,9 @@ export async function GET(req: NextRequest) {
             studentId: s._id?.$oid || String(s._id),
             totalDays: s.totalDays,
             presentDays: s.presentDays,
-            percentage: s.totalDays > 0 ? Math.round((s.presentDays / s.totalDays) * 100) : 0
+            lateDays: s.lateDays,
+            absentDays: s.absentDays,
+            percentage: s.totalDays > 0 ? Math.round(((s.presentDays + s.lateDays) / s.totalDays) * 100) : 0
         }));
 
         return NextResponse.json(formattedStats);

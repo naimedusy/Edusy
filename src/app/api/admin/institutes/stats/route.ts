@@ -104,7 +104,7 @@ export async function GET(req: Request) {
         const filledFields = profileFields.filter(f => (institute as any)?.[f]).length;
         const profileHealth = Math.round((filledFields / profileFields.length) * 100);
 
-        return NextResponse.json({
+        const response = NextResponse.json({
             students: studentCount,
             pendingStudents: pendingStudentCount,
             teachers: teacherCount,
@@ -117,6 +117,14 @@ export async function GET(req: Request) {
             profileHealth,
             institute // Including full institute data to allow refreshing session in dashboard
         });
+
+        // Forced Cache Control
+        response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        response.headers.set('Pragma', 'no-cache');
+        response.headers.set('Expires', '0');
+        response.headers.set('Surrogate-Control', 'no-store');
+
+        return response;
 
     } catch (error) {
         console.error('Institute Stats API Error:', error);

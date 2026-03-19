@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/utils/db';
+import { sendNotification } from '@/utils/notification-utils';
 
 export async function POST(req: Request) {
     try {
@@ -77,14 +78,15 @@ export async function POST(req: Request) {
 
             // 1. Notify Teacher
             if (submission.assignment.teacherId) {
-                await (prisma as any).notification.create({
-                    data: {
-                        userId: submission.assignment.teacherId,
-                        type: 'TASK_COMPLETED',
-                        title: completed ? 'টাস্ক সম্পন্ন হয়েছে' : 'টাস্ক আপডেট করা হয়েছে',
-                        message: `${studentName} "${assignmentName}"-এর একটি টাস্ক ${completed ? 'সম্পন্ন করেছেন' : 'অসম্পূর্ণ হিসেবে পরিবর্তন করেছেন'}।`,
-                        metadata: { assignmentId, studentId, taskId, instituteId }
-                    }
+                await sendNotification({
+                    userIds: [submission.assignment.teacherId],
+                    type: 'TASK_COMPLETED',
+                    instituteId,
+                    variables: {
+                        studentName,
+                        bookName: assignmentName
+                    },
+                    metadata: { assignmentId, studentId, taskId, role: 'TEACHER' }
                 });
             }
 
@@ -94,15 +96,16 @@ export async function POST(req: Request) {
                 select: { userId: true }
             });
 
-            for (const profile of staffProfiles) {
-                await (prisma as any).notification.create({
-                    data: {
-                        userId: profile.userId,
-                        type: 'TASK_COMPLETED',
-                        title: 'শিক্ষার্থীর আপডেট',
-                        message: `${studentName} "${assignmentName}"-এর একটি টাস্ক আপডেট করেছেন।`,
-                        metadata: { assignmentId, studentId, taskId, instituteId }
-                    }
+            if (staffProfiles.length > 0) {
+                await sendNotification({
+                    userIds: staffProfiles.map(p => p.userId),
+                    type: 'TASK_COMPLETED',
+                    instituteId,
+                    variables: {
+                        studentName,
+                        bookName: assignmentName
+                    },
+                    metadata: { assignmentId, studentId, taskId, role: 'ADMIN' }
                 });
             }
 
@@ -114,14 +117,15 @@ export async function POST(req: Request) {
 
             const guardianId = studentDoc?.metadata?.guardianId;
             if (guardianId) {
-                await (prisma as any).notification.create({
-                    data: {
-                        userId: guardianId,
-                        type: 'TASK_COMPLETED',
-                        title: 'সন্তানের পড়া আপডেট',
-                        message: `আপনার সন্তান ${studentName} "${assignmentName}"-এর একটি টাস্ক আপডেট করেছে।`,
-                        metadata: { assignmentId, studentId, taskId, instituteId }
-                    }
+                await sendNotification({
+                    userIds: [guardianId],
+                    type: 'TASK_COMPLETED',
+                    instituteId,
+                    variables: {
+                        studentName,
+                        bookName: assignmentName
+                    },
+                    metadata: { assignmentId, studentId, taskId, role: 'GUARDIAN' }
                 });
             }
         }

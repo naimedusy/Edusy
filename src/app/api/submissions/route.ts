@@ -13,11 +13,24 @@ export async function GET(req: Request) {
         if (assignmentId) where.assignmentId = assignmentId;
         if (studentId) where.studentId = studentId;
 
-        // Filter by institute or teacher if provided
+        // MongoDB / Prisma doesn't support filtering by nested many-to-one relations.
+        // We must first fetch the matching assignment IDs, then filter submissions by those IDs.
         if (instituteId || teacherId) {
-            where.assignment = {};
-            if (instituteId) where.assignment.instituteId = instituteId;
-            if (teacherId) where.assignment.teacherId = teacherId;
+            const assignmentFilter: any = {};
+            if (instituteId) assignmentFilter.instituteId = instituteId;
+            if (teacherId) assignmentFilter.teacherId = teacherId;
+
+            const matchingAssignments = await prisma.assignment.findMany({
+                where: assignmentFilter,
+                select: { id: true }
+            });
+            const matchingIds = matchingAssignments.map(a => a.id);
+
+            if (matchingIds.length === 0) {
+                return NextResponse.json([]);
+            }
+
+            where.assignmentId = { in: matchingIds };
         }
 
         const submissions = await prisma.submission.findMany({
@@ -42,11 +55,16 @@ export async function GET(req: Request) {
         });
 
         return NextResponse.json(submissions);
-    } catch (error) {
-        console.error('Submissions GET Error:', error);
-        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    } catch (error: any) {
+        console.error('Submissions GET Error Details:', {
+            message: error.message,
+            stack: error.stack,
+            code: error.code
+        });
+        return NextResponse.json({ message: 'Internal server error', error: error.message }, { status: 500 });
     }
 }
+
 
 export async function POST(req: Request) {
     try {
@@ -157,9 +175,12 @@ export async function POST(req: Request) {
         }
 
         return NextResponse.json(submission);
-    } catch (error) {
-        console.error('Submissions POST Error:', error);
-        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    } catch (error: any) {
+        console.error('Submissions POST Error Details:', {
+            message: error.message,
+            stack: error.stack
+        });
+        return NextResponse.json({ message: 'Internal server error', error: error.message }, { status: 500 });
     }
 }
 
@@ -295,8 +316,11 @@ export async function PATCH(req: Request) {
         }
 
         return NextResponse.json(results.length === 1 && id ? results[0] : results);
-    } catch (error) {
-        console.error('Submissions PATCH Error:', error);
-        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    } catch (error: any) {
+        console.error('Submissions PATCH Error Details:', {
+            message: error.message,
+            stack: error.stack
+        });
+        return NextResponse.json({ message: 'Internal server error', error: error.message }, { status: 500 });
     }
 }

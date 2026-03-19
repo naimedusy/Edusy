@@ -18,8 +18,10 @@ import {
     AlertCircle
 } from 'lucide-react';
 import Modal from '@/components/Modal';
+import { useUI } from '@/components/UIProvider';
 
 export default function GlobalUserManagement() {
+    const { confirm } = useUI();
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -117,7 +119,7 @@ export default function GlobalUserManagement() {
             ? 'আপনি কি নিশ্চিত যে আপনি এই ইউজার কে "সুপার অ্যাডমিন" করতে চান? এটি একটি অতি সংবেদনশীল অ্যাকশন।'
             : `আপনি কি রোল পরিবর্তন করে "${newRole}" করতে চান?`;
 
-        if (!confirm(confirmMsg)) return;
+        if (!await confirm(confirmMsg)) return;
 
         try {
             const res = await fetch('/api/admin/users', {
@@ -134,7 +136,7 @@ export default function GlobalUserManagement() {
     };
 
     const handleDeleteUser = async (id: string) => {
-        if (!confirm('আপনি কি নিশ্চিত যে আপনি এই ইউজারটি ডিলিট করতে চান?')) return;
+        if (!await confirm('আপনি কি নিশ্চিত যে আপনি এই ইউজারটি ডিলিট করতে চান?')) return;
         try {
             await fetch(`/api/admin/users?id=${id}`, { method: 'DELETE' });
             fetchUsers();

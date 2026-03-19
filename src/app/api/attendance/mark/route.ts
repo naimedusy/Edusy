@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/utils/db';
+import { sendNotification } from '@/utils/notification-utils';
 
 export async function POST(req: NextRequest) {
     try {
@@ -79,19 +80,20 @@ export async function POST(req: NextRequest) {
 
                     if (guardian) {
                         const time = new Date().toLocaleTimeString('bn-BD', { hour: '2-digit', minute: '2-digit' });
-                        const date = new Date().toLocaleDateString('bn-BD');
                         const instName = student.institutes?.[0]?.name || 'প্রতিষ্ঠানের নাম পাওয়া যায়নি';
 
-                        await prisma.notification.create({
-                            data: {
-                                userId: guardian.id,
-                                type: 'SYSTEM',
-                                title: 'হাজিরা নিশ্চিতকরণ',
-                                message: `নাম: ${student.name}, সময়: ${time}, তারিখ: ${date}, প্রতিষ্ঠান: ${instName}`,
-                                metadata: {
-                                    studentId,
-                                    type: 'ATTENDANCE_ALERT'
-                                }
+                        await sendNotification({
+                            userIds: [guardian.id],
+                            type: 'ATTENDANCE_ALERT',
+                            instituteId,
+                            variables: {
+                                studentName: student.name || 'শিক্ষার্থী',
+                                time,
+                                instituteName: instName
+                            },
+                            metadata: {
+                                studentId,
+                                role: 'GUARDIAN'
                             }
                         });
                         console.log(`Notification sent to guardian for ${student.name}`);

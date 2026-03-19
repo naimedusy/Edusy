@@ -21,7 +21,8 @@ export async function PATCH(
                 ...(tiffinEnd !== undefined && { tiffinEnd }),
                 ...(schedule !== undefined && { schedule }),
                 ...(fees !== undefined && { fees: parseInt(fees) || 0 }),
-                ...(lateThreshold !== undefined && { lateThreshold: parseInt(lateThreshold) || 0 })
+                ...(lateThreshold !== undefined && { lateThreshold: parseInt(lateThreshold) || 0 }),
+                ...(body.coverImage !== undefined && { coverImage: body.coverImage })
             }
         });
 

@@ -394,7 +394,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
             if (showLoading) setStatsLoading(true);
 
             try {
-                const res = await fetch(`/api/admin/institutes/stats?instituteId=${activeInstitute.id}`);
+                const res = await fetch(`/api/admin/institutes/stats?instituteId=${activeInstitute.id}&t=${Date.now()}`);
                 const data = await res.json();
                 if (isMounted) {
                     setStatsData(data);
@@ -590,7 +590,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
                                     </select>
                                 </div>
                                 <div className="flex-1 w-full">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" height="100%" minHeight={300}>
                                         <AreaChart data={statsData?.admissionTrends || []}>
                                             <defs>
                                                 <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
@@ -792,6 +792,7 @@ function AdminDashboard({ activeInstitute }: { activeInstitute: any }) {
 // --- Switch Institute Modal ---
 function SwitchInstituteModal({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
     const { user, switchInstitute, activeInstitute } = useSession();
+    const { alert, confirm } = useUI();
 
     if (!isOpen) return null;
 
@@ -880,7 +881,7 @@ function SwitchInstituteModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
                                         <button
                                             onClick={async (e) => {
                                                 e.stopPropagation();
-                                                if (!window.confirm(`আপনি কি নিশ্চিত যে ${inst.name} থেকে চলে যেতে চান?`)) return;
+                                                if (!await confirm(`আপনি কি নিশ্চিত যে ${inst.name} থেকে চলে যেতে চান?`)) return;
 
                                                 try {
                                                     const res = await fetch('/api/teacher/leave', {
@@ -896,10 +897,10 @@ function SwitchInstituteModal({ isOpen, onClose }: { isOpen: boolean, onClose: (
                                                         window.location.reload();
                                                     } else {
                                                         const data = await res.json();
-                                                        alert(data.message || 'ত্রুটি ঘটেছে');
+                                                        await alert(data.message || 'ত্রুটি ঘটেছে');
                                                     }
                                                 } catch (err) {
-                                                    alert('সার্ভার এরর');
+                                                    await alert('সার্ভার এরর');
                                                 }
                                             }}
                                             className="w-full px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"

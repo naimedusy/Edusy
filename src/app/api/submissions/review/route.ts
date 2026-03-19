@@ -9,32 +9,32 @@ export async function GET(req: Request) {
         const teacherId = searchParams.get('teacherId');
         const limit = parseInt(searchParams.get('limit') || '30');
 
-        if (!instituteId) {
-            return NextResponse.json({ message: 'instituteId is required' }, { status: 400 });
+        console.log('Submissions Review GET hit:', { instituteId, teacherId, limit });
+
+        if (!instituteId || instituteId === 'undefined' || instituteId.length !== 24) {
+            console.log('Invalid instituteId provided');
+            return NextResponse.json({ message: 'Valid instituteId is required' }, { status: 400 });
         }
 
         const where: any = {
-            status: 'SUBMITTED',
-            assignment: {
-                instituteId,
-                ...(teacherId ? { teacherId } : {})
-            }
+            status: 'SUBMITTED'
         };
 
-        const submissions = await (prisma as any).submission.findMany({
+        const assignmentFilter: any = { instituteId };
+        if (teacherId && teacherId !== 'undefined' && teacherId.length === 24) {
+            assignmentFilter.teacherId = teacherId;
+        }
+        where.assignment = assignmentFilter;
+
+        console.log('Final where clause for review:', JSON.stringify(where, null, 2));
+
+        const submissions = await prisma.submission.findMany({
             where,
             include: {
                 student: {
                     select: { id: true, name: true, metadata: true }
                 },
-                assignment: {
-                    include: {
-                        book: { select: { id: true, name: true } },
-                        class: { select: { id: true, name: true } },
-                        group: { select: { id: true, name: true } },
-                        teacher: { select: { id: true, name: true } }
-                    }
-                }
+                assignment: true
             },
             orderBy: { submittedAt: 'desc' },
             take: limit
@@ -42,7 +42,12 @@ export async function GET(req: Request) {
 
         return NextResponse.json(submissions);
     } catch (error: any) {
-        console.error('Review GET Error:', error);
+        console.error('Review GET Error Detailed:', {
+            message: error.message,
+            stack: error.stack,
+            cause: error.cause,
+            code: error.code
+        });
         return NextResponse.json({ message: 'Internal server error', error: error.message }, { status: 500 });
     }
 }

@@ -12,6 +12,7 @@ import {
     Loader2,
     CheckCircle2
 } from 'lucide-react';
+import { useUI } from '@/components/UIProvider';
 import AuthLayout from '../../components/AuthLayout';
 
 export default function RoleSelectionPage() {
@@ -19,6 +20,7 @@ export default function RoleSelectionPage() {
     const [selectedRole, setSelectedRole] = useState<string | null>(null);
     const { user, login } = useSession();
     const router = useRouter();
+    const { alert } = useUI();
 
     // Roles Configuration
     const roles = [
@@ -73,11 +75,11 @@ export default function RoleSelectionPage() {
                 login({ ...user, role: roleId as any });
                 router.push('/dashboard');
             } else {
-                alert('রোল আপডেট করা সম্ভব হয়নি। আবার চেষ্টা করুন।');
+                await alert('রোল আপডেট করা সম্ভব হয়নি। আবার চেষ্টা করুন।');
             }
         } catch (err) {
             console.error('Role update error:', err);
-            alert('কিছু ভুল হয়েছে। ইন্টারনেটের সংযোগ চেক করুন।');
+            await alert('কিছু ভুল হয়েছে। ইন্টারনেটের সংযোগ চেক করুন।');
         } finally {
             setLoading(false);
         }

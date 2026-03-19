@@ -8,10 +8,12 @@ import AddTeacherModal from '@/components/AddTeacherModal';
 import TeacherPermissionModal from '@/components/TeacherPermissionModal';
 import Toast from '@/components/Toast';
 import TeacherCard from '@/components/TeacherCard';
+import { useUI } from '@/components/UIProvider';
 
 export default function TeachersPage() {
     const { user, activeInstitute, activeRole } = useSession();
     const router = useRouter();
+    const { confirm } = useUI();
 
     useEffect(() => {
         if (activeRole && activeRole !== 'ADMIN' && activeRole !== 'SUPER_ADMIN' && activeRole !== 'TEACHER') {
@@ -208,7 +210,7 @@ export default function TeachersPage() {
                             canManage={canManageTeachers}
                             classes={classes}
                             onDelete={async (teacherId: string, name: string) => {
-                                if (!window.confirm(`আপনি কি নিশ্চিত যে ${name} কে সরাতে চান?`)) return;
+                                if (!await confirm(`আপনি কি নিশ্চিত যে ${name} কে সরাতে চান?`)) return;
 
                                 try {
                                     const res = await fetch(`/api/teacher/${teacherId}?instituteId=${activeInstitute.id}&adminId=${user?.id}`, {

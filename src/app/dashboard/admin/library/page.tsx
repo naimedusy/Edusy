@@ -15,6 +15,7 @@ import {
 import Image from 'next/image';
 import Toast from '@/components/Toast';
 import { useRouter } from 'next/navigation';
+import { useUI } from '@/components/UIProvider';
 
 interface Book {
     id: string;
@@ -31,6 +32,7 @@ interface Book {
 
 export default function AdminLibraryPage() {
     const { user, activeInstitute, activeRole } = useSession();
+    const { confirm } = useUI();
     const [loading, setLoading] = useState(true);
     const [books, setBooks] = useState<Book[]>([]);
     const [search, setSearch] = useState('');
@@ -128,7 +130,7 @@ export default function AdminLibraryPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this book?')) return;
+        if (!await confirm('Are you sure you want to delete this book?')) return;
         try {
             // We need a DELETE endpoint. admin/books/route.ts has DELETE.
             const res = await fetch(`/api/admin/books?id=${id}`, { method: 'DELETE' });

@@ -59,16 +59,21 @@ export async function GET(req: Request) {
                 where.AND = [
                     { classId: classId },
                     { OR: [{ groupId: groupId }, { groupId: null }] },
+                    { OR: [{ studentIds: { has: userId } }, { studentIds: { set: [] } }, { studentIds: { isEmpty: true } }] },
                     releaseCondition
                 ];
             } else if (classId) {
                 where.classId = classId;
-                where.groupId = null; // Only show class-wide if student has no group? Or let them see everything for the class?
-                // Usually students are assigned to a group if the class has groups. 
-                // If they don't have a group, they just see class-wide work.
-                where.AND = [where.AND || {}, releaseCondition];
+                where.groupId = null;
+                where.AND = [
+                    { OR: [{ studentIds: { has: userId } }, { studentIds: { set: [] } }, { studentIds: { isEmpty: true } }] },
+                    releaseCondition
+                ];
             } else {
-                where.AND = [where.AND || {}, releaseCondition];
+                where.AND = [
+                    { OR: [{ studentIds: { has: userId } }, { studentIds: { set: [] } }, { studentIds: { isEmpty: true } }] },
+                    releaseCondition
+                ];
             }
         } else if (role === 'GUARDIAN' && userId) {
             const childId = searchParams.get('childId');
@@ -225,7 +230,8 @@ export async function POST(req: Request) {
             groupId,
             bookId,
             resources,
-            releaseAt
+            releaseAt,
+            studentIds
         } = body;
 
         if (!instituteId || !teacherId) {
@@ -291,6 +297,7 @@ export async function POST(req: Request) {
                 groupId: finalGroupId,
                 bookId: finalBookId,
                 resources: resources || [],
+                studentIds: studentIds || [],
                 releaseAt: null // Set by release API from institute global setting
             }
         });
@@ -322,7 +329,8 @@ export async function PATCH(req: Request) {
             groupId,
             bookId,
             resources,
-            releaseAt
+            releaseAt,
+            studentIds
         } = body;
 
         if (!id) {
@@ -355,6 +363,7 @@ export async function PATCH(req: Request) {
                 groupId: groupId === null || /^[0-9a-fA-F]{24}$/.test(groupId) ? groupId : undefined,
                 bookId: bookId === null || /^[0-9a-fA-F]{24}$/.test(bookId) ? bookId : undefined,
                 resources: resources || [],
+                studentIds: Array.isArray(studentIds) ? studentIds : undefined,
                 releaseAt: releaseAt ? new Date(releaseAt) : (releaseAt === null ? null : undefined)
             }
         });

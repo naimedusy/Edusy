@@ -22,8 +22,10 @@ import {
     Save,
     Type
 } from 'lucide-react';
+import { useUI } from '@/components/UIProvider';
 
 export default function GlobalInstituteList() {
+    const { alert } = useUI();
     const [institutes, setInstitutes] = useState<any[]>([]);
     const [admins, setAdmins] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -73,7 +75,7 @@ export default function GlobalInstituteList() {
     const handleCreateInstitute = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newInst.name || !newInst.userId) {
-            alert('প্রতিষ্ঠানের নাম এবং অ্যাডমিন নির্বাচন করুন।');
+            await alert('প্রতিষ্ঠানের নাম এবং অ্যাডমিন নির্বাচন করুন।');
             return;
         }
 
@@ -91,11 +93,11 @@ export default function GlobalInstituteList() {
                 fetchInstitutes();
             } else {
                 const error = await res.json();
-                alert(error.message || 'সেভ করতে সমস্যা হয়েছে।');
+                await alert(error.message || 'সেভ করতে সমস্যা হয়েছে।');
             }
         } catch (error) {
             console.error('Create institute error:', error);
-            alert('সার্ভার এরর হয়েছে।');
+            await alert('সার্ভার এরর হয়েছে।');
         } finally {
             setCreateLoading(false);
         }

@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { Upload, Save, Loader2, Image as ImageIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useUI } from '@/components/UIProvider';
 
 export default function BrandingSettingsPage() {
     const router = useRouter();
+    const { alert } = useUI();
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
 
@@ -60,11 +62,11 @@ export default function BrandingSettingsPage() {
                 if (type === 'logo') setLogo(data.url);
                 if (type === 'cover') setCoverImage(data.url);
             } else {
-                alert('Image upload failed');
+                await alert('Image upload failed');
             }
         } catch (error) {
             console.error('Upload error:', error);
-            alert('Error uploading image');
+            await alert('Error uploading image');
         }
     };
 
@@ -85,14 +87,14 @@ export default function BrandingSettingsPage() {
             });
 
             if (res.ok) {
-                alert('Settings saved successfully!');
+                await alert('Settings saved successfully!');
                 router.refresh();
             } else {
-                alert('Failed to save settings');
+                await alert('Failed to save settings');
             }
         } catch (error) {
             console.error('Save error:', error);
-            alert('Error saving settings');
+            await alert('Error saving settings');
         } finally {
             setSaving(false);
         }

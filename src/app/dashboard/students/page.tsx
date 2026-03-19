@@ -57,9 +57,11 @@ import BookDetailsModal from '@/components/BookDetailsModal';
 import PdfReaderModal from '@/components/PdfReaderModal';
 import TeacherPermissionModal from '@/components/TeacherPermissionModal';
 import SubjectGradingModal from '@/components/SubjectGradingModal';
+import { useUI } from '@/components/UIProvider';
 
 export default function StudentManagementPage() {
-    const { user, activeRole, activeInstitute, isLoading } = useSession();
+    const { user: currentUser, activeRole, activeInstitute, isLoading } = useSession();
+    const { alert, confirm } = useUI();
     const [students, setStudents] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -236,7 +238,7 @@ export default function StudentManagementPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...updates,
-                    adminId: user?.id,
+                    adminId: currentUser?.id,
                     instituteId: activeInstitute?.id
                 }),
             });
@@ -294,7 +296,7 @@ export default function StudentManagementPage() {
             const list = Array.isArray(data) ? data : [];
 
             if (activeRole === 'TEACHER') {
-                const profile = user?.teacherProfiles?.find((p: any) => p.instituteId === activeInstitute?.id);
+                const profile = currentUser?.teacherProfiles?.find((p: any) => p.instituteId === activeInstitute?.id);
                 const classWise = profile?.permissions?.classWise || {};
                 const allowedClassIds = Object.keys(classWise);
 
@@ -476,7 +478,47 @@ export default function StudentManagementPage() {
     }, [debouncedSearch, activeInstitute?.id, selectedClassId, selectedGroupId, activeTab]);
 
     // Strict Owner/SuperAdmin check
-    const isOwner = activeRole === 'SUPER_ADMIN' || (activeInstitute?.adminIds || []).includes(user?.id);
+    const isOwner = activeRole === 'SUPER_ADMIN' || (activeInstitute?.adminIds || []).includes(currentUser?.id);
+
+    // Permission Helpers (Moved to top area)
+    const canManageClass = (classId: string) => {
+        if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return true;
+        if (activeRole === 'TEACHER' && currentUser?.teacherProfiles) {
+            const profile = currentUser.teacherProfiles.find((p: any) => p.instituteId === activeInstitute?.id);
+            if (!profile) return false;
+            if (profile.isAdmin) return true;
+            if (!profile.permissions?.classWise) return false;
+
+            const classPermissions = profile.permissions.classWise[classId];
+            if (!classPermissions) return false;
+
+            if (classPermissions && typeof classPermissions === 'object' && classPermissions.permissions && Array.isArray(classPermissions.permissions)) {
+                return classPermissions.permissions.includes('canManageAdmission');
+            }
+            if (Array.isArray(classPermissions)) {
+                return classPermissions.includes('canManageAdmission');
+            }
+        }
+        return false;
+    };
+
+    // Calculate allowed classes for admission (Any class teacher is assigned to for visibility)
+    const allowedClasses = React.useMemo(() => {
+        if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return classes;
+        if (activeRole === 'TEACHER' && currentUser?.teacherProfiles) {
+            const profile = (currentUser.teacherProfiles || []).find((p: any) => p.instituteId === activeInstitute?.id);
+            if (!profile) return [];
+            if (profile.isAdmin) return classes;
+            if (!profile.permissions?.classWise) return [];
+
+            return classes.filter(c => {
+                const classPermissions = profile.permissions.classWise[c.id];
+                // If there's ANY entry for this class, the teacher is assigned to it and should see it
+                return classPermissions !== undefined && classPermissions !== null;
+            });
+        }
+        return [];
+    }, [classes, activeRole, currentUser, activeInstitute]);
 
     if (isLoading) return null;
 
@@ -788,7 +830,7 @@ export default function StudentManagementPage() {
 
 
     const handleDeleteClass = async (id: string) => {
-        if (!confirm('আপনি কি এই ক্লাসটি ডিলিট করতে চান? ')) return;
+        if (!await confirm('আপনি কি এই ক্লাসটি ডিলিট করতে চান? ')) return;
         try {
             const res = await fetch(`/api/admin/classes/${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -829,7 +871,7 @@ export default function StudentManagementPage() {
     };
 
     const handleDeleteStudent = async (id: string) => {
-        if (!confirm('আপনি কি এই শিক্ষার্থীকে ডিলিট করতে চান?')) return;
+        if (!await confirm('আপনি কি এই শিক্ষার্থীকে ডিলিট করতে চান?')) return;
         try {
             const res = await fetch(`/api/admin/users?id=${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -907,7 +949,7 @@ export default function StudentManagementPage() {
     };
 
     const handleDeleteGroup = async (id: string, name: string) => {
-        if (!window.confirm(`আপনি কি নিশ্চিত যে "${name}" গ্রুপটি ডিলিট করতে চান?`)) return;
+        if (!await confirm(`আপনি কি নিশ্চিত যে "${name}" গ্রুপটি ডিলিট করতে চান?`)) return;
         setActionLoading(true);
         try {
             const res = await fetch(`/api/admin/groups/${id}`, {
@@ -958,7 +1000,7 @@ export default function StudentManagementPage() {
     };
 
     const handleRemoveFromGroup = async (student: any) => {
-        if (!confirm(`${student.name}-কে গ্রুপ থেকে বাদ দিতে চান?`)) return;
+        if (!await confirm(`${student.name}-কে গ্রুপ থেকে বাদ দিতে চান?`)) return;
         setActionLoading(true);
         try {
             const updatedMetadata = { ...student.metadata };
@@ -1042,7 +1084,7 @@ export default function StudentManagementPage() {
     };
 
     const handleBookDelete = async (id: string) => {
-        if (!confirm('আপনি কি নিশ্চিতভাবে এই বইটি মুছে ফেলতে চান?')) return;
+        if (!await confirm('আপনি কি নিশ্চিতভাবে এই বইটি মুছে ফেলতে চান?')) return;
         try {
             const res = await fetch(`/api/admin/books?id=${id}`, { method: 'DELETE' });
             if (res.ok) {
@@ -1075,50 +1117,6 @@ export default function StudentManagementPage() {
             console.error('Save grading error:', error);
             setToast({ message: 'সার্ভার এরর!', type: 'error' });
         }
-    };
-    // Calculate allowed classes for admission (Expand to all assigned classes for visibility)
-    const allowedClasses = React.useMemo(() => {
-        if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return classes;
-        if (activeRole === 'TEACHER' && user?.teacherProfiles) {
-            const profile = user.teacherProfiles.find((p: any) => p.instituteId === activeInstitute?.id);
-            if (!profile) return [];
-            if (profile.isAdmin) return classes;
-
-            return classes.filter(c => canManageClass(c.id));
-        }
-        return [];
-    }, [classes, activeRole, user, activeInstitute]);
-
-    // Helper to check if teacher can manage students in a specific class
-    const canManageClass = (classId: string) => {
-        if (activeRole === 'ADMIN' || activeRole === 'SUPER_ADMIN') return true;
-        if (activeRole === 'TEACHER' && user?.teacherProfiles) {
-            const profile = user.teacherProfiles.find((p: any) => p.instituteId === activeInstitute?.id);
-            if (!profile) return false;
-            if (profile.isAdmin) return true;
-            if (!profile.permissions?.classWise) return false;
-
-            const classPermissions = profile.permissions.classWise[classId];
-            if (!classPermissions) return false;
-
-            // Handle the new structure where permissions are in an array inside the class object
-            if (classPermissions.permissions && Array.isArray(classPermissions.permissions)) {
-                return classPermissions.permissions.includes('canManageAdmission');
-            }
-
-            // Fallback for older structures
-            if (Array.isArray(classPermissions)) {
-                return classPermissions.includes('canManageAdmission');
-            }
-            if (typeof classPermissions === 'object') {
-                return classPermissions.canManageAdmission === true;
-            }
-            // Compatibility for string structures
-            if (typeof classPermissions === 'string') {
-                return classPermissions === 'canManageAdmission';
-            }
-        }
-        return false;
     };
 
     if (activeRole !== 'ADMIN' && activeRole !== 'SUPER_ADMIN' && activeRole !== 'TEACHER') {
@@ -1516,7 +1514,7 @@ export default function StudentManagementPage() {
                             ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
                             : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
                             }`}>
-                            {books.map((book, index) => (
+                            {books.filter(b => b && b.id).map((book, index) => (
                                 <div key={book.id} className="animate-staggered-fade-in" style={{ animationDelay: `${index * 40}ms` }}>
                                     <BookCard
                                         book={book}
@@ -1578,7 +1576,7 @@ export default function StudentManagementPage() {
                                     <div key={teacher.id} className="animate-staggered-fade-in" style={{ animationDelay: `${index * 60}ms` }}>
                                         <TeacherCard
                                             teacher={teacher}
-                                            currentUser={user}
+                                            currentUser={currentUser}
                                             classes={classes}
                                             onCardClick={(t: any) => setPermissionModalData(t)}
                                             canManage={isOwner}
@@ -3330,10 +3328,10 @@ export default function StudentManagementPage() {
                                     />
                                 </div>
                                 <button
-                                    onClick={(e) => {
+                                    onClick={async (e) => {
                                         e.stopPropagation();
                                         if (e.shiftKey || !c.id.startsWith('new-')) {
-                                            const isConfirmed = window.confirm('আপনি কি এই ক্লাসটি মুছে ফেলতে চান?');
+                                            const isConfirmed = await confirm('আপনি কি এই ক্লাসটি মুছে ফেলতে চান?');
                                             if (!isConfirmed) return;
                                         }
                                         const newItems = managedClasses.filter((_, i) => i !== index);
