@@ -10,17 +10,56 @@ export async function GET(req: Request) {
             return NextResponse.json({ message: 'Institute ID is required' }, { status: 400 });
         }
 
-        const classes = await prisma.class.findMany({
-            where: { instituteId },
-            include: {
-                groups: {
-                    orderBy: { order: 'asc' }
-                }
-            },
-            orderBy: { order: 'asc' }
+        const [classes, userCountsRaw] = await Promise.all([
+            prisma.class.findMany({
+                where: { instituteId },
+                include: {
+                    groups: {
+                        orderBy: { order: 'asc' }
+                    }
+                },
+                orderBy: { order: 'asc' }
+            }),
+            (prisma as any).$runCommandRaw({
+                aggregate: 'User',
+                pipeline: [
+                    { 
+                        $match: { 
+                            role: 'STUDENT', 
+                            instituteIds: { $oid: instituteId } 
+                        } 
+                    },
+                    {
+                        $facet: {
+                            classCounts: [
+                                { $group: { _id: "$metadata.classId", count: { $sum: 1 } } }
+                            ],
+                            groupCounts: [
+                                { $group: { _id: "$metadata.groupId", count: { $sum: 1 } } }
+                            ]
+                        }
+                    }
+                ],
+                cursor: {}
+            })
+        ]);
+
+        const classCounts = userCountsRaw.cursor?.firstBatch?.[0]?.classCounts || [];
+        const groupCounts = userCountsRaw.cursor?.firstBatch?.[0]?.groupCounts || [];
+
+        const processedClasses = classes.map((cls: any) => {
+            const clsCount = classCounts.find((c: any) => c._id === cls.id)?.count || 0;
+            return {
+                ...cls,
+                _count: { students: clsCount },
+                groups: (cls.groups || []).map((grp: any) => ({
+                    ...grp,
+                    _count: { students: groupCounts.find((g: any) => g._id === grp.id)?.count || 0 }
+                }))
+            };
         });
 
-        return NextResponse.json(classes);
+        return NextResponse.json(processedClasses);
     } catch (error) {
         console.error('Fetch classes error:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

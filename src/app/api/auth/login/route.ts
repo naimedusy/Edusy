@@ -130,6 +130,41 @@ export async function POST(req: Request) {
             }, { status: 401 });
         }
 
+        // --- NEW: Status Check for Students & Guardians ---
+        const userMetadata = (user.metadata as any) || {};
+        
+        if (user.role === 'STUDENT') {
+            if (userMetadata.status === 'INACTIVE') {
+                return NextResponse.json({ 
+                    message: 'দুঃখিত, আপনার অ্যাকাউন্টটি বর্তমানে নিষ্ক্রিয় অবস্থায় রয়েছে। অনুগ্রহ করে এডমিনের সাথে যোগাযোগ করুন।' 
+                }, { status: 403 });
+            }
+        } else if (user.role === 'GUARDIAN') {
+            const childrenIds = userMetadata.childrenIds || [];
+            if (childrenIds.length > 0) {
+                // Find all linked students
+                const children = await prisma.user.findMany({
+                    where: {
+                        id: { in: childrenIds },
+                        role: 'STUDENT'
+                    },
+                    select: { metadata: true }
+                });
+                
+                // Block if ALL linked students are inactive
+                const allInactive = children.length > 0 && children.every(child => (child.metadata as any)?.status === 'INACTIVE');
+                if (allInactive) {
+                    return NextResponse.json({ 
+                        message: 'দুঃখিত, আপনার সাথে সংযুক্ত সকল শিক্ষার্থীর অ্যাকাউন্ট বর্তমানে নিষ্ক্রিয় রয়েছে। লগইন করা সম্ভব নয়।' 
+                    }, { status: 403 });
+                }
+            } else {
+                // Guardian with no linked students - optionally block or allow
+                // The request says "inactive student and his gaurdian", implying a link.
+                // We'll allow for now if no children linked (maybe they are being set up).
+            }
+        }
+
         // --- STEP 5: Validate Password (Robust comparison) ---
         const storedPassword = String(user.password || '').trim();
         const storedPhone = String(user.phone || '').trim();

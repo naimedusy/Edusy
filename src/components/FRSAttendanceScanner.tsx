@@ -83,6 +83,9 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
     // Multi-device sync states
     const [deviceId] = useState(() => Math.random().toString(36).substring(2, 10));
     const [attendanceRecords, setAttendanceRecords] = useState<Record<string, { deviceId: string, timestamp: Date, status: string }>>({});
+    const [ambiguousMatches, setAmbiguousMatches] = useState<EnrolledStudent[]>([]);
+    const [isProcessingLocked, setIsProcessingLocked] = useState(false);
+    const ignoredFaces = useRef<{ [descriptorHash: string]: number }>({});
 
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -228,7 +231,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                     const labeledDescriptors = enrolled.map((s: any) =>
                         new faceapi.LabeledFaceDescriptors(s.id, [new Float32Array(s.faceDescriptor)])
                     );
-                    setFaceMatcher(new faceapi.FaceMatcher(labeledDescriptors, 0.5));
+                    setFaceMatcher(new faceapi.FaceMatcher(labeledDescriptors, 0.42));
                 } else {
                     setFaceMatcher(null);
                 }
@@ -627,7 +630,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                 const labeledDescriptors = enrolled.map((s: any) =>
                     new faceapi.LabeledFaceDescriptors(s.id, [new Float32Array(s.faceDescriptor)])
                 );
-                setFaceMatcher(new faceapi.FaceMatcher(labeledDescriptors, 0.5));
+                setFaceMatcher(new faceapi.FaceMatcher(labeledDescriptors, 0.42));
             }
 
             showToast(`${successCount} জন শিক্ষার্থীর ফেস ডেটা সফলভাবে বিশ্লেষণ করা হয়েছে।`, 'SUCCESS');
@@ -726,6 +729,21 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
         }
     };
 
+    const handleSelectMatch = (student: EnrolledStudent) => {
+        markAttendance(student.id, student.name, student.classId);
+        setAmbiguousMatches([]);
+        setIsProcessingLocked(false);
+    };
+
+    const handleSkipMatch = () => {
+        const hash = (videoRef.current as any)?.currentAmbiguousHash;
+        if (hash) {
+            ignoredFaces.current[hash] = Date.now();
+        }
+        setAmbiguousMatches([]);
+        setIsProcessingLocked(false);
+    };
+
     const lastSoundPlayed = useRef<{ [label: string]: number }>({});
 
     useEffect(() => {
@@ -749,10 +767,10 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                 return;
             }
 
-            // Frame Throttling Logic (Process every ~150ms)
+            // Frame Throttling Logic (Process every ~500ms for better performance on mobile/low-end devices)
             const now = Date.now();
             const lastProcess = (videoRef.current as any).lastProcessTime || 0;
-            if (now - lastProcess < 150) {
+            if (now - lastProcess < 500 || isProcessingLocked) {
                 requestRef.current = requestAnimationFrame(processFrame);
                 return;
             }
@@ -776,13 +794,51 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
 
                     const resizedDetections = faceapi.resizeResults(detections, displaySize);
                     const ctx = canvasRef.current.getContext('2d');
+                    let locallyLocked = false;
+
                     if (ctx) {
                         ctx.clearRect(0, 0, displaySize.width, displaySize.height);
                         resizedDetections.forEach(detection => {
-                            const result = faceMatcher.findBestMatch(detection.descriptor);
-                            const label = result.label;
-                            const student = students.find(s => s.id === label);
+                            if (locallyLocked || isProcessingLocked) return;
+
+                            // Find all potential candidates with distance < 0.5 (or stricter 0.45)
+                            // We use faceMatcher.labeledDescriptors directly to find all matches
+                            const candidates: { student: EnrolledStudent; distance: number }[] = [];
+                            
+                            // Iterate through enrolled students to find all plausible matches
+                            students.forEach(s => {
+                                if (s.faceDescriptor && s.faceDescriptor.length > 0) {
+                                    const distance = faceapi.euclideanDistance(detection.descriptor, new Float32Array(s.faceDescriptor));
+                                    if (distance < 0.42) {
+                                        candidates.push({ student: s, distance });
+                                    }
+                                }
+                            });
+
+                            // Sort candidates by distance (best match first)
+                            candidates.sort((a, b) => a.distance - b.distance);
+
+                            const student = candidates.length > 0 ? candidates[0].student : null;
                             const box = detection.detection.box;
+
+                            // NEW: If there are multiple close matches, trigger selection UI
+                            // Ambiguity is defined as having more than one candidate within a close distance range
+                            if (candidates.length > 1 && (candidates[1].distance - candidates[0].distance < 0.08)) {
+                                // Simple hash for the descriptor to track "ignored" faces
+                                const descriptorHash = Array.from(detection.descriptor.slice(0, 10)).map(v => v.toFixed(2)).join(',');
+                                const lastIgnored = ignoredFaces.current[descriptorHash] || 0;
+                                
+                                if (now - lastIgnored > 10000) { // 10 second ignore window
+                                    setAmbiguousMatches(candidates.map(c => c.student).slice(0, 4));
+                                    setIsProcessingLocked(true);
+                                    locallyLocked = true;
+                                    playSound('already');
+                                    
+                                    // Store current descriptor to allow ignoring it if user clicks skip
+                                    (videoRef.current as any).currentAmbiguousHash = descriptorHash;
+                                    return;
+                                }
+                            }
 
                             const drawBox = new faceapi.draw.DrawBox(box, {
                                 label: student ? student.name : 'অচেনা',
@@ -791,7 +847,6 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                             drawBox.draw(canvasRef.current!);
 
                             // Audio Feedback Logic
-                            const now = Date.now();
                             const soundCooldown = 3000;
                             const trackLabel = student ? student.id : 'unknown';
 
@@ -1008,6 +1063,68 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
                                     <XCircle size={24} />
                                 </button>
                             )}
+
+                            {/* Ambiguous Match Selection Overlay */}
+                            <AnimatePresence>
+                                {ambiguousMatches.length > 0 && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="absolute inset-0 z-[100] bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-6"
+                                    >
+                                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-300">
+                                            <div className="bg-slate-50 p-6 border-b border-slate-100 flex items-center justify-between">
+                                                <div>
+                                                    <h3 className="text-lg font-black text-slate-800 uppercase italic tracking-tight">সঠিক শিক্ষার্থী নির্বাচন করুন</h3>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">একাধিক ম্যাচের সম্ভাবনা পাওয়া গেছে</p>
+                                                </div>
+                                                <button 
+                                                    onClick={handleSkipMatch}
+                                                    className="w-10 h-10 rounded-xl bg-slate-200 text-slate-500 flex items-center justify-center hover:bg-rose-100 hover:text-rose-500 transition-all"
+                                                >
+                                                    <XCircle size={20} />
+                                                </button>
+                                            </div>
+                                            
+                                            <div className="p-4 grid grid-cols-2 gap-3">
+                                                {ambiguousMatches.map((student) => (
+                                                    <button
+                                                        key={student.id}
+                                                        onClick={() => handleSelectMatch(student)}
+                                                        className="group relative bg-white border border-slate-100 rounded-2xl p-3 flex flex-col items-center gap-3 hover:border-emerald-500 hover:bg-emerald-50/30 transition-all shadow-sm active:scale-95"
+                                                    >
+                                                        <div className="w-16 h-16 rounded-2xl bg-slate-50 overflow-hidden border border-slate-100 group-hover:border-emerald-200 transition-all shrink-0">
+                                                            {student.photo ? (
+                                                                <img src={student.photo} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-slate-300">
+                                                                    <Users size={32} />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div className="text-center min-w-0 w-full">
+                                                            <p className="text-xs font-black text-slate-700 truncate uppercase italic tracking-tight mb-1">{student.name}</p>
+                                                            <div className="flex items-center justify-center gap-1 text-[8px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase">
+                                                                <Check size={8} strokeWidth={4} /> সিলেক্ট করুন
+                                                            </div>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            <div className="p-4 bg-slate-50 border-t border-slate-100">
+                                                <button 
+                                                    onClick={handleSkipMatch}
+                                                    className="w-full py-3 rounded-xl bg-white border border-slate-200 text-slate-500 text-[11px] font-black uppercase tracking-widest hover:bg-rose-50 hover:text-rose-500 hover:border-rose-100 transition-all active:scale-98"
+                                                >
+                                                    কেউ ই সঠিক নয় / বাদ দিন
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
                     </div>
                 </div>

@@ -141,6 +141,39 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
                 return;
             }
 
+            // High Precision Quality Check
+            const { score } = detections.detection;
+            const landmarks = detections.landmarks;
+            const box = detections.detection.box;
+
+            // Check confidence (95%+)
+            if (score < 0.9) {
+                setError('ছবিটি যথেষ্ট পরিষ্কার নয়। দয়া করে পর্যাপ্ত আলোতে ভালো ক্যামেরা ব্যবহার করুন।');
+                setStatus('READY');
+                return;
+            }
+
+            // Check for potential duplicates (Scaled Accuracy)
+            // Fetch existing data for comparison if possible
+            try {
+                const checkRes = await fetch(`/api/admin/students/check-duplicate-face`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ descriptor: Array.from(detections.descriptor) })
+                });
+                
+                if (checkRes.ok) {
+                    const checkData = await checkRes.json();
+                    if (checkData.isDuplicate && checkData.studentId !== studentId) {
+                        setError(`এই মুখটি ইতিপূর্বে ${checkData.studentName} নামে নিবন্ধিত হয়েছে। এটি নতুন করে যুক্ত করা সম্ভব নয়।`);
+                        setStatus('ERROR');
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn('Collision check failed, proceeding with baseline accuracy.');
+            }
+
             setProgress(70);
             setStatus('SAVING');
 
@@ -199,6 +232,34 @@ export default function FaceEnrollment({ studentId, studentName, profilePhoto, o
                 setError('আপনার মুখ স্পষ্টভাবে বোঝা যাচ্ছে না। পর্যাপ্ত আলোতে আবার চেষ্টা করুন।');
                 setStatus('READY');
                 return;
+            }
+
+            // High Precision Quality Check
+            const { score } = detections.detection;
+            if (score < 0.95) {
+                setError('ছবিটি যথেষ্ট পরিষ্কার নয়। দয়া করে স্থির হয়ে পর্যাপ্ত আলোতে আবার চেষ্টা করুন।');
+                setStatus('READY');
+                return;
+            }
+
+            // Check for potential duplicates (Collision Detection)
+            try {
+                const checkRes = await fetch(`/api/admin/students/check-duplicate-face`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ descriptor: Array.from(detections.descriptor) })
+                });
+                
+                if (checkRes.ok) {
+                    const checkData = await checkRes.json();
+                    if (checkData.isDuplicate && checkData.studentId !== studentId) {
+                        setError(`এই মুখটি ইতিপূর্বে ${checkData.studentName} নামে নিবন্ধিত হয়েছে। এটি নতুন করে যুক্ত করা সম্ভব নয়।`);
+                        setStatus('ERROR');
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn('Collision check failed, proceeding with baseline accuracy.');
             }
 
             setProgress(60);

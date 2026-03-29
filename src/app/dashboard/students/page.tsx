@@ -44,7 +44,8 @@ import {
     GripVertical,
     User,
     Info,
-    Key
+    Key,
+    History
 } from 'lucide-react';
 import { ScrollableTabs } from '@/components/ui/ScrollableTabs';
 import Toast from '@/components/Toast';
@@ -154,6 +155,7 @@ export default function StudentManagementPage() {
     // Login Credentials Modal States
     const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
     const [credentialsData, setCredentialsData] = useState<any>(null);
+    const [statusFilter, setStatusFilter] = useState<'ACTIVE' | 'INACTIVE' | 'ALL'>('ACTIVE');
 
     useEffect(() => {
         setMounted(true);
@@ -431,9 +433,9 @@ export default function StudentManagementPage() {
             const classFilter = selectedClassId !== 'all' ? `&classId=${selectedClassId}` : '';
             const groupFilter = selectedGroupId !== 'all' ? `&groupId=${selectedGroupId}` : '';
             const instituteFilter = activeInstitute?.id ? `&instituteId=${activeInstitute.id}` : '';
-            const statusFilter = activeTab === 'applications' ? '&admissionStatus=PENDING' : '';
+            const statusFilterQuery = activeTab === 'applications' ? '&admissionStatus=PENDING' : `&status=${statusFilter}`;
 
-            const res = await fetch(`/api/admin/users?role=STUDENT&search=${debouncedSearch}${classFilter}${groupFilter}${instituteFilter}${statusFilter}`);
+            const res = await fetch(`/api/admin/users?role=STUDENT&search=${debouncedSearch}${classFilter}${groupFilter}${instituteFilter}${statusFilterQuery}`);
             const text = await res.text();
             try {
                 const data = JSON.parse(text);
@@ -475,7 +477,7 @@ export default function StudentManagementPage() {
         } else if (activeTab === 'students' || activeTab === 'applications') {
             fetchStudents();
         }
-    }, [debouncedSearch, activeInstitute?.id, selectedClassId, selectedGroupId, activeTab]);
+    }, [debouncedSearch, activeInstitute?.id, selectedClassId, selectedGroupId, activeTab, statusFilter]);
 
     // Strict Owner/SuperAdmin check
     const isOwner = activeRole === 'SUPER_ADMIN' || (activeInstitute?.adminIds || []).includes(currentUser?.id);
@@ -656,7 +658,37 @@ export default function StudentManagementPage() {
                 .withFaceDescriptor();
 
             if (detection) {
+                // High Precision Quality Check
+                const { score } = detection.detection;
+                if (score < 0.95) {
+                    setToast({ message: 'ছবিটি যথেষ্ট পরিষ্কার নয়। দয়া করে ভালো মানের ছবি ব্যবহার করুন।', type: 'error' });
+                    return;
+                }
+
                 const descriptor = Array.from(detection.descriptor);
+
+                // Collision Check (Duplicate Prevention)
+                try {
+                    const checkRes = await fetch(`/api/admin/students/check-duplicate-face`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ descriptor })
+                    });
+                    
+                    if (checkRes.ok) {
+                        const checkData = await checkRes.json();
+                        if (checkData.isDuplicate && checkData.studentId !== editingStudent?.id) {
+                            setToast({ 
+                                message: `এই মুখটি ইতিপূর্বে ${checkData.studentName} নামে নিবন্ধিত হয়েছে। একই ফেস ডাটা দুইবার ব্যবহার করা সম্ভব নয়।`, 
+                                type: 'error' 
+                            });
+                            return;
+                        }
+                    }
+                } catch (err) {
+                    console.warn('Collision check failed, proceeding with baseline accuracy.');
+                }
+
                 setFormData((prev: any) => ({
                     ...prev,
                     faceDescriptor: descriptor
@@ -740,8 +772,8 @@ export default function StudentManagementPage() {
                 phone: finalPhone || null,
                 role: 'STUDENT',
                 metadata: editingStudent?.metadata?.admissionStatus === 'PENDING'
-                    ? { ...cleanedMetadata, admissionStatus: 'APPROVED' }
-                    : (editingStudent ? cleanedMetadata : { ...cleanedMetadata, admissionStatus: 'APPROVED' }),
+                    ? { ...cleanedMetadata, admissionStatus: 'APPROVED', admissionDate: new Date().toISOString(), status: 'ACTIVE', statusLastChangedAt: new Date().toISOString(), statusHistory: [{ status: 'ACTIVE', timestamp: new Date().toISOString(), changedBy: currentUser?.name || 'System (Admission)', reason: 'প্রবেশাধিকার (Admission)' }] }
+                    : (editingStudent ? cleanedMetadata : { ...cleanedMetadata, admissionStatus: 'APPROVED', admissionDate: new Date().toISOString(), status: 'ACTIVE', statusLastChangedAt: new Date().toISOString(), statusHistory: [{ status: 'ACTIVE', timestamp: new Date().toISOString(), changedBy: currentUser?.name || 'System (Creation)', reason: 'প্রবেশাধিকার (Admission)' }] }),
                 instituteIds: editingStudent ? undefined : [activeInstitute.id] // only for POST
             };
 
@@ -894,7 +926,7 @@ export default function StudentManagementPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         role: 'STUDENT',
-                        metadata: { ...student.metadata, admissionStatus: 'APPROVED' }
+                        metadata: { ...student.metadata, admissionStatus: 'APPROVED', admissionDate: new Date().toISOString(), status: 'ACTIVE', statusLastChangedAt: new Date().toISOString(), statusHistory: [{ status: 'ACTIVE', timestamp: new Date().toISOString(), changedBy: currentUser?.name || 'System (Approval)', reason: 'প্রবেশাধিকার (Admission)' }] }
                     })
                 });
             } else {
@@ -1148,6 +1180,35 @@ export default function StudentManagementPage() {
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
+
+                {activeTab === 'students' && (
+                    <div className="flex p-1 bg-slate-100/50 rounded-2xl border border-slate-200/50 backdrop-blur-sm self-center lg:self-auto shrink-0">
+                        {[
+                            { id: 'ACTIVE', label: 'সক্রিয়', count: students.filter(s => (s.metadata?.status || 'ACTIVE') === 'ACTIVE').length },
+                            { id: 'INACTIVE', label: 'নিষ্ক্রিয়', count: students.filter(s => s.metadata?.status === 'INACTIVE').length },
+                            { id: 'ALL', label: 'সকল', count: null }
+                        ].map((opt) => (
+                            <button
+                                key={opt.id}
+                                onClick={() => setStatusFilter(opt.id as any)}
+                                className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-2 ${
+                                    statusFilter === opt.id
+                                        ? 'bg-white text-[#045c84] shadow-sm'
+                                        : 'text-slate-400 hover:text-slate-600'
+                                }`}
+                            >
+                                {opt.label}
+                                {opt.id !== 'ALL' && (
+                                    <span className={`px-1.5 py-0.5 rounded-md text-[8px] ${
+                                        statusFilter === opt.id ? 'bg-[#045c84]/10 text-[#045c84]' : 'bg-slate-200 text-slate-500'
+                                    }`}>
+                                        {(statusFilter === opt.id || statusFilter === 'ALL') ? opt.count : '?'}
+                                    </span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
 
@@ -1392,13 +1453,21 @@ export default function StudentManagementPage() {
                                             const colorIndex = s.name ? s.name.length % colors.length : 0;
                                             const bgColor = colors[colorIndex];
 
+                                            const isOnline = s.updatedAt && (new Date().getTime() - new Date(s.updatedAt).getTime() < 5 * 60 * 1000);
+                                            const status = s.metadata?.status || 'ACTIVE';
+                                            const indicatorColor = isOnline ? 'bg-emerald-500' : (status === 'ACTIVE' ? 'bg-blue-500' : 'bg-red-500');
+
                                             return (
-                                                <div className={`w-12 h-12 rounded-full ${bgColor} border-2 border-white shadow-md overflow-hidden flex items-center justify-center text-white font-bold text-lg shrink-0 group-hover:scale-110 transition-transform duration-300`}>
-                                                    {s.metadata?.studentPhoto ? (
-                                                        <img src={s.metadata.studentPhoto} alt={s.name} className="w-full h-full object-cover" />
-                                                    ) : (
-                                                        s.name?.[0] || 'S'
-                                                    )}
+                                                <div className="relative shrink-0">
+                                                    <div className={`w-12 h-12 rounded-full ${bgColor} border-2 border-white shadow-md overflow-hidden flex items-center justify-center text-white font-bold text-lg group-hover:scale-110 transition-transform duration-300`}>
+                                                        {s.metadata?.studentPhoto ? (
+                                                            <img src={s.metadata.studentPhoto} alt={s.name} className="w-full h-full object-cover" />
+                                                        ) : (
+                                                            s.name?.[0] || 'S'
+                                                        )}
+                                                    </div>
+                                                    {/* Status Dot */}
+                                                    <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white shadow-sm ${indicatorColor} ${isOnline ? 'animate-pulse' : ''}`} title={isOnline ? 'Online' : (status === 'ACTIVE' ? 'Active' : 'Inactive')} />
                                                 </div>
                                             );
                                         })()}
@@ -1417,6 +1486,31 @@ export default function StudentManagementPage() {
                                                     <span>Roll: {s.metadata?.rollNumber || '-'}</span>
                                                 </div>
                                                 <ChevronDown size={8} className="text-[#045c84] opacity-40 group-hover/tag:translate-y-0.5 transition-transform" />
+                                            </div>
+                                            {/* Fee Tier & History Badges */}
+                                            <div className="flex flex-wrap gap-2 mt-1">
+                                                {s.metadata?.statusHistory && s.metadata.statusHistory.length > 0 && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedStudent(s);
+                                                            setIsProfileModalOpen(true);
+                                                        }}
+                                                        className="inline-flex items-center justify-center w-6 h-6 rounded-lg bg-slate-50 text-slate-400 border border-slate-100 hover:bg-slate-100 hover:text-[#045c84] hover:border-blue-200 transition-all"
+                                                        title="History"
+                                                    >
+                                                        <History size={12} />
+                                                    </button>
+                                                )}
+
+                                                {s.metadata?.feeTier && s.metadata.feeTier !== 'full' && (
+                                                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                                                        s.metadata.feeTier === 'half' ? 'bg-amber-100 text-amber-700' :
+                                                        s.metadata.feeTier === 'free' ? 'bg-emerald-100 text-emerald-700' : ''
+                                                    }`}>
+                                                        {s.metadata.feeTier === 'half' ? '৳ অর্ধ ফি' : '৳ বিনামূল্যে'}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
 
@@ -1614,29 +1708,36 @@ export default function StudentManagementPage() {
                                     className="bg-white p-3.5 rounded-[24px] border border-slate-100 shadow-sm hover:shadow-lg hover:border-blue-100 transition-all flex items-center gap-3 md:gap-4 relative group cursor-pointer animate-staggered-fade-in w-full min-w-[280px]"
                                     style={{ animationDelay: `${index * 50}ms` }}
                                 >
-                                    {/* Avatar */}
                                     {(() => {
                                         const colors = ['bg-orange-500', 'bg-yellow-400', 'bg-teal-500', 'bg-emerald-500', 'bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500'];
                                         const colorIndex = s.name ? s.name.length % colors.length : 0;
                                         const bgColor = colors[colorIndex];
 
+                                        const isOnline = s.updatedAt && (new Date().getTime() - new Date(s.updatedAt).getTime() < 5 * 60 * 1000);
+                                        const status = s.metadata?.status || 'ACTIVE';
+                                        const indicatorColor = isOnline ? 'bg-emerald-500' : (status === 'ACTIVE' ? 'bg-blue-500' : 'bg-rose-500');
+
                                         return (
-                                            <div className={`w-12 h-12 rounded-full ${bgColor} border-2 border-white shadow-md overflow-hidden flex items-center justify-center text-white font-bold text-lg shrink-0 group-hover:scale-110 transition-transform duration-300`}>
-                                                {s.metadata?.studentPhoto ? (
-                                                    <img
-                                                        src={s.metadata.studentPhoto}
-                                                        alt={s.name}
-                                                        className="w-full h-full object-cover"
-                                                        onError={(e) => {
-                                                            const target = e.target as HTMLImageElement;
-                                                            target.style.display = 'none';
-                                                            const parent = target.parentElement;
-                                                            if (parent) parent.innerText = s.name?.[0] || 'S';
-                                                        }}
-                                                    />
-                                                ) : (
-                                                    s.name?.[0] || 'S'
-                                                )}
+                                            <div className="relative shrink-0">
+                                                <div className={`w-12 h-12 rounded-full ${bgColor} border-2 border-white shadow-md overflow-hidden flex items-center justify-center text-white font-bold text-lg group-hover:scale-110 transition-transform duration-300`}>
+                                                    {s.metadata?.studentPhoto ? (
+                                                        <img
+                                                            src={s.metadata.studentPhoto}
+                                                            alt={s.name}
+                                                            className="w-full h-full object-cover"
+                                                            onError={(e) => {
+                                                                const target = e.target as HTMLImageElement;
+                                                                target.style.display = 'none';
+                                                                const parent = target.parentElement;
+                                                                if (parent) parent.innerText = s.name?.[0] || 'S';
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        s.name?.[0] || 'S'
+                                                    )}
+                                                </div>
+                                                {/* Status Dot */}
+                                                <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white shadow-sm ${indicatorColor} ${isOnline ? 'animate-pulse' : ''}`} />
                                             </div>
                                         );
                                     })()}
@@ -2466,6 +2567,35 @@ export default function StudentManagementPage() {
                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                         {renderField('classId', true)}
                                                         {renderField('groupId')}
+                                                    </div>
+
+                                                    {/* Fee Tier Selector */}
+                                                    <div className="space-y-3">
+                                                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                                                            <span className="w-5 h-5 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px]">৳</span>
+                                                            ফি স্তর নির্ধারণ করুন
+                                                        </label>
+                                                        <div className="grid grid-cols-3 gap-2">
+                                                            {[
+                                                                { value: 'full', label: 'পূর্ণ ফি', sublabel: '100%', color: 'bg-blue-500 border-blue-500 text-white', idle: 'border-slate-200 text-blue-600 hover:border-blue-300 bg-slate-50' },
+                                                                { value: 'half', label: 'অর্ধ ফি', sublabel: '50%', color: 'bg-amber-500 border-amber-500 text-white', idle: 'border-slate-200 text-amber-600 hover:border-amber-300 bg-slate-50' },
+                                                                { value: 'free', label: 'বিনামূল্যে', sublabel: '০%', color: 'bg-emerald-500 border-emerald-500 text-white', idle: 'border-slate-200 text-emerald-600 hover:border-emerald-300 bg-slate-50' },
+                                                            ].map(tier => {
+                                                                const current = formData.metadata?.feeTier || 'full';
+                                                                const isActive = current === tier.value;
+                                                                return (
+                                                                    <button
+                                                                        key={tier.value}
+                                                                        type="button"
+                                                                        onClick={() => setFormData({ ...formData, metadata: { ...formData.metadata, feeTier: tier.value } })}
+                                                                        className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 font-black transition-all ${isActive ? tier.color + ' shadow-md scale-[1.02]' : tier.idle}`}
+                                                                    >
+                                                                        <span className="text-sm">{tier.label}</span>
+                                                                        <span className={`text-[10px] font-bold ${isActive ? 'opacity-80' : 'opacity-60'}`}>{tier.sublabel}</span>
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
                                                     </div>
 
                                                     {/* Dynamic Profile Fields Section */}

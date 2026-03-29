@@ -188,10 +188,10 @@ export default function FaceVerificationOverlay({
                 return;
             }
 
-            // Frame Throttling Logic (Process every ~150ms)
+            // Frame Throttling Logic (Process every ~500ms for better performance)
             const now = Date.now();
             const lastProcess = (videoRef.current as any).lastProcessTime || 0;
-            if (now - lastProcess < 150) {
+            if (now - lastProcess < 500) {
                 animationFrameId = requestAnimationFrame(processFrame);
                 return;
             }
@@ -213,7 +213,7 @@ export default function FaceVerificationOverlay({
                     const score = Math.max(0, 1 - match.distance);
                     setMatchScore(score);
 
-                    if (match.label === studentName && match.distance < 0.5) {
+                    if (match.label === studentName && match.distance < 0.42) {
                         setStatus('SUCCESS');
                         stopCamera();
                         setTimeout(() => {

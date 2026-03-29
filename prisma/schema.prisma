@@ -64,6 +64,8 @@ model Institute {
   // Relations
   classes     Class[]
   books       Book[]
+  accountCategories AccountCategory[]
+  transactions      Transaction[]
   
   // Notification Settings
   notificationSettings Json?
@@ -344,4 +346,51 @@ enum AttendanceMethod {
   MANUAL
   FRS
   QR
+}
+
+model AccountCategory {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  type            TransactionType
+  recipient       String?
+  frequency       String?
+  amount          Float?
+  isFixed         Boolean  @default(true)
+  instituteId     String   @db.ObjectId
+  institute       Institute @relation(fields: [instituteId], references: [id])
+  config          Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Transaction {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  amount      Float
+  type        TransactionType
+  category    String
+  categoryId  String?  @db.ObjectId
+  studentId   String?  @db.ObjectId
+  studentName String?
+  classId     String?  @db.ObjectId
+  className   String?
+  note        String?
+  status      TransactionStatus @default(COMPLETED)
+  date        DateTime @default(now())
+  
+  instituteId String   @db.ObjectId
+  institute   Institute @relation(fields: [instituteId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum TransactionType {
+  INCOME
+  EXPENSE
+}
+
+enum TransactionStatus {
+  COMPLETED
+  PENDING
+  CANCELLED
 }

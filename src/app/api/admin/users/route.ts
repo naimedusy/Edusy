@@ -13,6 +13,8 @@ export async function GET(req: Request) {
         const groupId = searchParams.get('groupId');
         const instituteId = searchParams.get('instituteId');
         const admissionStatus = searchParams.get('admissionStatus');
+        const status = searchParams.get('status');
+        const feeTier = searchParams.get('feeTier');
 
         // Support fetching a single user by ID
         if (id) {
@@ -75,6 +77,13 @@ export async function GET(req: Request) {
             match['metadata.admissionStatus'] = { $ne: 'PENDING' };
         }
 
+        if (status && status !== 'ALL') {
+            match['metadata.status'] = status;
+        }
+        if (feeTier && feeTier !== 'ALL') {
+            match['metadata.feeTier'] = feeTier;
+        }
+
         // Apply search filter if provided
         if (search) {
             match.$or = [
@@ -124,6 +133,7 @@ export async function GET(req: Request) {
             password: user.password || '',
             role: user.role || 'USER',
             createdAt: user.createdAt?.$date || user.createdAt,
+            updatedAt: user.updatedAt?.$date || user.updatedAt,
             institute: user.institute ? { name: user.institute.name } : null,
             metadata: user.metadata || {},
             faceDescriptor: user.faceDescriptor || []
