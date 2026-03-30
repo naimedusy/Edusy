@@ -458,7 +458,7 @@ export default function AddCategoryModal({ onClose, initialData, onSave }: AddCa
                                             placeholder="যেমন: ১০"
                                             className="w-full pl-12 pr-6 py-4 bg-white border border-slate-200 rounded-2xl text-sm font-black text-[#045c84] outline-none focus:ring-4 focus:ring-[#045c84]/10 transition-all"
                                             value={formData.thresholdDays || ''}
-                                            onChange={(e) => setFormData({...formData, thresholdDays: parseInt(normalizeBengaliDigits(e.target.value)) || 0})}
+                                            onChange={(e) => setFormData({...formData, thresholdDays: Math.floor(normalizeBengaliDigits(e.target.value)) || 0})}
                                         />
                                     </div>
                                     <p className="text-[9px] font-bold text-slate-400 px-2 leading-relaxed italic">

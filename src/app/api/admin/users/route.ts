@@ -77,22 +77,35 @@ export async function GET(req: Request) {
             match['metadata.admissionStatus'] = { $ne: 'PENDING' };
         }
 
-        if (status && status !== 'ALL') {
-            match['metadata.status'] = status;
+        if (status === 'ACTIVE') {
+            match.$and = match.$and || [];
+            match.$and.push({
+                $or: [
+                    { 'metadata.status': 'ACTIVE' },
+                    { 'metadata.status': { $exists: false } },
+                    { 'metadata.status': null }
+                ]
+            });
+        } else if (status === 'INACTIVE') {
+            match['metadata.status'] = 'INACTIVE';
         }
+
         if (feeTier && feeTier !== 'ALL') {
             match['metadata.feeTier'] = feeTier;
         }
 
         // Apply search filter if provided
         if (search) {
-            match.$or = [
-                { email: { $regex: search, $options: 'i' } },
-                { name: { $regex: search, $options: 'i' } },
-                { phone: { $regex: search, $options: 'i' } },
-                { 'metadata.studentId': { $regex: search, $options: 'i' } },
-                { 'metadata.rollNumber': { $regex: search, $options: 'i' } }
-            ];
+            match.$and = match.$and || [];
+            match.$and.push({
+                $or: [
+                    { email: { $regex: search, $options: 'i' } },
+                    { name: { $regex: search, $options: 'i' } },
+                    { phone: { $regex: search, $options: 'i' } },
+                    { 'metadata.studentId': { $regex: search, $options: 'i' } },
+                    { 'metadata.rollNumber': { $regex: search, $options: 'i' } }
+                ]
+            });
         }
 
         if (Object.keys(match).length > 0) {

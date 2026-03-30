@@ -1187,7 +1187,9 @@ export default function StudentManagementPage() {
                             { id: 'ACTIVE', label: 'সক্রিয়', count: students.filter(s => (s.metadata?.status || 'ACTIVE') === 'ACTIVE').length },
                             { id: 'INACTIVE', label: 'নিষ্ক্রিয়', count: students.filter(s => s.metadata?.status === 'INACTIVE').length },
                             { id: 'ALL', label: 'সকল', count: null }
-                        ].map((opt) => (
+                        ].map((opt) => {
+                            const showCount = opt.id !== 'ALL' && (statusFilter === opt.id || statusFilter === 'ALL');
+                            return (
                             <button
                                 key={opt.id}
                                 onClick={() => setStatusFilter(opt.id as any)}
@@ -1198,15 +1200,15 @@ export default function StudentManagementPage() {
                                 }`}
                             >
                                 {opt.label}
-                                {opt.id !== 'ALL' && (
+                                {showCount && (
                                     <span className={`px-1.5 py-0.5 rounded-md text-[8px] ${
                                         statusFilter === opt.id ? 'bg-[#045c84]/10 text-[#045c84]' : 'bg-slate-200 text-slate-500'
                                     }`}>
-                                        {(statusFilter === opt.id || statusFilter === 'ALL') ? opt.count : '?'}
+                                        {opt.count}
                                     </span>
                                 )}
                             </button>
-                        ))}
+                        )})}
                     </div>
                 )}
             </div>
