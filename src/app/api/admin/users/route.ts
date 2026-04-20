@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/utils/db';
 import { getNextStudentId, getNextRollNumber } from '@/utils/student-utils';
+import { getServerSession } from '@/utils/auth-utils';
 
 export async function GET(req: Request) {
     try {
@@ -15,6 +16,15 @@ export async function GET(req: Request) {
         const admissionStatus = searchParams.get('admissionStatus');
         const status = searchParams.get('status');
         const feeTier = searchParams.get('feeTier');
+        const activeRoleQuery = searchParams.get('activeRole');
+
+        const session = await getServerSession();
+        if (!session) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { id: userId, role: baseRole, instituteIds, teacherProfiles } = session.user as any;
+        const activeRole = activeRoleQuery || baseRole;
 
         // Support fetching a single user by ID
         if (id) {
@@ -53,17 +63,40 @@ export async function GET(req: Request) {
         const match: any = {};
         if (role) match.role = role;
 
+        // --- Role-Based Visibility Filtering ---
+        // Only skip filtering if the user is a SUPER_ADMIN AND they are actively in SUPER_ADMIN mode.
+        if (baseRole !== 'SUPER_ADMIN' || activeRole !== 'SUPER_ADMIN') {
+            const managedInstIds = (instituteIds || []).filter((id: any) => typeof id === 'string' && id.length === 24);
+            const joinedInstIds = (teacherProfiles || [])
+                .filter((p: any) => p.status === 'ACTIVE' && p.instituteId)
+                .map((p: any) => p.instituteId)
+                .filter((id: any) => typeof id === 'string' && id.length === 24);
+            
+            const allAllowedInstIds = Array.from(new Set([...managedInstIds, ...joinedInstIds]));
+
+            if (instituteId) {
+                // If specific institute requested, check access
+                if (!allAllowedInstIds.includes(instituteId)) {
+                    return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
+                }
+                match.instituteIds = { $oid: instituteId };
+            } else {
+                // Otherwise, restrict to ALL allowed institutes
+                match.instituteIds = { 
+                    $in: allAllowedInstIds.map(id => ({ $oid: id })) 
+                };
+            }
+        } else if (instituteId) {
+            // Super admin mode but requested specific institute
+            match.instituteIds = { $oid: instituteId };
+        }
+
         // Support filtering by multiple IDs
         if (ids) {
             const idList = ids.split(',').filter(Boolean);
             if (idList.length > 0) {
                 match._id = { $in: idList.map(i => ({ $oid: i })) };
             }
-        }
-
-        // Filter by Institute - check if the institute ObjectId exists in the array
-        if (instituteId) {
-            match.instituteIds = { $oid: instituteId };
         }
 
         // Filter by metadata.classId or metadata.groupId
@@ -183,6 +216,11 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
     try {
+        const session = await getServerSession();
+        if (!session) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await req.json();
         let { name, email, password, role, instituteIds, metadata, phone, faceDescriptor } = body; // Destructure phone and faceDescriptor
 
@@ -415,6 +453,11 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
     try {
+        const session = await getServerSession();
+        if (!session) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
         const body = await req.json();
         const { id, email, password, role, name, metadata, phone, faceDescriptor } = body;
 
@@ -448,6 +491,11 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
     try {
+        const session = await getServerSession();
+        if (!session) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
 

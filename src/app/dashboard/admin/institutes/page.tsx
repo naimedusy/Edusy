@@ -20,17 +20,21 @@ import {
     Clock,
     Plus,
     Save,
+    Edit3,
     Type
 } from 'lucide-react';
 import { useUI } from '@/components/UIProvider';
+import { useSession } from '@/components/SessionProvider';
 
 export default function GlobalInstituteList() {
     const { alert } = useUI();
+    const { user, activeRole } = useSession();
     const [institutes, setInstitutes] = useState<any[]>([]);
     const [admins, setAdmins] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [selectedInst, setSelectedInst] = useState<any>(null);
+    const [editingInst, setEditingInst] = useState<any>(null);
 
     // Add Institute Modal State
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -47,11 +51,17 @@ export default function GlobalInstituteList() {
     const fetchInstitutes = async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/admin/institutes');
+            const res = await fetch(`/api/admin/institutes?role=${activeRole || ''}&t=${Date.now()}`);
             const data = await res.json();
-            setInstitutes(data);
+            if (Array.isArray(data)) {
+                setInstitutes(data);
+            } else {
+                console.error('Expected array from institutes API, got:', data);
+                setInstitutes([]);
+            }
         } catch (error) {
             console.error('Fetch institutes error:', error);
+            setInstitutes([]);
         } finally {
             setLoading(false);
         }
@@ -61,34 +71,60 @@ export default function GlobalInstituteList() {
         try {
             const res = await fetch('/api/admin/users?role=ADMIN');
             const data = await res.json();
-            setAdmins(data);
+            if (Array.isArray(data)) {
+                setAdmins(data);
+            } else {
+                console.error('Expected array from admins API, got:', data);
+                setAdmins([]);
+            }
         } catch (error) {
             console.error('Fetch admins error:', error);
+            setAdmins([]);
         }
     };
 
     useEffect(() => {
         fetchInstitutes();
         fetchAdmins();
-    }, []);
+    }, [activeRole]);
 
-    const handleCreateInstitute = async (e: React.FormEvent) => {
+    useEffect(() => {
+        if (editingInst) {
+            setNewInst({
+                name: editingInst.name || '',
+                type: editingInst.type || '',
+                address: editingInst.address || '',
+                phone: editingInst.phone || '',
+                website: editingInst.website || '',
+                userId: '' // UserId is usually not changed during edit or handled differently
+            });
+        }
+    }, [editingInst]);
+
+    const handleSaveInstitute = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newInst.name || !newInst.userId) {
+        if (!newInst.name || (!editingInst && !newInst.userId)) {
             await alert('প্রতিষ্ঠানের নাম এবং অ্যাডমিন নির্বাচন করুন।');
             return;
         }
 
         setCreateLoading(true);
         try {
-            const res = await fetch('/api/institute', {
-                method: 'POST',
+            const url = editingInst 
+                ? `/api/admin/institutes?id=${editingInst.id}`
+                : '/api/institute';
+            
+            const method = editingInst ? 'PATCH' : 'POST';
+
+            const res = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(newInst),
             });
 
             if (res.ok) {
                 setIsAddModalOpen(false);
+                setEditingInst(null);
                 setNewInst({ name: '', type: '', address: '', phone: '', website: '', userId: '' });
                 fetchInstitutes();
             } else {
@@ -96,8 +132,8 @@ export default function GlobalInstituteList() {
                 await alert(error.message || 'সেভ করতে সমস্যা হয়েছে।');
             }
         } catch (error) {
-            console.error('Create institute error:', error);
-            await alert('সার্ভার এরর হয়েছে।');
+            console.error('Save institute error:', error);
+            await alert('সার্ভার এর সাথে সংযোগ বিচ্ছিন্ন হয়েছে।');
         } finally {
             setCreateLoading(false);
         }
@@ -126,13 +162,18 @@ export default function GlobalInstituteList() {
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <button
-                        onClick={() => setIsAddModalOpen(true)}
-                        className="px-6 py-3.5 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-xl shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 text-sm uppercase tracking-wider"
-                    >
-                        <Plus size={18} />
-                        নতুন প্রতিষ্ঠান
-                    </button>
+                    {(activeRole === 'SUPER_ADMIN' || activeRole === 'ADMIN') && (
+                        <button
+                            onClick={() => {
+                                setEditingInst(null);
+                                setIsAddModalOpen(true);
+                            }}
+                            className="px-6 py-3.5 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-xl shadow-blue-100 transition-all active:scale-95 flex items-center gap-2 text-sm uppercase tracking-wider"
+                        >
+                            <Plus size={18} />
+                            নতুন প্রতিষ্ঠান
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -221,14 +262,14 @@ export default function GlobalInstituteList() {
                                 <div className="p-3 bg-blue-50 text-[#045c84] rounded-2xl">
                                     <Building2 size={28} />
                                 </div>
-                                <h2 className="text-3xl font-black text-slate-800 tracking-tight">নতুন প্রতিষ্ঠান যুক্ত করুন</h2>
+                                <h2 className="text-3xl font-black text-slate-800 tracking-tight">{editingInst ? 'তথ্য পরিবর্তন করুন' : 'নতুন প্রতিষ্ঠান যুক্ত করুন'}</h2>
                             </div>
-                            <button onClick={() => setIsAddModalOpen(false)} className="p-2 hover:bg-slate-200/50 rounded-full transition-all text-slate-400">
+                            <button onClick={() => { setIsAddModalOpen(false); setEditingInst(null); }} className="p-2 hover:bg-slate-200/50 rounded-full transition-all text-slate-400">
                                 <X size={24} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateInstitute} className="p-8 space-y-6">
+                        <form onSubmit={handleSaveInstitute} className="p-8 space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                 <div className="space-y-1.5 md:col-span-2">
                                     <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1">প্রতিষ্ঠানের নাম</label>
@@ -244,10 +285,9 @@ export default function GlobalInstituteList() {
                                 <div className="space-y-1.5">
                                     <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1">প্রতিষ্ঠানের ধরন</label>
                                     <div className="relative">
-                                        <Type size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
                                         <input
-                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#045c84] transition-all outline-none font-bold text-slate-800 shadow-sm"
-                                            placeholder="মাদ্রাসা / স্কুল"
+                                            className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#045c84] focus:ring-4 focus:ring-[#045c84]/5 transition-all outline-none font-bold text-slate-800 shadow-sm"
+                                            placeholder="উদা: স্কুল / কলেজ"
                                             value={newInst.type}
                                             onChange={e => setNewInst({ ...newInst, type: e.target.value })}
                                         />
@@ -255,34 +295,41 @@ export default function GlobalInstituteList() {
                                 </div>
 
                                 <div className="space-y-1.5">
-                                    <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1">ফোন নাম্বার</label>
-                                    <div className="relative">
-                                        <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                                        <input
-                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#045c84] transition-all outline-none font-bold text-slate-800 shadow-sm"
-                                            placeholder="০১৭১X-XXXXXX"
-                                            value={newInst.phone}
-                                            onChange={e => setNewInst({ ...newInst, phone: e.target.value })}
-                                        />
-                                    </div>
+                                    <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1">ফোন নম্বর</label>
+                                    <input
+                                        className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#045c84] focus:ring-4 focus:ring-[#045c84]/5 transition-all outline-none font-bold text-slate-800 shadow-sm"
+                                        placeholder="উদা: +৮৮০১..."
+                                        value={newInst.phone}
+                                        onChange={e => setNewInst({ ...newInst, phone: e.target.value })}
+                                    />
                                 </div>
 
-                                <div className="space-y-1.5 md:col-span-2">
-                                    <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1">অ্যাডমিন নির্বাচন করুন</label>
-                                    <div className="relative">
-                                        <Shield size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#045c84]" />
+                                {!editingInst && (
+                                    <div className="space-y-1.5 md:col-span-2">
+                                        <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1">অ্যাডমিন নির্বাচন করুন</label>
                                         <select
                                             required
-                                            className="w-full pl-12 pr-10 py-4 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#045c84] transition-all outline-none font-bold text-slate-800 appearance-none shadow-sm cursor-pointer"
+                                            className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#045c84] focus:ring-4 focus:ring-[#045c84]/5 transition-all outline-none font-bold text-slate-800 shadow-sm appearance-none cursor-pointer"
                                             value={newInst.userId}
                                             onChange={e => setNewInst({ ...newInst, userId: e.target.value })}
                                         >
-                                            <option value="">অ্যাডমিন সিলেক্ট করুন...</option>
+                                            <option value="">নির্বাচন করুন</option>
                                             {admins.map(admin => (
                                                 <option key={admin.id} value={admin.id}>{admin.name} ({admin.email})</option>
                                             ))}
                                         </select>
                                     </div>
+                                )}
+
+                                <div className="space-y-1.5 md:col-span-2">
+                                    <label className="text-sm font-black text-slate-500 uppercase tracking-widest ml-1">ঠিকানা</label>
+                                    <textarea
+                                        className="w-full px-5 py-4 bg-slate-50 border border-transparent rounded-2xl focus:bg-white focus:border-[#045c84] focus:ring-4 focus:ring-[#045c84]/5 transition-all outline-none font-bold text-slate-800 shadow-sm resize-none"
+                                        rows={2}
+                                        placeholder="পুরো ঠিকানা এখানে লিখুন"
+                                        value={newInst.address}
+                                        onChange={e => setNewInst({ ...newInst, address: e.target.value })}
+                                    />
                                 </div>
                             </div>
 
@@ -291,8 +338,8 @@ export default function GlobalInstituteList() {
                                 disabled={createLoading}
                                 className="w-full py-4 bg-[#045c84] hover:bg-[#034d6e] text-white font-black rounded-2xl shadow-xl shadow-blue-100 transition-all uppercase tracking-[0.2em] text-sm flex items-center justify-center gap-2 group"
                             >
-                                {createLoading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
-                                প্রতিষ্ঠান সেভ করুন
+                                {createLoading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin"></div> : <Save size={18} className="group-hover:scale-110 transition-transform" />}
+                                {editingInst ? 'তথ্য আপডেট করুন' : 'প্রতিষ্ঠান সংরক্ষণ করুন'}
                             </button>
                         </form>
                     </div>
@@ -440,9 +487,23 @@ export default function GlobalInstituteList() {
                                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-sm shadow-emerald-500/50"></div>
                                 <span className="text-xs font-black uppercase tracking-widest text-slate-500">স্ট্যাটাস: সক্রিয়</span>
                             </div>
-                            <button className="px-8 py-4 bg-[#045c84] text-white font-black rounded-2xl text-sm uppercase tracking-[0.2em] shadow-lg shadow-blue-100 hover:shadow-xl hover:bg-[#034d6e] transition-all active:scale-95">
-                                ডাটাবেস এক্সেস করুন
-                            </button>
+                            <div className="flex items-center gap-3">
+                                { (activeRole === 'SUPER_ADMIN' || selectedInst.adminIds?.some((a: any) => (a.$oid || a) === user?.id)) && (
+                                    <button 
+                                        onClick={() => {
+                                            setEditingInst(selectedInst);
+                                            setIsAddModalOpen(true);
+                                        }}
+                                        className="px-6 py-4 bg-slate-200 text-slate-800 font-black rounded-2xl text-sm uppercase tracking-widest hover:bg-slate-300 transition-all active:scale-95 flex items-center gap-2"
+                                    >
+                                        <Edit3 size={18} />
+                                        এডিট করুন
+                                    </button>
+                                )}
+                                <button className="px-8 py-4 bg-[#045c84] text-white font-black rounded-2xl text-sm uppercase tracking-[0.2em] shadow-lg shadow-blue-100 hover:shadow-xl hover:bg-[#034d6e] transition-all active:scale-95">
+                                    ডাটাবেas এক্সেস করুন
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>,

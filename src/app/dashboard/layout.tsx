@@ -100,7 +100,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { name: 'নোটিশ', icon: Megaphone, href: '/dashboard/notices', section: 'একাডেমিক' },
 
         // ব্যবস্থাপনা
-        { name: 'প্রতিষ্ঠান', icon: Building2, href: '/dashboard/admin/institutes', roles: ['ADMIN', 'SUPER_ADMIN'], section: 'ব্যবস্থাপনা' },
+        { name: 'প্রতিষ্ঠান', icon: Building2, href: activeRole === 'SUPER_ADMIN' ? '/dashboard/admin/institutes' : '/dashboard/institute', roles: ['ADMIN', 'SUPER_ADMIN', 'TEACHER'], section: 'ব্যবস্থাপনা' },
         { name: 'শিক্ষক', icon: GraduationCap, href: '/dashboard/teachers', roles: ['ADMIN', 'SUPER_ADMIN'], section: 'ব্যবস্থাপনা' },
         { name: 'অভিভাবক', icon: HeartPulse, href: '/dashboard/guardians', roles: ['ADMIN', 'SUPER_ADMIN'], section: 'ব্যবস্থাপনা' },
         { name: 'ইউজার ডাটাবেস', icon: Users, href: '/dashboard/admin/users', roles: ['ADMIN', 'SUPER_ADMIN'], section: 'ব্যবস্থাপনা' },

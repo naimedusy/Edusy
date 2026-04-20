@@ -19,9 +19,11 @@ import {
 } from 'lucide-react';
 import Modal from '@/components/Modal';
 import { useUI } from '@/components/UIProvider';
+import { useSession } from '@/components/SessionProvider';
 
 export default function GlobalUserManagement() {
     const { confirm } = useUI();
+    const { activeRole } = useSession();
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -41,22 +43,34 @@ export default function GlobalUserManagement() {
 
     const fetchInstitutes = async () => {
         try {
-            const res = await fetch('/api/admin/institutes');
+            const res = await fetch(`/api/admin/institutes?role=${activeRole || ''}`);
             const data = await res.json();
-            setInstitutes(data);
+            if (Array.isArray(data)) {
+                setInstitutes(data);
+            } else {
+                console.error('Expected array from institutes API, got:', data);
+                setInstitutes([]);
+            }
         } catch (error) {
             console.error('Fetch institutes error:', error);
+            setInstitutes([]);
         }
     };
 
     const fetchUsers = async () => {
         setLoading(true);
         try {
-            const res = await fetch(`/api/admin/users?search=${search}`);
+            const res = await fetch(`/api/admin/users?search=${search}&activeRole=${activeRole || ''}`);
             const data = await res.json();
-            setUsers(data);
+            if (Array.isArray(data)) {
+                setUsers(data);
+            } else {
+                console.error('Expected array from users API, got:', data);
+                setUsers([]);
+            }
         } catch (error) {
             console.error('Fetch users error:', error);
+            setUsers([]);
         } finally {
             setLoading(false);
         }
@@ -64,14 +78,14 @@ export default function GlobalUserManagement() {
 
     useEffect(() => {
         fetchInstitutes();
-    }, []);
+    }, [activeRole]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchUsers();
         }, 500);
         return () => clearTimeout(timer);
-    }, [search]);
+    }, [search, activeRole]);
 
     const handleCreateUser = async (e: React.FormEvent) => {
         e.preventDefault();

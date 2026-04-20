@@ -1,54 +1,82 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/utils/db';
+import { getServerSession } from '@/utils/auth-utils';
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+export async function GET(req: Request) {
+    const rawCookies = req.headers.get('cookie');
+    console.log('--- GET /api/admin/institutes ---');
+    console.log('RAW COOKIES:', rawCookies);
+
     try {
+        const { searchParams } = new URL(req.url);
+        const roleQuery = searchParams.get('role');
+        
+        const session = await getServerSession();
+        
+        if (!session) {
+            console.log('SESSION CHECK FAILED: getServerSession returned null');
+            return new Response(JSON.stringify({ 
+                message: 'Unauthorized', 
+                debug: 'Session not found. Please log out and back in.',
+                hasCookies: !!rawCookies 
+            }), {
+                status: 401,
+                headers: { 'Content-Type': 'application/json' }
+            });
+        }
+
+        const { id: userId, role: baseRole, instituteIds, teacherProfiles } = session.user as any;
+        const activeRole = roleQuery || baseRole;
+
+        const filter: any = {};
+
+        // Role-based filtering:
+        // Only skip filtering if the user is a SUPER_ADMIN AND they are actively in SUPER_ADMIN mode.
+        if (baseRole !== 'SUPER_ADMIN' || activeRole !== 'SUPER_ADMIN') {
+            const managedInstIds = (instituteIds || []).filter((id: any) => typeof id === 'string' && id.length === 24);
+            const joinedInstIds = (teacherProfiles || [])
+                .filter((p: any) => p.status === 'ACTIVE' && p.instituteId)
+                .map((p: any) => p.instituteId)
+                .filter((id: any) => typeof id === 'string' && id.length === 24);
+            
+            const allAllowedInstIds = Array.from(new Set([...managedInstIds, ...joinedInstIds]));
+
+            // Build a robust $or filter that handles BOTH ObjectId and String formats
+            const orConditions: any[] = [
+                { adminIds: { $oid: userId } },
+                { adminIds: userId }
+            ];
+
+            if (allAllowedInstIds.length > 0) {
+                // ...
+                orConditions.push({
+                    _id: { $in: allAllowedInstIds.map(id => ({ $oid: id })) }
+                });
+                orConditions.push({
+                    _id: { $in: allAllowedInstIds }
+                });
+            }
+            
+            filter.$or = orConditions;
+        }
+
         // Use raw MongoDB to bypass Prisma client sync issues
         const institutesRaw = await (prisma as any).$runCommandRaw({
             find: 'Institute',
-            filter: {},
+            filter: filter,
             sort: { createdAt: -1 }
         });
-
-        const firstBatchRaw = institutesRaw.cursor?.firstBatch || [];
+        
+        const firstBatchRaw = (institutesRaw as any).cursor?.firstBatch || (institutesRaw as any).firstBatch || [];
 
         const firstBatch = firstBatchRaw.map((inst: any) => ({
             ...inst,
             id: inst._id?.$oid || inst._id?.toString()
         }));
 
-        const instituteIdObjects = firstBatch.map((inst: any) => inst._id);
-
-        // Fetch counts for TEACHER and STUDENT roles per institute using aggregation
-        const userStatsRaw = await (prisma as any).$runCommandRaw({
-            aggregate: 'User',
-            pipeline: [
-                { $unwind: '$instituteIds' },
-                {
-                    $match: {
-                        instituteIds: { $in: instituteIdObjects },
-                        role: { $in: ['TEACHER', 'STUDENT'] }
-                    }
-                },
-                {
-                    $group: {
-                        _id: { instituteId: '$instituteIds', role: '$role' },
-                        count: { $sum: 1 }
-                    }
-                }
-            ],
-            cursor: {}
-        });
-
         const statsMap: Record<string, { teachers: number; students: number }> = {};
-        (userStatsRaw.cursor?.firstBatch || []).forEach((stat: any) => {
-            const instId = stat._id.instituteId?.$oid || stat._id.instituteId?.toString();
-            const role = stat._id.role;
-            if (!statsMap[instId]) statsMap[instId] = { teachers: 0, students: 0 };
-
-            if (role === 'TEACHER') statsMap[instId].teachers = stat.count;
-            if (role === 'STUDENT') statsMap[instId].students = stat.count;
-        });
 
         // Fetch all unique admin IDs across all institutes
         const allAdminIdStrings = Array.from(new Set(
@@ -70,7 +98,7 @@ export async function GET() {
                 projection: { _id: 1, name: 1, email: 1, role: 1 }
             });
 
-            (usersRaw.cursor?.firstBatch || []).forEach((user: any) => {
+            ((usersRaw as any).cursor?.firstBatch || []).forEach((user: any) => {
                 const id = user._id?.$oid || user._id?.toString();
                 adminDetailsMap[id] = {
                     id: id,
@@ -81,7 +109,7 @@ export async function GET() {
             });
         }
 
-        const institutes = firstBatch.map((inst: any, index: number) => {
+        const institutes = firstBatch.map((inst: any) => {
             const instId = inst.id;
             const currentInstAdminIdStrings = (inst.adminIds || []).map((id: any) => id?.$oid || id?.toString());
             const instAdmins = currentInstAdminIdStrings
@@ -116,15 +144,32 @@ export async function GET() {
             };
         });
 
-        return NextResponse.json(institutes);
-    } catch (error) {
-        console.error('Admin Institutes API Error:', error);
-        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+        console.log('--- GET /api/admin/institutes SUCCESS --- Final Institutes Length:', institutes.length);
+        
+        return new Response(JSON.stringify(institutes), {
+            status: 200,
+            headers: { 
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-store, max-age=0'
+            }
+        });
+    } catch (error: any) {
+        console.error('CRITICAL: Admin Institutes API Error:', error);
+        return new Response(JSON.stringify({ message: 'Internal server error', error: error.message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
 
 export async function PATCH(req: Request) {
     try {
+        const session = await getServerSession();
+        if (!session) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { id: userId, role } = session.user as any;
         const { searchParams } = new URL(req.url);
         const id = searchParams.get('id');
         const body = await req.json();
@@ -132,6 +177,23 @@ export async function PATCH(req: Request) {
 
         if (!id) {
             return NextResponse.json({ message: 'Institute ID is required' }, { status: 400 });
+        }
+
+        // Authorization check
+        if (role !== 'SUPER_ADMIN') {
+            // Check if user is an admin of this specific institute
+            const instituteRaw = await (prisma as any).$runCommandRaw({
+                find: 'Institute',
+                filter: {
+                    _id: { $oid: id },
+                    adminIds: { $oid: userId }
+                }
+            });
+
+            const exists = (instituteRaw.cursor?.firstBatch || []).length > 0;
+            if (!exists) {
+                return NextResponse.json({ message: 'Forbidden: You do not have permission to edit this institute' }, { status: 403 });
+            }
         }
 
         const updated = await (prisma as any).institute.update({

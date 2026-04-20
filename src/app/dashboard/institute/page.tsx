@@ -200,7 +200,7 @@ export default function MultiInstitutePage() {
         }
     };
 
-    if (activeRole !== 'ADMIN' && activeRole !== 'SUPER_ADMIN') {
+    if (activeRole !== 'ADMIN' && activeRole !== 'SUPER_ADMIN' && activeRole !== 'TEACHER') {
         return (
             <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-500">
                 <Building2 size={64} className="mb-4 opacity-20" />
