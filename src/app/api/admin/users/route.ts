@@ -135,7 +135,7 @@ export async function GET(req: Request) {
         const usersRaw = await (prisma as any).$runCommandRaw({
             aggregate: 'User',
             pipeline,
-            cursor: {}
+            cursor: { batchSize: 5000 }
         });
 
         const users = (usersRaw.cursor?.firstBatch || []).map((user: any) => ({

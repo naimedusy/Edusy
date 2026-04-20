@@ -103,7 +103,7 @@ export default function AttendanceDashboard() {
         <div className="min-h-screen bg-[#f8fafc] font-bengali">
             {/* Ultra-Compact Header */}
             <div className="bg-white border-b border-slate-200 sticky top-0 z-30 px-4 md:px-6 py-2 shadow-sm">
-                <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+                <div className="max-w-[1640px] mx-auto flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                         <div className="w-9 h-9 bg-[#045c84] rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-900/10 shrink-0">
                             <Building2 size={18} />
@@ -150,7 +150,7 @@ export default function AttendanceDashboard() {
 
             {/* Class Tabs - Horizontal Scrolling */}
             <div className="bg-white border-b border-slate-200 relative group overflow-hidden">
-                <div className="max-w-7xl mx-auto px-4 py-3 relative">
+                <div className="max-w-[1640px] mx-auto px-4 py-3 relative">
                     <button
                         onClick={() => scroll('left')}
                         className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white border border-slate-100 shadow-md flex items-center justify-center text-slate-400 hover:text-slate-900 z-10 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -207,7 +207,7 @@ export default function AttendanceDashboard() {
             </div>
 
             {/* Main Content Area */}
-            <div className="max-w-7xl mx-auto px-3 py-6 sm:px-6">
+            <div className="max-w-[1640px] mx-auto px-3 py-6 sm:px-6">
                 <AnimatePresence mode="wait">
                     {activeMode === 'MANUAL' && (
                         <motion.div

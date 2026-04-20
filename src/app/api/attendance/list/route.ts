@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
                 pipeline: [
                     { $match: filter }
                 ],
-                cursor: {}
+                cursor: { batchSize: 5000 }
             });
         } catch (rawError: any) {
             console.error('Raw MongoDB command (Attendance) failed:', rawError);
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
                     pipeline: [
                         { $match: filter }
                     ],
-                    cursor: {}
+                    cursor: { batchSize: 5000 }
                 });
             } catch (secondError: any) {
                 console.error('Fallback raw command (attendance) also failed:', secondError);

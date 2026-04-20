@@ -163,7 +163,7 @@ export default function FRSAttendanceScanner({ classId: propClassId, selectedDat
     };
 
     const fetchEnrolledStudents = async (forcedClassId?: string) => {
-        if (!activeInstitute) return;
+        if (!activeInstitute?.id) return;
         const targetClassId = forcedClassId !== undefined ? forcedClassId : selectedClassId;
 
         setStatus('LOADING_STUDENTS');

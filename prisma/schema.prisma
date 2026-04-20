@@ -340,6 +340,7 @@ enum AttendanceStatus {
   ABSENT
   LATE
   LEAVE
+  LEAVE_PENDING
 }
 
 enum AttendanceMethod {

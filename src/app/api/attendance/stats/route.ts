@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
                     }
                 }
             ],
-            cursor: {}
+            cursor: { batchSize: 5000 }
         });
 
         const stats = result.cursor?.firstBatch || [];

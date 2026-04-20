@@ -1,8 +1,6 @@
 $filePath = "f:\Edusy User flow\Edusy app\src\app\dashboard\accounts\page.tsx"
-$content = Get-Content -Path $filePath -Raw -Encoding UTF8
 
 $startMarker = "        // MODAL_START_MARKER"
-$endMarker = "    );"
 
 # I need to find the specific range. 
 # Since I know the lines approximately (565 to 1108).
@@ -594,7 +592,7 @@ function AddCategoryModal({ onClose, initialData, onSave }: { onClose: () => voi
 $lines = Get-Content -Path $filePath
 $markerLine = -1
 for ($i = 0; $i -lt $lines.Count; $i++) {
-    if ($lines[$i] -match "// MODAL_START_MARKER") {
+    if ($lines[$i] -match [regex]::Escape($startMarker)) {
         $markerLine = $i
         break
     }
