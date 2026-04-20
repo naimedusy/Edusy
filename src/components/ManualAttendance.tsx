@@ -347,7 +347,7 @@ export default function ManualAttendance({ classId, selectedDate }: { classId: s
                         { id: 'PRESENT', label: 'উপস্থিত', count: students.filter(s => s.attendance === 'PRESENT').length, color: 'emerald', activeBg: 'bg-emerald-500', activeText: 'text-white' },
                         { id: 'ABSENT', label: 'অনুপস্থিত', count: students.filter(s => s.attendance === 'ABSENT').length, color: 'rose', activeBg: 'bg-rose-500', activeText: 'text-white' },
                         { id: 'LEAVE', label: 'ছুটি', count: students.filter(s => s.attendance === 'LEAVE').length, color: 'blue', activeBg: 'bg-blue-500', activeText: 'text-white' },
-                        ...(isAdmin ? [{ id: 'LEAVE_PENDING', label: 'অপেক্ষমান', count: students.filter(s => s.attendance === 'LEAVE_PENDING').length, color: 'amber', activeBg: 'bg-amber-500', activeText: 'text-white' }] : [])
+                        { id: 'LEAVE_PENDING', label: 'অপেক্ষমান', count: students.filter(s => s.attendance === 'LEAVE_PENDING').length, color: 'amber', activeBg: 'bg-amber-500', activeText: 'text-white' }
                     ].map((tab) => (
                         <button
                             key={tab.id}
@@ -578,7 +578,7 @@ export default function ManualAttendance({ classId, selectedDate }: { classId: s
                                                 ) : (
                                                     <button
                                                         onClick={() => updateStatus(student.id, getStatusConfig(status).next as any)}
-                                                        disabled={!isAdmin && status === 'LEAVE_PENDING'}
+                                                        disabled={!isAdmin && status === 'LEAVE_PENDING' && student.initialAttendance === 'LEAVE_PENDING'}
                                                         className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 ${status === 'PRESENT' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/10 ring-4 ring-emerald-500/5' :
                                                             status === 'ABSENT' ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/10 ring-4 ring-rose-500/5' :
                                                                 status === 'LEAVE' ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/10 ring-4 blue-500/5' :
