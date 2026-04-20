@@ -193,8 +193,8 @@ export default function ManualAttendance({ classId, selectedDate }: { classId: s
         setStudents(prev => prev.map(s => {
             let finalStatus = status === 'RESET' ? s.initialAttendance : status;
             
-            // Redirect LEAVE to LEAVE_PENDING for teachers even in bulk actions
-            if (isTeacher && finalStatus === 'LEAVE') {
+            // Redirect LEAVE to LEAVE_PENDING for everyone initially, so it must be approved
+            if (finalStatus === 'LEAVE') {
                 finalStatus = 'LEAVE_PENDING';
             }
 
@@ -432,7 +432,7 @@ export default function ManualAttendance({ classId, selectedDate }: { classId: s
                                 const getStatusConfig = (s: string | undefined) => {
                                     switch (s) {
                                         case 'ABSENT': return { next: 'PRESENT', label: 'অনুপস্থিত', color: 'rose', icon: X };
-                                        case 'PRESENT': return { next: isTeacher ? 'LEAVE_PENDING' : 'LEAVE', label: 'উপস্থিত', color: 'emerald', icon: Check };
+                                        case 'PRESENT': return { next: 'LEAVE_PENDING', label: 'উপস্থিত', color: 'emerald', icon: Check };
                                         case 'LEAVE': return { next: 'ABSENT', label: 'ছুটী', color: 'blue', icon: Square };
                                         case 'LEAVE_PENDING': return { next: 'ABSENT', label: 'ছুটীর আবেদন', color: 'amber', icon: Clock8 };
                                         default: return { next: 'PRESENT', label: '---', color: 'slate', icon: Minus };
